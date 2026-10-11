@@ -44,6 +44,8 @@ Definitions: **native** = public documented API attribute; **free-text** = accep
 | Kokoro-82M | Fast preset voices | Specific built-in voice choices, not an arbitrary regional accent-design API | None | Not via official current app adapter | Apache-2.0 metadata | High preset limitation |
 | VibeVoice 1.5B | Multi-speaker conversation with supplied speaker audio | No current dedicated region/intensity design control in app | None | Yes, as multi-speaker conditioning | Current repo registry labels research-only; upstream Microsoft VibeVoice card advises research rather than commercial/real-world use; **model identity/source differs from Microsoft's card: verify lineage** | Medium; exclude from initial accent design |
 
+**Mode compatibility question:** The current VoxCPM2 worker can prepend a style description while also supplying reference audio plus transcript, but the upstream VoxCPM CLI treats control instruction and prompt-text continuation as mutually exclusive. This is an **unresolved adapter semantics question** requiring isolated runtime tests, not an established defect or a reason to promise accent-preserving styled continuation. Sources: [local VoxCPM worker](../engines/voxcpm/voxcpm_worker.py), [upstream CLI validation](https://github.com/OpenBMB/VoxCPM/blob/main/src/voxcpm/cli.py).
+
 **Special case:** OmniVoice may synthesize many languages, but documented *design attributes* cover English accent enums and Chinese dialect enums specifically. Multilingual synthesis support does not imply free-form accented voice design in every language.
 
 **Special case:** A French-accented English speaker is not the same task as synthesis in French with a metropolitan or Quebec French regional variety.
