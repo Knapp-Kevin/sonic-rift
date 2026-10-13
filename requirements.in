@@ -3,3 +3,4 @@ chatterbox-tts @ git+https://github.com/resemble-ai/chatterbox.git@master
 nltk
 setuptools<81.0.0 
 peft
+pyloudnorm

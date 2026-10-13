@@ -83,3 +83,6 @@ google_auth.json
 # Isolated RVC feasibility environment/source checkout
 /engines/rvc/upstream/
 /engines/rvc/requirements-this-voice-thing.txt
+
+# Audio Studio: kept sounds and their masters (user data)
+sound_library/

@@ -30,18 +30,20 @@ def venv_python(name):
                         "python.exe" if os.name == "nt" else "python")
 
 
-def install_env(name, package_steps, log=print):
+def install_env(name, package_steps, log=print, python_version="3.11", torch_packages=None):
     """Create engines/<name>/.venv with CUDA PyTorch, then install each step's packages.
 
-    PyTorch comes from the uv cache when another engine already downloaded it.
+    PyTorch comes from the uv cache when another engine already downloaded it. Engines
+    whose upstream pins a different torch or Python pass their own.
     """
     uv = shutil.which("uv")
     if not uv:
         raise RuntimeError(f"uv was not found on PATH; it is needed to install the {name} engine.")
     os.makedirs(engine_dir(name), exist_ok=True)
     python = venv_python(name)
-    steps = [[uv, "venv", os.path.join(engine_dir(name), ".venv"), "--python", "3.11", "--clear"],
-             [uv, "pip", "install", "--python", python, *TORCH_PACKAGES, "--index-url", TORCH_INDEX]]
+    steps = [[uv, "venv", os.path.join(engine_dir(name), ".venv"), "--python", python_version, "--clear"],
+             [uv, "pip", "install", "--python", python, *(torch_packages or TORCH_PACKAGES),
+              "--index-url", TORCH_INDEX]]
     steps += [[uv, "pip", "install", "--python", python, *packages] for packages in package_steps]
     for command in steps:
         log("Running: " + " ".join(command[1:5]) + " ...")
@@ -56,13 +58,13 @@ def install_env(name, package_steps, log=print):
 class WorkerProcess:
     """One long-lived worker process; requests are serialised with a lock."""
 
-    def __init__(self, python, script, tag, log=print, skip=None):
-        """skip(line) -> True hides a noisy stderr line from the Log page."""
+    def __init__(self, python, script, tag, log=print, skip=None, env=None):
+        """skip(line) -> True hides a noisy stderr line from the Log page; env adds variables."""
         self.tag = tag
         self.log = log
         self.skip = skip or (lambda _line: False)
         self.lock = threading.Lock()
-        env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8")
+        env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8", **(env or {}))
         self.process = subprocess.Popen(
             [python, script], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, text=True, encoding="utf-8", bufsize=1, env=env,
