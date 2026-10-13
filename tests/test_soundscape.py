@@ -60,6 +60,16 @@ class MasteringTests(unittest.TestCase):
         self.assertLessEqual(mastering.true_peak_db(out), mastering.TRUE_PEAK_CEILING_DB + 0.05)
         self.assertLess(mastering.integrated_lufs(out, SR), -6.0)
 
+    def test_a_lone_transient_does_not_pull_the_clip_below_target(self):
+        x = procedural.generate("rain", seconds=20, seed=3)
+        x[SR * 10: SR * 10 + 200] *= 5.0           # one click, ~5 dB over the ceiling once at target
+        out = mastering.normalize(x, SR, -20.0)
+        self.assertAlmostEqual(mastering.integrated_lufs(out, SR), -20.0, delta=0.5)
+        self.assertLessEqual(mastering.true_peak_db(out), mastering.TRUE_PEAK_CEILING_DB + 0.05)
+        # the limiter only touches the neighbourhood of the click
+        gain = 10 ** ((-20.0 - mastering.integrated_lufs(x, SR)) / 20)
+        np.testing.assert_allclose(out[: SR * 9], x[: SR * 9] * gain, rtol=1e-4, atol=1e-6)
+
     def test_one_shot_is_peak_normalized(self):
         x = procedural.generate("ui_success", seed=0)
         out = mastering.normalize(x, SR, procedural.PRESETS["ui_success"].target_lufs)

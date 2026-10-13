@@ -38,15 +38,52 @@ def true_peak_db(x):
     return float(20 * np.log10(np.max(np.abs(up)) + 1e-12))
 
 
+MAX_LIMITING_DB = 6.0   # more than this audibly squashes ambience; trim the whole clip instead
+
+
+def limit(x, sr, ceiling_db, lookahead_ms=5.0, release_ms=120.0):
+    """Look-ahead peak limiter: pulls short peaks down to `ceiling_db` (sample peak) with
+    a smooth gain curve, leaving everything below the ceiling untouched."""
+    x = as_stereo(x)
+    ceiling = 10 ** (ceiling_db / 20)
+    peak = np.max(np.abs(x), axis=1)
+    need = np.minimum(1.0, ceiling / np.maximum(peak, 1e-12))       # gain each sample needs
+    ahead = max(1, int(lookahead_ms / 1000 * sr))
+    # Start reducing `ahead` samples early (running minimum over the look-ahead window).
+    padded = np.concatenate([need, np.ones(ahead)])
+    windows = np.lib.stride_tricks.sliding_window_view(padded, ahead + 1)
+    target = windows.min(axis=1)[: len(need)]
+    # Instant attack, exponential release.
+    release = np.exp(-1.0 / (release_ms / 1000 * sr))
+    gain = np.empty_like(target)
+    level = 1.0
+    for i, value in enumerate(target):     # cheap enough: ~1 s per minute of audio
+        level = value if value < level else value + (level - value) * release
+        gain[i] = level
+    return (x * gain[:, None].astype(np.float32)).astype(np.float32)
+
+
 def normalize(x, sr, target_lufs, ceiling_db=TRUE_PEAK_CEILING_DB):
-    """Gain to `target_lufs`, then pulled down if the true peak would pass `ceiling_db`.
-    Short one-shots (no integrated loudness) are peak-normalized to the ceiling instead."""
+    """Gain to `target_lufs` with true peaks under `ceiling_db`.
+
+    Short peaks over the ceiling are limited (up to MAX_LIMITING_DB of reduction) so one
+    transient doesn't pull the whole clip below its loudness target; beyond that the
+    whole clip is turned down instead. Short one-shots (no integrated loudness) are
+    peak-normalized to the ceiling.
+    """
     x = as_stereo(x)
     loudness = integrated_lufs(x, sr)
-    if np.isfinite(loudness):
-        x = x * np.float32(10 ** ((target_lufs - loudness) / 20))
-    else:
+    if not np.isfinite(loudness):
         x = x / (np.max(np.abs(x)) + 1e-12)
+        return trim_to_ceiling(x, ceiling_db)
+    x = x * np.float32(10 ** ((target_lufs - loudness) / 20))
+    over = true_peak_db(x) - ceiling_db
+    if 0 < over <= MAX_LIMITING_DB:
+        x = limit(x, sr, ceiling_db - 0.3)           # sample-peak limiter; margin for true peak
+    return trim_to_ceiling(x, ceiling_db)
+
+
+def trim_to_ceiling(x, ceiling_db):
     peak = true_peak_db(x)
     if peak > ceiling_db:
         x = x * np.float32(10 ** ((ceiling_db - peak) / 20))
