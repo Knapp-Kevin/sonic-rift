@@ -61,11 +61,19 @@ def main():
                          num_inference_steps=int(req.get("steps", 100)),
                          cfg_scale=float(req.get("cfg_scale", 4.0)),
                          negative_prompt=req.get("negative_prompt", ""))
-        wav = audio[0].float().cpu().numpy().T          # (frames, channels)
+        wav = audio[0].float().cpu().numpy().T          # (frames, channels); DAC is mono
+        del audio
         sample_rate = int(pipe.sample_rate)
         sf.write(req["out_path"], wav, sample_rate, subtype="FLOAT")
+        memory = {}
+        if cuda:
+            memory = {"allocated_mb": torch.cuda.memory_allocated() // 2**20,
+                      "reserved_mb": torch.cuda.memory_reserved() // 2**20,
+                      "peak_mb": torch.cuda.max_memory_allocated() // 2**20}
+            torch.cuda.empty_cache()             # give the cache back between takes
+            torch.cuda.reset_peak_memory_stats()
         return {"path": req["out_path"], "sample_rate": sample_rate,
-                "seconds": round(len(wav) / sample_rate, 3)}
+                "seconds": round(len(wav) / sample_rate, 3), "memory": memory}
 
     reply(ok=True, event="ready", cuda=cuda, device=torch.cuda.get_device_name(0) if cuda else "cpu")
     for line in sys.stdin:

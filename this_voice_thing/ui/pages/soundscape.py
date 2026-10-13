@@ -298,7 +298,27 @@ class SoundscapePage:
                             f"Installing {engine.label} (several GB; progress on the Log page)...",
                             lambda _result: self.set_status_message(f"Status: {engine.label} installed."))
 
+    def free_gpu_for(self, engine):
+        """A big sound model and a loaded voice model don't fit on one 16 GB GPU together.
+        Returns False if the user would rather not start it."""
+        if engine.vram_gb < 8 or self.model is None or getattr(self, "device_used", "cpu") == "cpu":
+            return True
+        answer = QMessageBox.question(
+            self, engine.label,
+            f"{engine.label} needs about {engine.vram_gb:.0f} GB of GPU memory, and a voice model is "
+            "loaded. Unload the voice model first? (Reload it from the Model page afterwards.)\n\n"
+            "Starting alongside it can make each take many times slower.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
+        if answer == QMessageBox.StandardButton.Cancel:
+            return False
+        if answer == QMessageBox.StandardButton.Yes:
+            self.release_model()
+        return True
+
     def start_sound_engine(self, engine, then=None):
+        if not self.free_gpu_for(engine):
+            return
+
         def started(model):
             self.release_sound_model()
             self.sound_model = model

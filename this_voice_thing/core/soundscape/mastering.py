@@ -53,7 +53,10 @@ def normalize(x, sr, target_lufs, ceiling_db=TRUE_PEAK_CEILING_DB):
     return x.astype(np.float32)
 
 
-def make_loop(x, sr, crossfade_seconds=2.0):
+LOOP_FOLD_SECONDS = 2.0
+
+
+def make_loop(x, sr, crossfade_seconds=LOOP_FOLD_SECONDS):
     """Turn any clip into a seamless loop by folding its tail over its head.
 
     The result is `crossfade_seconds` shorter. Its last sample is followed (on wrap) by

@@ -56,7 +56,10 @@ def render(request, model=None, cancelled=lambda: False, progress=lambda _done, 
             if model is None:
                 raise RuntimeError(f"{engine.label} isn't running.")
             options = {"negative_prompt": request.negative_prompt} if request.negative_prompt else {}
-            audio, sample_rate = model.generate(request.prompt, request.seconds, seed=seed, **options)
+            # Folding a take into a loop shortens it; ask for that much more so the loop
+            # comes out at the requested length.
+            extra = getattr(model, "loop_padding_seconds", 0.0) if is_loop else 0.0
+            audio, sample_rate = model.generate(request.prompt, request.seconds + extra, seed=seed, **options)
             if is_loop:
                 audio, sample_rate = model.heal_loop(audio, sample_rate, request.prompt, seed=seed)
         audio = mastering.normalize(audio, sample_rate, target_lufs(request))

@@ -233,6 +233,12 @@ class RenderTests(unittest.TestCase):
                                                  candidates=1), model=model)
         self.assertIn("heal", [c[0] for c in model.calls])
         self.assertIn("seam", loop[0].metrics)
+        self.assertAlmostEqual(loop[0].metrics["seconds"], 12 - mastering.LOOP_FOLD_SECONDS, delta=0.01)
+        model.calls.clear()
+        model.loop_padding_seconds = mastering.LOOP_FOLD_SECONDS   # what a folding SoundModel sets
+        padded = render.render(render.SoundRequest(engine="moss_sfx_v2", prompt="rain", seconds=12,
+                                                   candidates=1), model=model)
+        self.assertAlmostEqual(padded[0].metrics["seconds"], 12.0, delta=0.01)
         model.calls.clear()
         render.render(render.SoundRequest(engine="moss_sfx_v2", prompt="door slam", seconds=3,
                                           loop=False, candidates=1), model=model)

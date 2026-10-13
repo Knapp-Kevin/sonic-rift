@@ -123,6 +123,7 @@ class SoundModel:
             self.worker.close()
             raise RuntimeError(explain_load_error(self.engine, str(exc))) from exc
         self._temp = tempfile.mkdtemp(prefix=f"{self.spec.directory}_")
+        self.loop_padding_seconds = 0.0 if self.spec.can_inpaint else mastering.LOOP_FOLD_SECONDS
         self._count = 0
 
     def _out_path(self):
