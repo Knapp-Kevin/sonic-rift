@@ -76,5 +76,19 @@ class LiveSessionStepTests(unittest.TestCase):
         self.assertIsNone(session.metrics()["native_timesteps"])
 
 
+
+class LiveSinkBufferTests(unittest.TestCase):
+    def test_native_streams_get_a_larger_start_buffer(self):
+        from this_voice_thing.ui.live_audio import LiveAudioOutput
+        from this_voice_thing.ui.pages import live_voice
+
+        native = live_voice.live_sink_kwargs("native")["start_buffer_seconds"]
+        self.assertGreater(native, LiveAudioOutput.START_BUFFER_SECONDS)
+        self.assertLessEqual(native, 0.4)  # first audio must stay within the 500 ms target
+        self.assertEqual(live_voice.live_sink_kwargs("segmented"), {})
+        self.assertEqual(live_voice.live_sink_kwargs("buffered"), {})
+        self.assertEqual(live_voice.live_sink_kwargs("microphone")["start_buffer_seconds"], 0.02)
+
+
 if __name__ == "__main__":
     unittest.main()

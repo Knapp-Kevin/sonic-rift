@@ -298,3 +298,63 @@ class LiveSpeechBackpressureTests(unittest.TestCase):
 def Qt_direct():
     from PySide6.QtCore import Qt
     return Qt.ConnectionType.DirectConnection
+
+
+class _RecordingIO:
+    def __init__(self):
+        self.written = 0
+
+    def write(self, chunk):
+        self.written += len(chunk)
+        return len(chunk)
+
+
+class _StartableSink(_ResidueSink):
+    def start(self):
+        self.io = _RecordingIO()
+        return self.io
+
+
+class LiveAudioOutputReuseTests(unittest.TestCase):
+    """A reused sink must give each new item the same start buffer as a fresh one."""
+
+    def _played_item(self):
+        output = LiveAudioOutput()
+        device = _NegotiatingDevice({(48000, 2)})
+        with patch("this_voice_thing.ui.live_audio.QAudioSink", _StartableSink):
+            output.configure(device, 48000, start_buffer_seconds=0.3)
+        output.push(b"\x00\x00" * 24000)  # 0.5 s: starts the sink
+        output.finish_input()
+        output._pending.clear()  # played out
+        return output, device
+
+    def test_drained_reused_sink_rebuffers_before_playing(self):
+        output, device = self._played_item()
+        io = output._sink.io
+        written = io.written
+        output.configure(device, 48000, start_buffer_seconds=0.3)  # sink reused, Idle
+        output.push(b"\x00\x00" * 4800)  # 0.1 s: below the start buffer
+        self.assertEqual(io.written, written)
+        self.assertTrue(output.is_playing())
+        output.push(b"\x00\x00" * 9600)  # 0.3 s in total
+        self.assertGreater(io.written, written)
+        output.stop()
+
+    def test_short_item_still_plays_when_input_finishes(self):
+        output, device = self._played_item()
+        written = output._sink.io.written
+        output.configure(device, 48000, start_buffer_seconds=0.3)
+        output.push(b"\x00\x00" * 2400)  # 0.05 s, the whole item
+        output.finish_input()
+        self.assertGreater(output._sink.io.written, written)
+        output.stop()
+
+    def test_back_to_back_items_are_not_held(self):
+        from PySide6.QtMultimedia import QAudio
+        output, device = self._played_item()
+        output._sink._state = QAudio.State.ActiveState  # previous item still audible
+        written = output._sink.io.written
+        output.configure(device, 48000, start_buffer_seconds=0.3)
+        output.push(b"\x00\x00" * 4800)
+        self.assertGreater(output._sink.io.written, written)
+        output.stop()

@@ -139,6 +139,8 @@ class LiveAudioOutput(QObject):
         self._converter = None
         self._pending = bytearray()
         self._started = False
+        # True while a reused, drained sink waits for the start buffer to refill.
+        self._holding = False
         self._input_finished = False
         self._drained_emitted = False
         self._configured_at = None
@@ -263,6 +265,15 @@ class LiveAudioOutput(QObject):
             self._sink.setBufferSize(
                 max(4096, int(bytes_per_second * self._sink_buffer_seconds))
             )
+            # A drained sink stays started between items, so without this the next
+            # item played its first chunk with no cushion and one late chunk was an
+            # audible gap. Re-arm the start buffer unless audio is still playing
+            # (back-to-back queue items stay seamless).
+            self._holding = (
+                self._started
+                and not self._pending
+                and self._sink.state() != QAudio.State.ActiveState
+            )
             self._input_finished = False
             self._drained_emitted = False
             self._last_stats = {}
@@ -296,6 +307,7 @@ class LiveAudioOutput(QObject):
         )
         self._pending.clear()
         self._started = False
+        self._holding = False
         self._input_finished = False
         self._drained_emitted = False
         self._timer.start()
@@ -325,10 +337,10 @@ class LiveAudioOutput(QObject):
             raise RuntimeError(
                 f"Live audio buffer exceeded {self.MAX_PENDING_SECONDS:.0f} seconds; "
                 "stopping instead of growing without bound.")
-        if not self._started and (
-            len(self._pending) >= int(bps * self._start_buffer_seconds)
-        ):
-            self._start_sink()
+        if len(self._pending) >= int(bps * self._start_buffer_seconds):
+            self._holding = False
+            if not self._started:
+                self._start_sink()
         self._flush()
         self.buffer_changed.emit(self.buffered_ms())
 
@@ -338,12 +350,13 @@ class LiveAudioOutput(QObject):
             if tail:
                 self._pending.extend(self._to_sink(tail))
         self._input_finished = True
+        self._holding = False
         if self._pending and not self._started:
             self._start_sink()
         self._flush()
 
     def _flush(self):
-        if not self._started or self._io is None or self._sink is None:
+        if self._holding or not self._started or self._io is None or self._sink is None:
             return
         while self._pending:
             available = max(0, int(self._sink.bytesFree()))
@@ -464,6 +477,7 @@ class LiveAudioOutput(QObject):
         self._input_finished = False
         self._drained_emitted = False
         self._started = False
+        self._holding = False
         self._io = None
         if self._sink is not None:
             try:

@@ -39,6 +39,21 @@ MAX_LIVE_QUEUE_SECONDS = 600.0
 APPROX_SPEECH_CHARS_PER_SECOND = 13.0
 
 
+# Native streaming arrives in ~160 ms chunks, and under load a chunk can arrive up to
+# ~0.4 s after the previous one. 350 ms (three chunks) covers that; the default 150 ms
+# start buffer didn't.
+NATIVE_START_BUFFER_SECONDS = 0.35
+
+
+def live_sink_kwargs(mode):
+    """Sink buffering for a Live Voice stream mode (empty dict = output defaults)."""
+    if mode == "microphone":
+        return {"start_buffer_seconds": 0.02, "sink_buffer_seconds": 0.10}
+    if mode == "native":
+        return {"start_buffer_seconds": NATIVE_START_BUFFER_SECONDS}
+    return {}
+
+
 class LiveVoicePage:
     """Live Speak UI mixed into ChatterboxApp."""
 
@@ -1344,12 +1359,7 @@ class LiveVoicePage:
             self.on_live_audio_error("The selected primary audio output disappeared.")
             return
         mode = str(meta.get("mode") or "buffered")
-        low_latency = mode == "microphone"
-        sink_kwargs = (
-            {"start_buffer_seconds": 0.02, "sink_buffer_seconds": 0.10}
-            if low_latency
-            else {}
-        )
+        sink_kwargs = live_sink_kwargs(mode)
         try:
             self.live_audio_output.configure(
                 device,
