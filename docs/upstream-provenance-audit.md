@@ -2,6 +2,8 @@
 
 Status: **Initial evidence inventory; not a legal clearance or dead-code certification.**
 
+> **Extended 2026-10-13 (#55):** file-level matrix, legacy-symbol inventory, import graph, package and model licenses, and risks are in [rebrand/README.md](rebrand/README.md).
+
 Audited: 2026-10-09. Scope: the `main` branch file trees of `Knapp-Kevin/this-voice-thing` and `AcTePuKc/Chatterbox-TTS-UI`. Upstream commit tree: `22460fd99ceb78c309f879b93878240241a0dc9b`. This Voice Thing baseline tree: `17657c653d9bed89f86b526cbae704cf12308d36`.
 
 ## Verified findings
