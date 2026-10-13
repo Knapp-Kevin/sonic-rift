@@ -1,6 +1,6 @@
 # Audio Studio: Phase 0 research and proposed ADR (#53)
 
-**Status:** research complete; **ADR proposed, awaiting the owner's GO / LIMITED GO / NO-GO**. Nothing was implemented, no model was downloaded, and no app code changed.
+**Status:** research complete. **ADR accepted 2026-10-13: full GO** (see §6). This document records the research; implementation is tracked in the child issues.
 **Date:** 2026-10-13. **Machine:** Windows 11, RTX 5070 Ti 16 GB, Ryzen 7 7800X3D, 1.7 TB free disk.
 
 | File | What it holds |
@@ -105,9 +105,11 @@ With a model engine selected, Preset becomes a prompt box, and a license badge p
 ## 6. ADR (proposed)
 
 **ADR-0001: Audio Studio direction**
-- **Status:** Proposed (2026-10-13). Decision owner: Kevin Knapp.
+- **Status:** **Accepted** (2026-10-13), as a **full GO**, amended from the proposal below. Decision owner: Kevin Knapp.
+- **Owner's decision:** build for **every available backend**, not one. The app is a front end: whoever downloads and runs a model accepts that model's license, so the Stability Community License is acceptable as a user-accepted license, and the permissive MOSS-SoundEffect v2 ships alongside it, not only as a fallback. The procedural engine remains the zero-download default. Implementation: Soundscape page (option A), Asset Library, procedural engine, Stable Audio 3 Small SFX and MOSS-SoundEffect v2 workers, each in its own environment, each behind a license/consent step before download.
+- **Original proposal (kept for the record):**
 - **Context:** The owner wants first-party ambience and effects (e.g. 12 missing assets for MythologIQ Studio). The app is voice-only today. Most open sound-generation weights are non-commercial. Provenance of training data varies.
-- **Decision (proposed): LIMITED GO.**
+- **Proposed: LIMITED GO.**
   1. Build option **A**: a Soundscape page on the shared core, with a `sound` capability in the registry and a provenance-carrying Asset Library generalized from the soundboard store.
   2. Ship **procedural** generation first (presets: ocean, rain, storm, wind, drone, UI chimes). Seeded and deterministic, with seam check, LUFS/true-peak normalization, and WAV/OGG/MP3 export streamed in blocks.
   3. **Benchmark SA3 Small SFX** locally only after the owner (a) approves a ~3.5 GB download plus a ~5–8 GB environment and (b) accepts Stability's gated terms. Compare it blind against the procedural baseline on the pilot prompts. MOSS-SoundEffect v2 is the backup if the Stability license is unacceptable.
