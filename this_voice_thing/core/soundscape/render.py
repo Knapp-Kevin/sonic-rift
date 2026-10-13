@@ -62,6 +62,9 @@ def render(request, model=None, cancelled=lambda: False, progress=lambda _done, 
             audio, sample_rate = model.generate(request.prompt, request.seconds + extra, seed=seed, **options)
             if is_loop:
                 audio, sample_rate = model.heal_loop(audio, sample_rate, request.prompt, seed=seed)
+            if mastering.is_mono(audio):
+                # e.g. MOSS-SoundEffect: give it stereo width without touching its mono mix
+                audio = mastering.widen(audio, sample_rate, request.width, loop=is_loop, seed=seed)
         audio = mastering.normalize(audio, sample_rate, target_lufs(request))
         results.append(Candidate(audio, sample_rate, seed, mastering.measure(audio, sample_rate, is_loop)))
         progress(index + 1, request.candidates)

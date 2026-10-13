@@ -110,6 +110,29 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class WidenTests(unittest.TestCase):
+    def test_widen_keeps_the_mid_and_the_loop_seamless(self):
+        mono = procedural.generate("rain", seconds=12, seed=4, width=0.0)
+        self.assertTrue(mastering.is_mono(mono))
+        nearly = mono.copy()
+        nearly[:, 1] += 0.001 * np.random.default_rng(0).standard_normal(len(nearly))  # SA3-like
+        self.assertTrue(mastering.is_mono(nearly))
+        wide = mastering.widen(mono, SR, width=0.8, loop=True)
+        self.assertFalse(mastering.is_mono(wide))
+        np.testing.assert_allclose(wide.mean(axis=1), mono[:, 0], atol=1e-5)   # folds back to the source
+        self.assertTrue(mastering.seam_report(mastering.normalize(wide, SR, -22.0), SR)["seamless"])
+        correlation = np.corrcoef(wide[:, 0], wide[:, 1])[0, 1]
+        self.assertLess(correlation, 0.9)
+
+    def test_width_zero_stays_mono_and_bass_stays_centred(self):
+        t = np.arange(SR * 4) / SR
+        bass = np.stack([np.sin(2 * np.pi * 60 * t)] * 2, 1).astype(np.float32) * 0.5
+        self.assertTrue(mastering.is_mono(mastering.widen(bass, SR, width=0.0)))
+        wide = mastering.widen(bass, SR, width=1.0, loop=False)
+        side = (wide[:, 0] - wide[:, 1]) / 2
+        self.assertLess(np.sqrt(np.mean(side ** 2)), 0.05 * np.sqrt(np.mean(bass[:, 0] ** 2)))
+
+
 class SeamDetectionTests(unittest.TestCase):
     def test_flags_real_seams(self):
         t = np.arange(SR * 12) / SR

@@ -84,8 +84,8 @@ def check_path_length(name):
     if os.name == "nt" and not long_paths_enabled() and len(engine_dir(name)) + _DEEPEST_RELATIVE > 259:
         raise RuntimeError(
             f"This app's folder path is too long for the {name} engine on Windows "
-            f"({len(engine_dir(name))} characters to engines\{name}). Move the app to a shorter "
-            "folder (e.g. C:\Apps\ThisVoiceThing), or turn on Windows long paths "
+            f"({len(engine_dir(name))} characters to engines\\{name}). Move the app to a shorter "
+            "folder (e.g. C:\\Apps\\ThisVoiceThing), or turn on Windows long paths "
             "(LongPathsEnabled), then install again.")
 
 

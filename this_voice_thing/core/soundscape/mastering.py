@@ -90,6 +90,39 @@ def trim_to_ceiling(x, ceiling_db):
     return x.astype(np.float32)
 
 
+def is_mono(x, threshold_db=-40.0):
+    """True when the side signal is negligible (under -40 dB relative to the mid): some
+    "stereo" models, e.g. Stable Audio 3 Small SFX, write two nearly identical channels."""
+    x = as_stereo(x).astype(np.float64)
+    mid = np.sqrt(np.mean(((x[:, 0] + x[:, 1]) / 2) ** 2)) + 1e-12
+    side = np.sqrt(np.mean(((x[:, 0] - x[:, 1]) / 2) ** 2))
+    return bool(20 * np.log10(side / mid + 1e-12) < threshold_db)
+
+
+def widen(x, sr, width=0.5, loop=True, seed=0, crossover_hz=300.0):
+    """Stereo from a mono source: the mid stays exactly the source (so it folds back to
+    mono cleanly), and a side signal is made by a short (20 ms) random-phase decorrelation
+    filter, high-passed so bass stays centred. For loops the filter is applied circularly,
+    so the wrap point stays seamless. width 0 = mono, 1 = wide.
+    """
+    x = as_stereo(x)
+    mid = x.mean(axis=1).astype(np.float64)
+    if width <= 0:
+        return np.stack([mid, mid], axis=1).astype(np.float32)
+    rng = np.random.default_rng(seed)
+    taps = int(0.02 * sr)
+    spectrum = np.exp(1j * rng.uniform(-np.pi, np.pi, taps // 2 + 1))
+    spectrum[0] = spectrum[-1] = 1.0
+    kernel = np.fft.irfft(spectrum, taps) * np.hanning(taps)
+    kernel /= np.sqrt(np.sum(kernel ** 2))
+    n = len(mid) if loop else len(mid) + taps
+    freqs = np.fft.rfftfreq(n, 1 / sr)
+    highpass = 1.0 / np.sqrt(1.0 + (crossover_hz / np.maximum(freqs, 1e-3)) ** 4)
+    side = np.fft.irfft(np.fft.rfft(mid, n) * np.fft.rfft(kernel, n) * highpass, n)[: len(mid)]
+    side *= float(width)
+    return np.stack([mid + side, mid - side], axis=1).astype(np.float32)
+
+
 LOOP_FOLD_SECONDS = 2.0
 
 

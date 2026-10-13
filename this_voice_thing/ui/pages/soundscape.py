@@ -226,9 +226,14 @@ class SoundscapePage:
         self.sound_preset_label.setText("Preset" if procedural_engine else "Prompt")
         self.sound_prompt_input.setVisible(not procedural_engine)
         self.sound_prompt_input.setPlaceholderText(engine.prompt_hint or "Describe the sound")
-        for caption, slider in self.sound_sliders.values():
-            caption.setVisible(procedural_engine)
-            slider.setVisible(procedural_engine)
+        for key, (caption, slider) in self.sound_sliders.items():
+            # Mono models get stereo width from the app; their other character comes from the prompt.
+            shown = procedural_engine or (key == "width" and engine.channels == 1)
+            caption.setVisible(shown)
+            slider.setVisible(shown)
+        self.sound_sliders["width"][1].setToolTip(
+            "" if procedural_engine else f"{engine.label} makes mono sound; this spreads it into stereo "
+                                         "without changing the mono mix.")
         running = self.sound_model is not None and self.sound_model.key == engine.key
         if procedural_engine:
             self.sound_engine_status.setText("Runs on your CPU; nothing to download.")
