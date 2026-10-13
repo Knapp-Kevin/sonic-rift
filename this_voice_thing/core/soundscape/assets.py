@@ -51,7 +51,7 @@ def _sha256(path):
     return digest.hexdigest()
 
 
-def _safe_stem(name):
+def safe_stem(name):
     stem = "".join(ch if ch.isalnum() or ch in " -_" else "_" for ch in name).strip()
     return (stem or "sound")[:40].replace(" ", "_")
 
@@ -91,7 +91,7 @@ class AssetLibrary:
         """Store `audio` as a new asset; provenance keys are Asset fields (model, prompt…)."""
         os.makedirs(self.audio_dir, exist_ok=True)
         asset_id = uuid.uuid4().hex[:12]
-        filename = f"{_safe_stem(name)}_{asset_id}.wav"
+        filename = f"{safe_stem(name)}_{asset_id}.wav"
         path = os.path.join(self.audio_dir, filename)
         mastering.write_audio(path, audio, sample_rate, "wav")
         metrics = provenance.pop("metrics", None) or mastering.measure(audio, sample_rate, loop)

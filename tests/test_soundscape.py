@@ -77,7 +77,7 @@ class MasteringTests(unittest.TestCase):
         self.assertFalse(mastering.seam_report(x, SR)["seamless"])
         looped = mastering.make_loop(x, SR, crossfade_seconds=2.0)
         self.assertEqual(len(looped), len(x) - 2 * SR)
-        self.assertLess(mastering.seam_report(looped, SR)["jump_vs_p99_step"], 1.0)
+        self.assertTrue(mastering.seam_report(looped, SR)["seamless"])
 
     def test_export_writes_every_format_readably(self):
         x = mastering.normalize(procedural.generate("rain", seconds=30, seed=1), SR, -22.0)
@@ -98,6 +98,20 @@ class MasteringTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SeamDetectionTests(unittest.TestCase):
+    def test_flags_real_seams(self):
+        t = np.arange(SR * 12) / SR
+        cases = {
+            "level trend": procedural.generate("rain", seconds=12, seed=1) * np.linspace(0.25, 1, len(t))[:, None],
+            "tone cut mid-cycle": np.stack([np.sin(2 * np.pi * 110.37 * t)] * 2, 1) * 0.3,
+            "change of sound": np.concatenate([procedural.generate("rain", seconds=6, seed=1),
+                                               procedural.generate("wind", seconds=6, seed=2)]),
+        }
+        for name, x in cases.items():
+            report = mastering.seam_report(mastering.normalize(x, SR, -20.0), SR)
+            self.assertFalse(report["seamless"], f"{name}: {report}")
 
 
 class CatalogTests(unittest.TestCase):

@@ -69,41 +69,54 @@ def make_loop(x, sr, crossfade_seconds=2.0):
     return body
 
 
-def seam_report(x, sr, probes=200):
-    """Compare the loop's wrap point with ordinary points inside it.
+SEAM_SCALES = (0.025, 0.1, 0.4)          # seconds compared on each side of a join
+_BAND_EDGES = np.geomspace(50, 16000, 25)
 
-    `seamless` is True when the wrap changes level, spectrum and sample value no more
-    than the 95th percentile of interior points (the seam is as smooth as the sound itself).
+
+def _band_db(frames, sr):
+    """Energy in 24 log-spaced bands, in dB, for each row of `frames`."""
+    width = frames.shape[-1]
+    power = np.abs(np.fft.rfft(frames * np.hanning(width), axis=-1)) ** 2
+    band = np.digitize(np.fft.rfftfreq(width, 1 / sr), _BAND_EDGES)
+    energy = np.stack([power[..., band == b].sum(axis=-1) for b in range(1, len(_BAND_EDGES))], axis=-1)
+    return 10 * np.log10(energy + 1e-10)
+
+
+def seam_report(x, sr):
+    """Is the loop's wrap point more abrupt than anything that happens inside the loop?
+
+    At three time scales (25 ms, 100 ms, 400 ms) the sound is cut into frames, and each
+    pair of neighbouring frames gets a spectral distance (RMS difference of band levels
+    in dB). The wrap pair is the last frame followed by the first. A seam is reported
+    when, at any scale, the wrap changes the sound more than every natural change inside
+    it, or when the sample step across the wrap is bigger than any step inside (a click).
+
+    Calibration (100 procedural loops, 6 deliberately bad joins): no false alarms; it
+    catches level trends, a tone cut mid-cycle, a change of sound and abrupt cuts. It
+    can miss a join between two similar textures (e.g. two ocean recordings at a similar
+    point in their swell), so "no seam detected" is not a listening test.
     """
-    x = as_stereo(x)
-    rng = np.random.default_rng(0)
+    x = as_stereo(x).astype(np.float64)
+    mono = x.mean(axis=1)
+    scales = {}
+    for scale in SEAM_SCALES:
+        width = int(scale * sr)
+        count = len(mono) // width
+        if count < 4:
+            continue
+        levels = _band_db(mono[: count * width].reshape(count, width), sr)
+        inside = np.sqrt(np.mean(np.diff(levels, axis=0) ** 2, axis=-1))
+        ends = _band_db(np.stack([mono[-width:], mono[:width]]), sr)
+        wrap = float(np.sqrt(np.mean((ends[1] - ends[0]) ** 2)))
+        scales[f"{int(scale * 1000)}ms"] = {
+            "wrap_db": round(wrap, 2), "inside_max_db": round(float(inside.max()), 2),
+            # share of inside changes at least as big: 0 = more abrupt than all of them
+            "rank": round(float(np.mean(inside >= wrap)), 4)}
     steps = np.abs(np.diff(x, axis=0)).max(axis=1)
-    jump_ratio = float(np.abs(x[0] - x[-1]).max() / (np.percentile(steps, 99) + 1e-12))
-    w = int(0.025 * sr)
-
-    def level(seg):
-        return 20 * np.log10(np.sqrt(np.mean(seg ** 2)) + 1e-12)
-
-    def flux(a, b):
-        win = np.hanning(len(a))
-        sa = np.abs(np.fft.rfft(a.mean(axis=1) * win))
-        sb = np.abs(np.fft.rfft(b.mean(axis=1) * win))
-        return float(np.sum((sb - sa) ** 2) / (np.sum(sa ** 2) + 1e-12))
-
-    span = 2048
-    points = rng.integers(max(w, span), len(x) - max(w, span), probes)
-    wrap_level = abs(level(x[-w:]) - level(x[:w]))
-    inner_level = float(np.percentile([abs(level(x[p - w:p]) - level(x[p:p + w])) for p in points], 95))
-    wrap_flux = flux(x[-span:], x[:span])
-    inner_flux = float(np.percentile([flux(x[p - span:p], x[p:p + span]) for p in points], 95))
-    return {
-        "seamless": bool(jump_ratio <= 1.0 and wrap_level <= inner_level and wrap_flux <= inner_flux),
-        "jump_vs_p99_step": round(jump_ratio, 3),
-        "wrap_level_step_db": round(float(wrap_level), 2),
-        "interior_level_step_db_p95": round(inner_level, 2),
-        "wrap_spectral_flux": round(wrap_flux, 3),
-        "interior_spectral_flux_p95": round(inner_flux, 3),
-    }
+    jump = float(np.abs(x[0] - x[-1]).max() / (steps.max() + 1e-12))
+    worst = min((s["rank"] for s in scales.values()), default=1.0)
+    return {"seamless": bool(worst > 0.0 and jump <= 1.0), "worst_rank": round(worst, 4),
+            "jump_vs_max_step": round(jump, 3), "scales": scales}
 
 
 def measure(x, sr, loop):

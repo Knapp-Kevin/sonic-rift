@@ -468,3 +468,28 @@ class EngineInstallThread(QThread):
             self.finished_with.emit("")
         except Exception as exc:
             self.finished_with.emit(str(exc))
+
+
+class SoundRenderThread(QThread):
+    """Renders Soundscape candidates off the UI thread; Stop takes effect between takes."""
+
+    progressed = Signal(int, int)
+    done = Signal(object, str)      # [Candidate] or None, error
+
+    def __init__(self, request, model, parent=None):
+        super().__init__(parent)
+        self.request, self.model = request, model
+        self._stop = threading.Event()
+
+    def stop(self):
+        self._stop.set()
+
+    def run(self):
+        from this_voice_thing.core.soundscape import render
+        try:
+            results = render.render(self.request, self.model, cancelled=self._stop.is_set,
+                                    progress=lambda done, total: self.progressed.emit(done, total))
+            self.done.emit(results, "")
+        except Exception as exc:
+            traceback.print_exc()
+            self.done.emit(None, f"{type(exc).__name__}: {exc}")

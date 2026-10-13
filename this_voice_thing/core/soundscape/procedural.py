@@ -125,7 +125,8 @@ def _ocean(ctx):
         rise, crash = 0.45 * length, 0.12 * length
         body = np.where(local < rise, (local / rise) ** 2,
                         np.where(local < rise + crash, 1.0, np.exp(-(local - rise - crash) / (0.22 * length))))
-        body = np.where(local < length, body, 0.0)
+        # No cut at the next wave: the tail keeps decaying under it (and around the loop),
+        # so wave boundaries carry no sudden drop in level.
         env = np.maximum(env, body * ctx.rng.uniform(0.7, 1.0))
         start += length
     env = _smooth_circular(env, int(0.1 * ctx.sr) | 1)
