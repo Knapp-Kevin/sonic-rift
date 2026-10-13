@@ -5,6 +5,7 @@ script that speaks JSON lines: one request per line on stdin, one reply per
 line on stdout, with library output on stderr (shown on the Log page).
 """
 
+import glob
 import json
 import os
 import shutil
@@ -30,6 +31,64 @@ def venv_python(name):
                         "python.exe" if os.name == "nt" else "python")
 
 
+def _run(command, log, name):
+    log("Running: " + " ".join(command[1:5]) + " ...")
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               text=True, encoding="utf-8", errors="replace", creationflags=NO_WINDOW)
+    for line in process.stdout:
+        log(line.rstrip())
+    if process.wait() != 0:
+        raise RuntimeError(f"{name} engine install step failed: {' '.join(command[1:4])}")
+
+
+def _managed_python(uv, version):
+    """Path of a uv-managed CPython `version`, installing it if needed.
+
+    On Windows uv (0.12) links e.g. cpython-3.12 -> cpython-3.12.15 with a junction it
+    then fails to follow ("Missing expected target directory for Python minor version
+    link"), so `uv venv --python 3.12` fails even though the interpreter is there.
+    Pointing uv at the real interpreter works.
+    """
+    root = subprocess.run([uv, "python", "dir"], capture_output=True, text=True,
+                          creationflags=NO_WINDOW).stdout.strip()
+
+    def found():
+        exe = "python.exe" if os.name == "nt" else os.path.join("bin", "python3")
+        matches = sorted(glob.glob(os.path.join(root, f"cpython-{version}.*", exe)))
+        return matches[-1] if matches else None
+
+    if not found():
+        subprocess.run([uv, "python", "install", version], capture_output=True, creationflags=NO_WINDOW)
+    return found()
+
+
+# Deepest file in an engine environment, relative to engines/<name> (a transformers module).
+_DEEPEST_RELATIVE = len(r"\.venv\Lib\site-packages	ransformers\modelsudio_spectrogram_transformer"
+                        r"\configuration_audio_spectrogram_transformer.py") + 10
+
+
+def long_paths_enabled():
+    if os.name != "nt":
+        return True
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\FileSystem") as key:
+            return bool(winreg.QueryValueEx(key, "LongPathsEnabled")[0])
+    except OSError:
+        return False
+
+
+def check_path_length(name):
+    """Windows' 260-character path limit silently drops files deep inside an environment
+    (the install "succeeds", then imports fail). Refuse up front with a way out."""
+    if os.name == "nt" and not long_paths_enabled() and len(engine_dir(name)) + _DEEPEST_RELATIVE > 259:
+        raise RuntimeError(
+            f"This app's folder path is too long for the {name} engine on Windows "
+            f"({len(engine_dir(name))} characters to engines\{name}). Move the app to a shorter "
+            "folder (e.g. C:\Apps\ThisVoiceThing), or turn on Windows long paths "
+            "(LongPathsEnabled), then install again.")
+
+
 def install_env(name, package_steps, log=print, python_version="3.11", torch_packages=None):
     """Create engines/<name>/.venv with CUDA PyTorch, then install each step's packages.
 
@@ -39,20 +98,23 @@ def install_env(name, package_steps, log=print, python_version="3.11", torch_pac
     uv = shutil.which("uv")
     if not uv:
         raise RuntimeError(f"uv was not found on PATH; it is needed to install the {name} engine.")
+    check_path_length(name)
     os.makedirs(engine_dir(name), exist_ok=True)
     python = venv_python(name)
     steps = [[uv, "venv", os.path.join(engine_dir(name), ".venv"), "--python", python_version, "--clear"],
              [uv, "pip", "install", "--python", python, *(torch_packages or TORCH_PACKAGES),
               "--index-url", TORCH_INDEX]]
     steps += [[uv, "pip", "install", "--python", python, *packages] for packages in package_steps]
-    for command in steps:
-        log("Running: " + " ".join(command[1:5]) + " ...")
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                   text=True, encoding="utf-8", errors="replace", creationflags=NO_WINDOW)
-        for line in process.stdout:
-            log(line.rstrip())
-        if process.wait() != 0:
-            raise RuntimeError(f"{name} engine install step failed: {' '.join(command[1:4])}")
+    try:
+        _run(steps[0], log, name)
+    except RuntimeError:
+        interpreter = _managed_python(uv, python_version)
+        if not interpreter:
+            raise
+        log(f"Retrying with the Python {python_version} interpreter at {interpreter}")
+        _run(steps[0][:-3] + ["--python", interpreter, "--clear"], log, name)
+    for command in steps[1:]:
+        _run(command, log, name)
 
 
 class WorkerProcess:

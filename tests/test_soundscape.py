@@ -135,6 +135,18 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(models, set(sound_models.SPECS))
 
 
+class LoadErrorTests(unittest.TestCase):
+    def test_gated_access_error_says_what_to_do(self):
+        from this_voice_thing.core.soundscape import catalog
+        from this_voice_thing.engines import sound_models
+        raw = ("GatedRepoError: 403 Client Error. Access to model stabilityai/stable-audio-3-small-sfx is "
+               "restricted and you are not in the authorized list.")
+        text = sound_models.explain_load_error(catalog.SA3_SMALL_SFX, raw)
+        self.assertIn("accept the terms", text)
+        self.assertIn(catalog.SA3_SMALL_SFX.repo_id, text)
+        self.assertEqual(sound_models.explain_load_error(catalog.SA3_SMALL_SFX, "other"), "other")
+
+
 class StitchTests(unittest.TestCase):
     def test_plan_covers_the_length(self):
         from this_voice_thing.engines import sound_models
