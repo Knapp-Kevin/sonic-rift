@@ -152,7 +152,7 @@ class SoundModel:
         then regenerate the middle few seconds. Others fold the tail over the head.
         """
         if not self.spec.can_inpaint:
-            return mastering.make_loop(audio, sample_rate)
+            return mastering.make_loop(audio, sample_rate), sample_rate
         half = len(audio) // 2
         rotated = np.concatenate([audio[half:], audio[:half]])
         path = self._out_path()

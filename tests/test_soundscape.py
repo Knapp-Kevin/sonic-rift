@@ -183,6 +183,38 @@ class _FakeModel:
         return mastering.make_loop(audio, sample_rate), sample_rate
 
 
+class SoundModelLoopTests(unittest.TestCase):
+    """The real SoundModel.heal_loop, with the worker replaced (no model needed)."""
+
+    def _model(self, key, take=None):
+        from this_voice_thing.engines import sound_models
+        model = sound_models.SoundModel.__new__(sound_models.SoundModel)
+        model.key, model.spec = key, sound_models.SPECS[key]
+        model._temp, model._count = tempfile.mkdtemp(), 0
+        model._take = take
+        return model
+
+    def test_folding_engine_returns_audio_and_rate(self):
+        x = procedural.generate("rain", seconds=10, seed=1) * np.linspace(0.3, 1, SR * 10)[:, None]
+        audio, rate = self._model("moss_sfx_v2").heal_loop(x, SR, "rain")
+        self.assertEqual(rate, SR)
+        self.assertEqual(len(audio), SR * 8)
+
+    def test_inpainting_engine_rotates_and_regenerates_the_seam(self):
+        calls = {}
+
+        def take(prompt, seconds, seed, **options):
+            calls.update(options, seconds=seconds)
+            rotated, _ = __import__("soundfile").read(options["inpaint_path"], dtype="float32")
+            return rotated, SR
+        x = procedural.generate("rain", seconds=10, seed=1)
+        audio, rate = self._model("sa3_small_sfx", take).heal_loop(x, SR, "rain")
+        self.assertEqual((len(audio), rate), (len(x), SR))
+        self.assertAlmostEqual(calls["inpaint_start"], 5.0 - 1.5, places=3)  # old wrap is now mid-clip
+        self.assertAlmostEqual(calls["inpaint_end"], 5.0 + 1.5, places=3)
+        np.testing.assert_allclose(audio[: SR * 5], x[SR * 5:], atol=1e-6)
+
+
 class RenderTests(unittest.TestCase):
     def test_procedural_candidates_differ_by_seed_and_are_mastered(self):
         from this_voice_thing.core.soundscape import render
