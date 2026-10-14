@@ -94,7 +94,8 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         self.app_settings = self.load_app_settings()
         self.apply_hf_token_setting()
         self.current_audio_file = None
-        self.output_directory = os.path.join(os.getcwd(), "chatterbox_outputs")
+        # In the project folder like all other app data, wherever the app was started from.
+        self.output_directory = os.path.join(paths.ROOT, "chatterbox_outputs")
         if not os.path.exists(self.output_directory):
             os.makedirs(self.output_directory)
         self.last_reference_audio_dir = self.script_dir
@@ -173,8 +174,10 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
             )
             QTimer.singleShot(0, self.start_default_model_load)
         else:
-            self.set_status_message("Status: Chatterbox library not found.")
-            self.generate_button.setEnabled(False)
+            # The Chatterbox engine can't load, but every other engine runs in its own environment.
+            self.set_status_message(
+                "Status: The Chatterbox engine is unavailable (see the Log page); load another model on "
+                "the Model page.")
         QTimer.singleShot(0, self.restart_api_server)
 
     (PAGE_GENERATE, PAGE_STUDIO, PAGE_SOUNDSCAPE, PAGE_VOICE, PAGE_TRANSCRIBE, PAGE_MODEL, PAGE_ADVANCED,

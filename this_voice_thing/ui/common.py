@@ -180,6 +180,13 @@ KOKORO_BACKEND = "kokoro"
 VOXCPM_BACKEND = "voxcpm"
 OMNIVOICE_BACKEND = "omnivoice"
 VIBEVOICE_BACKEND = "vibevoice"
+# Engines that run in their own environment and never need the chatterbox-tts library.
+WORKER_BACKENDS = frozenset({QWEN_BACKEND, KOKORO_BACKEND, VOXCPM_BACKEND, OMNIVOICE_BACKEND, VIBEVOICE_BACKEND})
+
+
+def needs_chatterbox(backend):
+    """Only the Chatterbox backends need the chatterbox-tts library in this environment."""
+    return backend not in WORKER_BACKENDS
 # Engines that run in their own environment (engines/<name>), installed on first use.
 ENGINE_MODULES = {QWEN_BACKEND: qwen_engine, KOKORO_BACKEND: kokoro_engine, VOXCPM_BACKEND: voxcpm_engine,
                   OMNIVOICE_BACKEND: omnivoice_engine, VIBEVOICE_BACKEND: vibevoice_engine}

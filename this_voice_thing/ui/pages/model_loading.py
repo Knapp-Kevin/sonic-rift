@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QMessageBox
 
 from this_voice_thing.core import model_registry
 from this_voice_thing.ui.common import BACKEND_MULTILINGUAL
-from this_voice_thing.ui.common import CHATTERBOX_AVAILABLE
+from this_voice_thing.ui.common import CHATTERBOX_AVAILABLE, needs_chatterbox
 from this_voice_thing.ui.common import DEFAULT_MODEL_REPO
 from this_voice_thing.ui.common import DEFAULT_MULTILINGUAL_T3_MODEL
 from this_voice_thing.ui.common import DUAL_MODE_BACKENDS
@@ -148,13 +148,15 @@ class ModelLoading:
             self.update_engine_controls()
 
     def load_model(self, selected_entry=None):
-        if not CHATTERBOX_AVAILABLE:
-            QMessageBox.critical(
-                self, "Error", "ChatterboxTTS library not installed.")
-            return
         if getattr(self, "model_is_loading", False):
             return
         selected_entry = selected_entry or self.get_selected_model_entry()
+        if needs_chatterbox(selected_entry.get("backend", BACKEND_MULTILINGUAL)) and not CHATTERBOX_AVAILABLE:
+            QMessageBox.critical(
+                self, "Chatterbox unavailable",
+                "The Chatterbox engine isn't available: the chatterbox-tts library failed to import "
+                "(see the Log page). Other engines still work; pick one on the Model page.")
+            return
         selected_repo = selected_entry["repo_id"]
         selected_backend = selected_entry.get("backend", BACKEND_MULTILINGUAL)
         if (selected_backend in DUAL_MODE_BACKENDS and isinstance(self.model, DUAL_MODE_TYPES)

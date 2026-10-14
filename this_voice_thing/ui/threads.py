@@ -24,6 +24,7 @@ from this_voice_thing.engines import (
 from this_voice_thing.ui.common import (
     BACKEND_MULTILINGUAL,
     CHATTERBOX_AVAILABLE,
+    needs_chatterbox,
     DEFAULT_MODEL_REPO,
     DEFAULT_MULTILINGUAL_T3_MODEL,
     DEFAULT_PREVIEW_CHARS,
@@ -74,9 +75,11 @@ class ModelLoaderThread(QThread):
 
     def run(self):
         try:
-            if not CHATTERBOX_AVAILABLE:
+            if needs_chatterbox(self.backend) and not CHATTERBOX_AVAILABLE:
+                # Only Chatterbox needs this library; the other engines run in their own environments.
                 self.error_occurred.emit(
-                    "ChatterboxTTS library is not installed.")
+                    "The Chatterbox engine isn't available (the chatterbox-tts library failed to "
+                    "import). Other engines still work.")
                 return
             if self.cuda_probe_error:
                 print(
@@ -84,7 +87,7 @@ class ModelLoaderThread(QThread):
                     f"PyTorch build. Falling back to CPU. Reason: {self.cuda_probe_error}"
                 )
             print(
-                f"Attempting to load Chatterbox model from repo '{self.repo_id}' "
+                f"Attempting to load model from repo '{self.repo_id}' "
                 f"using backend '{self.backend}' on device: {self.device}..."
             )
             if self.backend == QWEN_BACKEND:
