@@ -89,11 +89,12 @@ def check_path_length(name):
             "(LongPathsEnabled), then install again.")
 
 
-def install_env(name, package_steps, log=print, python_version="3.11", torch_packages=None):
+def install_env(name, package_steps, log=print, python_version="3.11", torch_packages=None, remove=()):
     """Create engines/<name>/.venv with CUDA PyTorch, then install each step's packages.
 
     PyTorch comes from the uv cache when another engine already downloaded it. Engines
-    whose upstream pins a different torch or Python pass their own.
+    whose upstream pins a different torch or Python pass their own. `remove` uninstalls
+    dependencies an engine declares but never uses (e.g. ones with unacceptable licenses).
     """
     uv = shutil.which("uv")
     if not uv:
@@ -115,6 +116,8 @@ def install_env(name, package_steps, log=print, python_version="3.11", torch_pac
         _run(steps[0][:-3] + ["--python", interpreter, "--clear"], log, name)
     for command in steps[1:]:
         _run(command, log, name)
+    if remove:
+        _run([uv, "pip", "uninstall", "--python", python, *remove], log, name)
 
 
 class WorkerProcess:

@@ -44,8 +44,15 @@ def is_installed():
     return os.path.exists(PYTHON) and os.path.exists(WORKER)
 
 
+# voxcpm declares funasr, which pulls in kaldiio: an NTT *evaluation-only* license (no
+# redistribution, evaluation use only). VoxCPM's inference never imports either (only its
+# optional denoiser uses modelscope, which lists them as extras), so they're removed after
+# install. Verified: VoxCPM2 loads and speaks without them.
+UNUSED_PACKAGES = ["funasr", "kaldiio"]
+
+
 def install(log=print):
-    engine_worker.install_env(NAME, PACKAGES, log)
+    engine_worker.install_env(NAME, PACKAGES, log, remove=UNUSED_PACKAGES)
 
 
 class VoxCPMModel:
