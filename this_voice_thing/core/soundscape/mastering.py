@@ -38,15 +38,19 @@ def true_peak_db(x):
     return float(20 * np.log10(np.max(np.abs(up)) + 1e-12))
 
 
-MAX_LIMITING_DB = 6.0   # more than this audibly squashes ambience; trim the whole clip instead
+MAX_LIMITING_DB = 6.0      # dense material: more than this audibly squashes ambience
+SPARSE_LIMITING_DB = 12.0  # isolated peaks (raindrops, clicks) can take more, inaudibly
+SPARSE_FRACTION = 0.01     # "isolated": under 1% of samples over the ceiling
 
 
 def limit(x, sr, ceiling_db, lookahead_ms=5.0, release_ms=120.0):
-    """Look-ahead peak limiter: pulls short peaks down to `ceiling_db` (sample peak) with
-    a smooth gain curve, leaving everything below the ceiling untouched."""
+    """Look-ahead true-peak limiter: pulls short peaks down to `ceiling_db` with a smooth
+    gain curve, leaving everything below the ceiling untouched. Peaks are read from a 4x
+    oversampled signal, so sharp transients don't overshoot between samples."""
     x = as_stereo(x)
     ceiling = 10 ** (ceiling_db / 20)
-    peak = np.max(np.abs(x), axis=1)
+    up = np.abs(resample_poly(x, 4, 1, axis=0))[: len(x) * 4]
+    peak = up.reshape(len(x), 4, 2).max(axis=(1, 2))
     need = np.minimum(1.0, ceiling / np.maximum(peak, 1e-12))       # gain each sample needs
     ahead = max(1, int(lookahead_ms / 1000 * sr))
     # Start reducing `ahead` samples early (running minimum over the look-ahead window).
@@ -76,11 +80,25 @@ def normalize(x, sr, target_lufs, ceiling_db=TRUE_PEAK_CEILING_DB):
     if not np.isfinite(loudness):
         x = x / (np.max(np.abs(x)) + 1e-12)
         return trim_to_ceiling(x, ceiling_db)
-    x = x * np.float32(10 ** ((target_lufs - loudness) / 20))
-    over = true_peak_db(x) - ceiling_db
-    if 0 < over <= MAX_LIMITING_DB:
-        x = limit(x, sr, ceiling_db - 0.3)           # sample-peak limiter; margin for true peak
-    return trim_to_ceiling(x, ceiling_db)
+    source = x
+    gain_db = target_lufs - loudness
+    limited = None              # the last cleanly limited version, if any
+    for _attempt in range(3):   # limiting removes some energy, so re-aim after it
+        x = source * np.float32(10 ** (gain_db / 20))
+        over = true_peak_db(x) - ceiling_db
+        if over <= 0:
+            limited = None
+            break
+        sparse = np.mean(np.abs(x).max(axis=1) > 10 ** (ceiling_db / 20)) < SPARSE_FRACTION
+        if over > (SPARSE_LIMITING_DB if sparse else MAX_LIMITING_DB):
+            break               # too much to limit cleanly at this gain
+        limited = limit(x, sr, ceiling_db - 0.1)
+        miss = target_lufs - integrated_lufs(limited, sr)
+        if abs(miss) < 0.2:
+            break
+        gain_db += miss
+    # Prefer the limited version (slightly under target at worst) over trimming the whole clip.
+    return trim_to_ceiling(limited if limited is not None else x, ceiling_db)
 
 
 def trim_to_ceiling(x, ceiling_db):
@@ -124,6 +142,7 @@ def widen(x, sr, width=0.5, loop=True, seed=0, crossover_hz=300.0):
 
 
 LOOP_FOLD_SECONDS = 2.0
+SEAM_POLISH_SECONDS = 0.05   # micro-crossfade after inpainting, which can leave a click at the ends
 
 
 def make_loop(x, sr, crossfade_seconds=LOOP_FOLD_SECONDS):

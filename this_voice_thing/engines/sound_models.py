@@ -84,9 +84,10 @@ def stitch(chunks, sample_rate, overlap_seconds=STITCH_OVERLAP_SECONDS):
 
 
 def plan_chunks(seconds, max_seconds, overlap_seconds=STITCH_OVERLAP_SECONDS):
-    """Lengths of the takes needed for `seconds` once overlaps are crossfaded away."""
-    if seconds <= max_seconds:
-        return [seconds]
+    """Lengths of the takes needed for `seconds` once overlaps are crossfaded away.
+    A hair over the maximum (e.g. loop padding) is one take at the maximum, not two."""
+    if seconds <= max_seconds + 0.1:
+        return [min(seconds, max_seconds)]
     step = max_seconds - overlap_seconds
     count = int(np.ceil((seconds - overlap_seconds) / step))
     last = seconds - step * (count - 1)
@@ -123,7 +124,8 @@ class SoundModel:
             self.worker.close()
             raise RuntimeError(explain_load_error(self.engine, str(exc))) from exc
         self._temp = tempfile.mkdtemp(prefix=f"{self.spec.directory}_")
-        self.loop_padding_seconds = 0.0 if self.spec.can_inpaint else mastering.LOOP_FOLD_SECONDS
+        self.loop_padding_seconds = (mastering.SEAM_POLISH_SECONDS if self.spec.can_inpaint
+                                     else mastering.LOOP_FOLD_SECONDS)
         self._count = 0
 
     def _out_path(self):
@@ -162,7 +164,8 @@ class SoundModel:
         start, end = middle - SEAM_HEAL_SECONDS / 2, middle + SEAM_HEAL_SECONDS / 2
         healed, healed_rate = self._take(prompt, len(rotated) / sample_rate, seed, inpaint_path=path,
                                          inpaint_start=start, inpaint_end=end)
-        return healed[: len(rotated)], healed_rate
+        # The model re-decodes the whole clip, which can leave a click where its ends meet.
+        return mastering.make_loop(healed[: len(rotated)], healed_rate, mastering.SEAM_POLISH_SECONDS), healed_rate
 
     def close(self):
         self.worker.close()

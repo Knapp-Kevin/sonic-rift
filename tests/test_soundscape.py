@@ -70,6 +70,15 @@ class MasteringTests(unittest.TestCase):
         gain = 10 ** ((-20.0 - mastering.integrated_lufs(x, SR)) / 20)
         np.testing.assert_allclose(out[: SR * 9], x[: SR * 9] * gain, rtol=1e-4, atol=1e-6)
 
+    def test_sparse_drops_are_limited_harder_than_dense_peaks(self):
+        x = procedural.generate("rain", seconds=20, seed=5)
+        rng = np.random.default_rng(1)
+        for start in rng.integers(0, len(x) - 100, 40):       # 40 sharp drops, ~10 dB over
+            x[start:start + 40] *= 9.0
+        out = mastering.normalize(x, SR, -22.0)
+        self.assertAlmostEqual(mastering.integrated_lufs(out, SR), -22.0, delta=0.6)
+        self.assertLessEqual(mastering.true_peak_db(out), mastering.TRUE_PEAK_CEILING_DB + 0.05)
+
     def test_one_shot_is_peak_normalized(self):
         x = procedural.generate("ui_success", seed=0)
         out = mastering.normalize(x, SR, procedural.PRESETS["ui_success"].target_lufs)
@@ -242,10 +251,11 @@ class SoundModelLoopTests(unittest.TestCase):
             return rotated, SR
         x = procedural.generate("rain", seconds=10, seed=1)
         audio, rate = self._model("sa3_small_sfx", take).heal_loop(x, SR, "rain")
-        self.assertEqual((len(audio), rate), (len(x), SR))
+        self.assertEqual((len(audio), rate), (len(x) - int(mastering.SEAM_POLISH_SECONDS * SR), SR))
         self.assertAlmostEqual(calls["inpaint_start"], 5.0 - 1.5, places=3)  # old wrap is now mid-clip
         self.assertAlmostEqual(calls["inpaint_end"], 5.0 + 1.5, places=3)
-        np.testing.assert_allclose(audio[: SR * 5], x[SR * 5:], atol=1e-6)
+        polish = int(mastering.SEAM_POLISH_SECONDS * SR)
+        np.testing.assert_allclose(audio[polish: SR * 5], x[SR * 5 + polish:], atol=1e-6)
 
 
 class RenderTests(unittest.TestCase):
