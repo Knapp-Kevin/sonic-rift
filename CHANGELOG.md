@@ -7,6 +7,16 @@ All notable changes to **This Voice Thing**, which began as a fork of [AcTePuKc/
 Changes since upstream commit `22460fd` ("Add best-effort macOS/Linux shell launcher flow").
 
 ### Added
+- **Soundscape page and Asset Library (Audio Studio, #53).**
+  - **Engines:** ambience loops and sound effects from three engines:
+    - **Procedural:** no model; ocean, rain, thunderstorm, wind, drone, UI chimes.
+    - **MOSS-SoundEffect v2:** Apache-2.0.
+    - **Stable Audio 3 Small SFX:** Stability AI Community License; gated.
+  - **Install and consent:** each model gets its own environment, and the app shows the license and download size and asks before installing.
+  - **Takes:** several at once, with seeds for repeatability. Loops are seamless (inpainting or folding for models) and come out at the requested length.
+  - **Mastering:** LUFS loudness with true-peak headroom and a gentle limiter, a seam check, and stereo widening for mono models.
+  - **Export:** WAV, OGG or MP3.
+  - **Asset Library:** keeps each sound with its provenance (engine, model, license, prompt or preset, seed, settings, checksum).
 - **`scripts/restart_app.py`** (Windows) closes the app the way its close button does, so it saves its settings, then starts it again; it forces the app only if it hangs for 30 seconds. `--close` just closes it.
 - **Voice Studio.** A new **Studio** page to make voices in one place: **Clone** a recording or file (use it as is, or let a cloning model re-read a passage in that voice), **Design** from a description with several candidates at once (Qwen3, VoxCPM2, OmniVoice), or **Remix** a voice with words (VoxCPM2's styled cloning). Try any take on a test line, trim, clean up, shift pitch and speed, then **Save voice**: it's frozen as a clip and transcript, so it sounds the same in every render and batch.
 - **Voice-first Generate.** Pick a voice with **Change** (yours, or a model's built-in voices); the model list shows only the models that can speak it, and picking a clip voice loads a cloning model if needed. The Voice page is now **Voices**, a library; designing moved from Generate to the Studio (which replaces Keep this voice).
@@ -71,6 +81,11 @@ Changes since upstream commit `22460fd` ("Add best-effort macOS/Linux shell laun
 - **Model settings** (repetition, min-p, top-p) are now remembered between sessions.
 
 ### Fixed
+- **A missing Chatterbox library no longer blocks every engine.** If `chatterbox-tts` fails to import, only the Chatterbox engine is unavailable; Qwen, Kokoro, VoxCPM2, OmniVoice and VibeVoice still load. The load log no longer says "Chatterbox model" for every engine.
+- **Outputs always go to the app's own `chatterbox_outputs` folder**, even when the app is started from another directory.
+- **Engine installs on Windows:**
+  - They work around a uv bug that broke Python 3.12 environments.
+  - They refuse up front, with a fix, when the app's folder path is too long for Windows' 260-character limit, instead of failing halfway.
 - **The window no longer widens with several finishing touches on.** The Finishing touches summary (e.g. speed, pitch, pauses, MP3) now shortens to fit, with the full text in its tooltip.
 - **Qwen cloned voices no longer "reset" at section seams.** A cloned or saved designed voice drifted from its reference over long sections and snapped back at the next one. Qwen cloning now uses 300-character sections (was 600) and, while Variation is on its default, a steadier 0.5; measured on a designed voice, the drift is gone and the seams match more closely.
 - **Long renders can't be cut short by a stray key.** Generate turns into Stop while rendering and kept keyboard focus, so Space or Enter could stop a render and drop its last sections. It no longer takes focus, a stop is logged again (a console redirect used to hide it), and the status says which sections weren't generated.

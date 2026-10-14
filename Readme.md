@@ -287,6 +287,34 @@ In other words, calling the whole thing “Chatterbox UI” eventually became le
 </details>
 
 <details>
+<summary><strong>Soundscape (ambience and sound effects)</strong></summary>
+
+Sound beyond speech: ambience loops, rain and waves, tonal beds and UI chimes, kept with a record of how each was made.
+
+- **Three engines:**
+
+  | Engine | License | Speed (RTX 5070 Ti) | GPU memory |
+  | --- | --- | --- | --- |
+  | **Procedural** | your own work | 30 s loop in ~2 s on the CPU | none |
+  | **MOSS-SoundEffect v2** | Apache-2.0, no restrictions; training data not disclosed | ~23 s per take; long clips are stitched | ~15 GB (the app offers to unload the voice model) |
+  | **Stable Audio 3 Small SFX** | Stability AI Community License: free under US$1M yearly revenue, with registration and "Powered by Stability AI" attribution; gated on Hugging Face | 30 s loop in ~1.5 s | ~3 GB |
+
+  - **Procedural** needs no model or download. Presets: ocean, rain, thunderstorm, wind, drone and three UI chimes.
+  - **The two models** each run in their own environment. Before installing, the app shows the license and download size and asks.
+- **Takes:** make 1 to 6 at once with consecutive seeds. The same engine, settings and seed give the same sound again.
+- **Seamless loops:**
+  - Procedural loops repeat exactly by construction.
+  - Stable Audio regenerates the seam by inpainting; MOSS folds the tail over the head. Loops still come out at the length you asked for.
+  - Each take shows a seam check, which flags a join only if it's more abrupt than anything inside the sound. "No seam detected" isn't a listening test.
+- **Mastering:**
+  - Every take is mastered to a loudness target (LUFS), with true peaks under -1 dB.
+  - A gentle limiter stops one loud moment from making the whole take quiet.
+  - Mono models are spread into stereo without changing their mono mix.
+- **Asset Library:** keep a take with its name, engine, model, license, preset or prompt, seed and settings. Rename, delete, or export as a WAV master, OGG or MP3.
+
+</details>
+
+<details>
 <summary><strong>Studio</strong></summary>
 
 One place to make a voice, so generating is just a matter of picking it. Every voice the Studio saves is frozen: a clip plus the words it says. Any cloning model can speak it, and it sounds the same in every render and batch.
@@ -517,7 +545,7 @@ this-voice-thing/
 │  │  ├─ main_window.py         the window: sidebar, page layout, settings (run as __main__)
 │  │  ├─ pages/                 one module per page, mixed into the window:
 │  │  │                         generate, generation, documents, estimates, finishing, engine_controls, player,
-│  │  │                         studio, voice, voice_picker, library, voice_use, recording, transcribe, models, discover, model_loading,
+│  │  │                         studio, soundscape, voice, voice_picker, library, voice_use, recording, transcribe, models, discover, model_loading,
 │  │  │                         model_settings, advanced, api_server, pronunciations
 │  │  ├─ dialogs/               recording, find/add models, voices and cast, pronunciation, Google Docs
 │  │  ├─ threads.py             model loading, generation, installs, speech and transcription threads
@@ -529,7 +557,8 @@ this-voice-thing/
 │  ├─ engines/
 │  │  ├─ chatterbox_backend.py  Chatterbox, loaded in-process
 │  │  ├─ worker.py              shared worker/environment support for the other engines
-│  │  └─ qwen.py, kokoro.py, voxcpm.py, omnivoice.py, vibevoice.py
+│  │  ├─ qwen.py, kokoro.py, voxcpm.py, omnivoice.py, vibevoice.py
+│  │  └─ sound_models.py        Stable Audio 3 and MOSS-SoundEffect workers for the Soundscape page
 │  ├─ core/
 │  │  ├─ model_registry.py      engines, capabilities, licenses, hardware needs, Hugging Face discovery
 │  │  ├─ documents.py           document loading, sectioning, conversation scripts
@@ -538,6 +567,8 @@ this-voice-thing/
 │  │  ├─ pronunciation.py       pronunciation dictionary
 │  │  ├─ transcription.py       speech to text with Whisper
 │  │  ├─ voice_studio.py        designing, cloning, remixing and refining voices for the Studio
+│  │  ├─ soundscape/            procedural sounds, mastering (loudness, seams, export), the sound
+│  │  │                         engine catalogue and the Asset Library
 │  │  └─ voice_library.py       saved clip, preset and designed voices
 │  └─ integrations/
 │     ├─ local_api.py           local OpenAI-compatible and native HTTP API
@@ -552,7 +583,7 @@ this-voice-thing/
 └─ requirements.in, requirements.lock.txt, uv.toml
 ```
 
-Your data stays in the project folder, where it has always been: `app_settings.json`, `models.json`, `chatterbox_outputs/`, `reference_recordings/`, `voice_library/`, `pronunciations.json`, `google_auth.json`, `logs/`, `.venv/` and each engine's `engines/<name>/.venv/`. Those names are kept for compatibility even though the app is now This Voice Thing.
+Your data stays in the project folder, where it has always been: `app_settings.json`, `models.json`, `chatterbox_outputs/`, `reference_recordings/`, `voice_library/`, `sound_library/`, `pronunciations.json`, `google_auth.json`, `logs/`, `.venv/` and each engine's `engines/<name>/.venv/`. Those names are kept for compatibility even though the app is now This Voice Thing.
 
 </details>
 
