@@ -1,8 +1,10 @@
 # Accent Exemplars, DEFINE/F5 Feasibility, and Regional Speech Data
 
+> **Research snapshot:** Findings and model-license claims reflect the original October 10, 2026 assessment. Links were reconciled to the Sonic Rift repository on October 15. No inference, accent authenticity, updated dependency licensing, or hardware performance is newly certified by merging this document. The owner GO/NO-GO gate remains #44.
+
 **Research snapshot:** 2026-10-10. **Status:** public-source technical reconnaissance; **no checkpoints installed, clips downloaded, training or speech synthesis performed**.  
-**Issues:** [#51 DEFINE](https://github.com/Knapp-Kevin/this-voice-thing/issues/51), [#52 accent corpus](https://github.com/Knapp-Kevin/this-voice-thing/issues/52), [#43 benchmarking](https://github.com/Knapp-Kevin/this-voice-thing/issues/43).  
-**Decision:** [#44](https://github.com/Knapp-Kevin/this-voice-thing/issues/44) remains a required owner approval gate.
+**Issues:** [#51 DEFINE](https://github.com/Knapp-Kevin/sonic-rift/issues/51), [#52 accent corpus](https://github.com/Knapp-Kevin/sonic-rift/issues/52), [#43 benchmarking](https://github.com/Knapp-Kevin/sonic-rift/issues/43).  
+**Decision:** [#44](https://github.com/Knapp-Kevin/sonic-rift/issues/44) remains a required owner approval gate.
 
 ## 1. DEFINE is a materially different technical option
 
