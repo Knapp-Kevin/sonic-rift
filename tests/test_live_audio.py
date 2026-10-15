@@ -349,6 +349,15 @@ class LiveAudioOutputReuseTests(unittest.TestCase):
         self.assertGreater(output._sink.io.written, written)
         output.stop()
 
+    def test_reused_sink_reports_per_item_diagnostics(self):
+        output, device = self._played_item()
+        output._underruns = 7                       # from the previous item
+        self.assertGreater(output.stats()["bytes_written"], 0)
+        output.configure(device, 48000, start_buffer_seconds=0.3)
+        stats = output.stats()
+        self.assertEqual((stats["underruns"], stats["bytes_written"]), (0, 0))
+        output.stop()
+
     def test_back_to_back_items_are_not_held(self):
         from PySide6.QtMultimedia import QAudio
         output, device = self._played_item()

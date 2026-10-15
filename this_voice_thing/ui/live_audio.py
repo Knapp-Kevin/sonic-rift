@@ -280,6 +280,10 @@ class LiveAudioOutput(QObject):
             self._input_finished = False
             self._drained_emitted = False
             self._last_stats = {}
+            # Diagnostics are per utterance: a reused sink would otherwise report every
+            # earlier item's underruns and bytes as this one's.
+            self._underruns = 0
+            self._bytes_written = 0
             self._timer.start()
             return
 
