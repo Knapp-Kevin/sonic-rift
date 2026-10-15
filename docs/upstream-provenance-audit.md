@@ -97,3 +97,21 @@ The dated findings above deliberately preserve what was true at the initial audi
 **Legal/provenance limitation:** A different file path or a distinct implementation text does not by itself erase obligations for derived code. Preserve the original MIT notice while material remains, and maintain separate dependency/model/artwork license inventories. Any new Sonic Rift-owned code licensing decision belongs to #60, with its own permission and attribution review.
 
 **Follow-up:** revise historical counts and matrices in draft #62 against actual current `main`; do not quietly reinterpret the original 2026-10-09 file totals as 2026-10-15 totals. The delivery/release gate remains #61.
+
+## Startup-helper reconciliation, 2026-10-15 (PRs #85 and #86)
+
+The historical table above lists several `ui/common.py` helpers that were once upstream-derived. The current implementation has since changed:
+
+| Historical helper | Current Sonic Rift boundary | Current disposition |
+| --- | --- | --- |
+| `read_models_config_payload`, `read_json_payload`, `write_json_payload` | `core/config_io.py` implements Qt-free JSON I/O, and `ui/common.py` retains small compatibility wrappers. | **Replaced implementation** in #85. Six identical-blob isolated regression tests passed. Full Windows application compatibility remains part of #61. |
+| `configure_console_stream`, `safe_console_text`, `TeeStream` | `core/console_io.py` implements generic forwarding with an injected live sink. `ui/common.py::TeeStream` is a small compatibility subclass retaining dynamic `APP_LOG_SINK`. | **Replaced implementation** in #86. Seven identical-blob isolated tests passed. Test GUI log-pane lifecycle under #61. |
+| `patched_torch_load`, global torch startup | Still in `ui/common.py`, with module-import side effects. | **Outstanding**: provenance, safe removal/encapsulation and target-machine regression evidence required. |
+| `load_models_config` normalization, default model constants | Still in `ui/common.py`, with model-registry and engine assumptions. | **Outstanding**: compare function-level origins, independently implement or retain with required notice, and test existing user `models.json`. |
+| `ModelLoaderThread`, `AudioGeneratorThread` | Still in `ui/threads.py`, though provider dispatch now calls `core/engine_loading.py`. | **Outstanding**: Qt lifecycle/generation refactor, real inference parity and data safety. |
+| Application window, installers and launchers | Still contain adapted upstream code; `SonicRiftApp` naming is a compatibility-level change. | **Outstanding**: function-level provenance review and tested implementation replacement. |
+
+**Scope reminder:** Moving source into a newly named module would not alone establish independent authorship. These new core modules use a new structure and explicit injected dependencies, but the question of what is materially derived or copyright-protected remains subject to the complete provenance and release-license review. Do not remove the retained root MIT text or detach the fork based only on these slices.
+
+**Validation note:** PRs #85 and #86 each executed their new core tests in isolated Python environments with exact Git object hashes confirmed. These were **not** whole-app tests on the owner’s Windows desktop, and are not a substitute for release acceptance.
+
