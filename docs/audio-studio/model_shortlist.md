@@ -1,5 +1,7 @@
 # Phase 0 (#53): model shortlist for a local benchmark
 
+> **Historical research snapshot, 2026-10-13.** Counts, source comparisons, package inventories, model licensing, and recommendations describe the audited revision, **not the current Sonic Rift `main`**. Subsequent implementation includes independent provider #77, core refactors #75/#78/#85/#86, and adopted MOSS soundscape implementation. Review current `docs/upstream-provenance-audit.md`, `THIRD_PARTY_NOTICES.md`, and release issue #61 before treating any result as a live production assertion. No new tests or downloads were performed during this archival integration. **Stable Audio 3 was evaluated but not retained as the selected shipping sound model; MOSS and procedural generation were adopted later.**
+
 **Nothing has been downloaded.** Everything below is proposed and needs the owner's approval before any download.
 Citations are in `model_matrix.md`. Sizes come from HF file listings (hub API) on 2026-10-13.
 
