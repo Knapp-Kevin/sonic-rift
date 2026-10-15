@@ -6,13 +6,13 @@
 
 **Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines multiple speech engines with voice design, cloning, narration, transcription, and soundscape generation. The long-term direction includes arranging environmental audio with spoken performances; these composition workflows are still evolving and should not be confused with independently validated release features.
 
-The application started from [Chatterbox TTS UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI) and retains [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several providers. Historical provenance, retained third-party licenses, and acknowledgements are documented in [Acknowledgements](#acknowledgements), [LICENSE](LICENSE) and [the provenance audit](docs/upstream-provenance-audit.md).
+Sonic Rift integrates [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several optional speech providers. Copyright and dependency attribution is maintained in [Licensing and third-party notices](THIRD_PARTY_NOTICES.md) and the repository's [LICENSE](LICENSE).
 
 The current voice workbench supports six speech engines, model discovery and management, reusable voices, multi-speaker conversations, document narration, pronunciation tools, subtitles, Whisper transcription, and audio finishing. The **Sounds** workspace provides ambience, loops, effects, presets, and a reusable sound asset library. See [CHANGELOG.md](CHANGELOG.md) for release-by-release details, and [the branding guide](assets/branding/README.md) for visual assets and usage.
 
 | Engine | From | Does |
 | --- | --- | --- |
-| **Chatterbox** | Resemble AI | Voice cloning, 23 languages (the default, and the project's ancestor) |
+| **Chatterbox** | Resemble AI | Voice cloning and multilingual synthesis (default speech provider) |
 | **Qwen3-TTS** | Alibaba | Preset voices with styles, voice design, voice cloning |
 | **VoxCPM2** | OpenBMB | Voice cloning with styles, voice design, 30 languages at 48 kHz |
 | **OmniVoice** | k2-fsa | Fast voice cloning and design in 600+ languages (non-commercial weights) |
@@ -104,7 +104,7 @@ If either command says it is not recognized, close and reopen Command Prompt aft
 > [!NOTE]
 > **FFmpeg is optional for initial setup.** Install it later if you want MP3 support and the best speed/pitch processing. The app itself can start without it.
 
-### 2. Download This Voice Thing
+### 2. Download Sonic Rift
 
 Choose **one** method.
 
@@ -112,14 +112,14 @@ Choose **one** method.
 
 1. On this GitHub page, click **Code → Download ZIP**.
 2. Open the downloaded ZIP.
-3. Extract the entire folder somewhere you can keep it, such as `Documents\This Voice Thing`.
+3. Extract the entire folder somewhere you can keep it, such as `Documents\Sonic Rift`.
 4. Open the extracted folder. Do not run the app from inside the ZIP preview.
 
 **Or, if you use Git:**
 
 ```bat
 git clone https://github.com/Knapp-Kevin/sonic-rift
-cd this-voice-thing
+cd sonic-rift
 ```
 
 ### 3. Start the app
@@ -133,7 +133,7 @@ On the first run, the launcher will:
 1. create the private `.venv` Python environment used by the app;
 2. install the locked Python dependencies;
 3. choose and install the appropriate PyTorch build for your hardware;
-4. start This Voice Thing;
+4. start Sonic Rift;
 5. download the default Chatterbox model when it is first needed.
 
 Keep the setup window open while it works. Later launches reuse the environment and are much shorter.
@@ -236,7 +236,7 @@ Windows remains the primary maintained path. Installer decisions are written to 
 
 ## How This Got Out of Hand
 
-This Voice Thing has evolved into a multi-engine local voice workbench with its own application architecture and workflows. Its earlier Chatterbox UI origins are credited in [Acknowledgements](#acknowledgements).
+Sonic Rift brings local voice synthesis, sound generation, narration, and audio processing into one creative workbench. Its supported capabilities and release limitations are documented below.
 
 Current additions include:
 
@@ -253,7 +253,7 @@ Current additions include:
 - **A local HTTP API.** Use the same engines and voice library from other software through OpenAI-compatible or native endpoints.
 - **A redesigned desktop interface.** Generate, Studio, Voices, Transcribe, Model, Advanced and Log pages with light and dark themes.
 
-In other words, calling the whole thing “Chatterbox UI” eventually became less a name and more a historical anecdote.
+The goal is one coherent creative-audio application, not a collection of unrelated engine interfaces.
 
 ## Features
 
@@ -445,7 +445,7 @@ Shared Google Doc links work without signing in. Opening your private Docs needs
 2. Enable the **Google Drive API**.
 3. Configure the Google Auth Platform branding/audience and add your account as a test user if the app remains in testing.
 4. Create a **Desktop app** OAuth client and download its JSON file.
-5. In This Voice Thing, choose **Open... → From Google Docs... → Set up...**, select that JSON file, then sign in.
+5. In Sonic Rift, choose **Open... → From Google Docs... → Set up...**, select that JSON file, then sign in.
 
 The app requests read-only Drive access. Local auth information is stored in `google_auth.json`. While the Cloud project is in **Testing**, Google ends sign-ins after 7 days; setting it to **In production** avoids that, with an "unverified app" warning that's expected for an app only you use.
 
@@ -582,7 +582,7 @@ this-voice-thing/
 └─ requirements.in, requirements.lock.txt, uv.toml
 ```
 
-Your data stays in the project folder, where it has always been: `app_settings.json`, `models.json`, `chatterbox_outputs/`, `reference_recordings/`, `voice_library/`, `sound_library/`, `pronunciations.json`, `google_auth.json`, `logs/`, `.venv/` and each engine's `engines/<name>/.venv/`. Those names are kept for compatibility even though the app is now This Voice Thing.
+Your data stays in the project folder, where it has always been: `app_settings.json`, `models.json`, `chatterbox_outputs/`, `reference_recordings/`, `voice_library/`, `sound_library/`, `pronunciations.json`, `google_auth.json`, `logs/`, `.venv/` and each engine's `engines/<name>/.venv/`. Those historical data paths remain stable for compatibility with existing installations, even though the product is now Sonic Rift.
 
 </details>
 
@@ -631,13 +631,13 @@ The advanced-integration decision record covers a future branded Windows virtual
 
 Issues and pull requests are welcome for application behavior, installer reliability, UI/UX, model compatibility, documentation and additional engines. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Please keep model licensing, attribution, local/private behavior and compatibility claims accurate. The project name may be unserious. Those parts are not.
+Please keep model licensing, attribution, local/private behavior and compatibility claims accurate. The product is independently branded. Licensing and compatibility obligations remain real.
 
 ## Acknowledgements
 
-**Origins and license notices.** This Voice Thing began from Chatterbox-TTS-UI. The present application is substantially expanded and reorganized; preserved MIT notices acknowledge the upstream code lineage without implying the current product remains a single-engine UI.
+**Licenses and acknowledgements.** Sonic Rift is independently branded and supports multiple speech and sound providers. For the source-code provenance record and retained copyright notices, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [LICENSE](LICENSE) and [the upstream provenance audit](docs/upstream-provenance-audit.md).
 
-- **AcTePuKc** for the original [Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI) this fork builds on (MIT), and [lowkeytea](https://github.com/lowkeytea) for [their contributions](https://github.com/AcTePuKc/Chatterbox-TTS-UI/commits?author=lowkeytea) to it.
+- **AcTePuKc and upstream contributors**, including [lowkeytea](https://github.com/lowkeytea), for historical source contributions; the preserved [original MIT copyright notice](LICENSE) and [provenance record](docs/upstream-provenance-audit.md) explain the remaining obligations.
 - **Resemble AI** for [Chatterbox TTS](https://github.com/resemble-ai/chatterbox) (MIT).
 - **Alibaba / the Qwen team** for [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0).
 - **OpenBMB** for [VoxCPM](https://github.com/OpenBMB/VoxCPM) (Apache-2.0).
