@@ -1,5 +1,6 @@
 """Offline contract tests for non-destructive GitHub metadata archive."""
 import hashlib
+import io
 import importlib.util
 import json
 from pathlib import Path
@@ -81,6 +82,40 @@ class ArchiveContractTests(unittest.TestCase):
         checkout = SCRIPT.resolve().parents[1]
         with self.assertRaisesRegex(ValueError, "inside this repository"):
             archiver.collect("Knapp-Kevin/sonic-rift", checkout / "private-export", FakeReader())
+
+    def test_reader_fetches_all_pages_and_uses_get_only(self):
+        pages = [
+            ([{"id": 1}], '<https://api.github.com/repos/a/b/issues?page=2>; rel="next"'),
+            ([{"id": 2}], ""),
+        ]
+        requests = []
+
+        class Response(io.BytesIO):
+            def __init__(self, values, link):
+                super().__init__(json.dumps(values).encode("utf-8"))
+                self.headers = {"Link": link}
+
+        def opener(request, timeout):
+            requests.append(request)
+            values, link = pages.pop(0)
+            return Response(values, link)
+
+        reader = archiver.GitHubReader("test-token", opener=opener)
+        items = reader.get("/repos/a/b/issues", {"per_page": 100})
+        self.assertEqual(items, [{"id": 1}, {"id": 2}])
+        self.assertEqual(len(requests), 2)
+        self.assertTrue(all(r.get_method() == "GET" for r in requests))
+        self.assertTrue(all(r.get_header("Authorization") == "Bearer test-token" for r in requests))
+
+    def test_reader_refuses_off_host_next_link(self):
+        class Response(io.BytesIO):
+            def __init__(self):
+                super().__init__(b"[]")
+                self.headers = {"Link": '<https://evil.invalid/api?page=2>; rel="next"'}
+
+        reader = archiver.GitHubReader("secret", opener=lambda req, timeout: Response())
+        with self.assertRaisesRegex(RuntimeError, "unexpected pagination host"):
+            reader.get("/repos/a/b/issues")
 
     def test_pagination_header_parser(self):
         header = '<https://api.github.com/repos/a/b/issues?page=2>; rel="next", <x>; rel="last"'
