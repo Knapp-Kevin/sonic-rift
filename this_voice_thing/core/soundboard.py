@@ -95,7 +95,18 @@ class SoundboardStore:
         try:
             with open(self.index_path, encoding="utf-8") as handle:
                 data = json.load(handle)
-        except (OSError, ValueError):
+        except OSError:
+            data = {}
+        except ValueError:
+            data = None
+        if not isinstance(data, dict):
+            # Unreadable boards: keep the file for recovery rather than saving a fresh board over it.
+            if os.path.exists(self.index_path):
+                backup = f"{self.index_path}.corrupt-{datetime.datetime.now():%Y%m%d-%H%M%S}"
+                try:
+                    os.replace(self.index_path, backup)
+                except OSError:
+                    pass
             data = {}
         self.boards = []
         pad_fields = Pad.__dataclass_fields__

@@ -83,6 +83,8 @@ class _Handler(BaseHTTPRequestHandler):
     api = None  # set per server
     server_version = "ThisVoiceThing/1.1"
     protocol_version = "HTTP/1.1"
+    # A client that stops reading must not hold the model (and the API lock) forever.
+    timeout = 30
 
     # --- plumbing ---
 
@@ -94,10 +96,15 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        if self.close_connection:
+            self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
 
     def _send_error(self, error):
+        # An error can come before the request body was read; with keep-alive the unread
+        # bytes would be parsed as the next request, so end the connection.
+        self.close_connection = True
         self._send_json(error.status, {"error": {"message": error.message, "type": error.kind}})
 
     def _send_file(self, path, mime):

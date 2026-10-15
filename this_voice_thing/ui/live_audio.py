@@ -31,6 +31,9 @@ class LiveSpeechThread(QThread):
     def stop(self):
         self._stop.set()
 
+    def stop_requested(self):
+        return self._stop.is_set()
+
     def wait_for_room(self):
         """Block while the output is MAX_AHEAD_SECONDS ahead; returns seconds waited."""
         started = time.monotonic()

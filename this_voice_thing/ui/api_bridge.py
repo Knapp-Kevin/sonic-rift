@@ -1,6 +1,7 @@
 """Runs local API requests on the app: the HTTP threads call in, the UI thread does the work."""
 
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -120,6 +121,8 @@ class ApiBridge(QObject):
                     "Use VoxCPM2 or Kokoro, or omit stream for normal buffered synthesis.",
                 )
 
+            temp_dir = generator.get("output_dir") if job.get("temporary") else None
+
             def chunks():
                 try:
                     yield from source
@@ -127,6 +130,8 @@ class ApiBridge(QObject):
                     close = getattr(source, "close", None)
                     if close is not None:
                         close()
+                    if temp_dir:   # streaming writes no file, so the job's temp folder is empty
+                        shutil.rmtree(temp_dir, ignore_errors=True)
                     try:
                         self.on_ui(self.app.api_end)
                     finally:
@@ -144,6 +149,8 @@ class ApiBridge(QObject):
             }
         except Exception:
             if job is not None:
+                if job.get("temporary"):
+                    shutil.rmtree(job["generator"].get("output_dir") or "", ignore_errors=True)
                 try:
                     self.on_ui(self.app.api_end)
                 except Exception:

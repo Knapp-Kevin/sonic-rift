@@ -1152,9 +1152,7 @@ class LiveVoicePage:
 
         can_speak = (
             device_ok
-            and not getattr(self, "model_is_loading", False)
-            and not self.is_generating
-            and not self.api_busy
+            and not self.model_busy_outside_live()
             and (not profile.external or self.live_external_armed)
         )
         self.live_speak_button.setEnabled(can_speak)
@@ -1231,7 +1229,7 @@ class LiveVoicePage:
                 self, "Test route", "Load a voice model first so the route test can speak."
             )
             return
-        if getattr(self, "model_is_loading", False) or self.is_generating or self.api_busy:
+        if self.model_busy_outside_live():
             QMessageBox.information(
                 self, "Test route", "The model is busy. Try the route test when generation is idle."
             )
@@ -1284,7 +1282,7 @@ class LiveVoicePage:
         if self.model is None:
             QMessageBox.information(self, "Live Voice", "Load a model first.")
             return
-        if getattr(self, "model_is_loading", False) or self.is_generating or self.api_busy:
+        if self.model_busy_outside_live():
             QMessageBox.information(
                 self,
                 "Live Voice",
@@ -1451,7 +1449,20 @@ class LiveVoicePage:
             f"{verb} · {mode} · {device.description()}"
         )
 
+    def model_busy_outside_live(self):
+        """Another job is using the model (load, Generate, the API, the Studio, Hear it).
+        Live's own run doesn't count, so lines can still queue while it speaks."""
+        speak = getattr(self, "speak_thread", None)
+        return bool(getattr(self, "model_is_loading", False) or self.is_generating or self.api_busy
+                    or getattr(self, "studio_busy", False) or (speak is not None and speak.isRunning()))
+
     def on_live_frame(self, frame):
+        # A frame already in flight when Stop was pressed belongs to a stopped thread: drop it.
+        # Pushing it to the stopped sink would raise, and the audio-error path clears the queue
+        # (which breaks "interrupt" pads that stop the current line to play the next).
+        thread = self.live_speech_thread
+        if thread is None or thread.stop_requested():
+            return
         if self.live_voice_current and self.live_voice_current.get("cache_key"):
             self.live_voice_current["_cache_pcm"].extend(frame.pcm)
             self.live_voice_current["_cache_sample_rate"] = int(frame.sample_rate)
@@ -1683,6 +1694,11 @@ class LiveVoicePage:
                 "min_p": pad.min_p,
                 "top_p": pad.top_p,
             },
+            # VoxCPM2's Live steps change the audio, so a pad cached at 6 steps rebuilds at 10.
+            # Read from the setting, not the loaded model, so cached pads still play with no model.
+            "live_steps": (voxcpm_engine.LIVE_STEP_PRESETS.get(
+                self.live_voxcpm_steps_combo.currentData() or voxcpm_engine.DEFAULT_LIVE_PRESET,
+                voxcpm_engine.LIVE_STEP_PRESETS["full"])[0] if pad.model_backend == "voxcpm" else None),
         }
 
     def _soundboard_cache_key(self, pad):
@@ -1901,9 +1917,7 @@ class LiveVoicePage:
             or self.live_voice_queue
             or self.live_audio_output.is_playing()
             or self.live_monitor_output.is_playing()
-            or getattr(self, "model_is_loading", False)
-            or self.is_generating
-            or self.api_busy
+            or self.model_busy_outside_live()
         )
 
     def apply_soundboard_board_defaults(self, board):
@@ -2260,7 +2274,7 @@ class LiveVoicePage:
             return
 
         if self.live_speech_thread is None and (
-            getattr(self, "model_is_loading", False) or self.is_generating or self.api_busy
+            self.model_busy_outside_live()
         ):
             self._soundboard_problem(
                 "Soundboard",

@@ -554,8 +554,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         if hasattr(self, "live_monitor_output"):
             self.live_monitor_output.stop()
         if getattr(self, "live_speech_thread", None) is not None:
-            self.live_speech_thread.stop()
-            self.live_speech_thread.wait()
+            self.live_speech_thread.stop()   # waited for below, after settings are saved
         # the console tee in common forwards to this sink
         if self.api_server is not None:
             self.api_server.stop()
@@ -563,6 +562,9 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             common.APP_LOG_SINK = None
         self.save_window_settings()
         self.save_app_settings()
+        # A buffered (non-streaming) engine can't be interrupted mid-line, so wait only after saving.
+        if getattr(self, "live_speech_thread", None) is not None:
+            self.live_speech_thread.wait()
         if hasattr(self, 'model_loader_thread') and self.model_loader_thread.isRunning():
             self.model_loader_thread.quit()
             self.model_loader_thread.wait()
