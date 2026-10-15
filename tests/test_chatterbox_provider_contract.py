@@ -266,12 +266,10 @@ class ChatterboxProviderContractTests(unittest.TestCase):
         self.assertIn("wasn't found on Hugging Face", str(raised.exception))
         self.assertIs(raised.exception.__cause__, error)
 
-    def test_missing_cuda_cannot_report_usable_gpu(self):
-        self.assertEqual(
-            self.adapter.probe_usable_torch_cuda(),
-            (False, "torch.cuda.is_available() returned False."),
-        )
-
+    def test_gpu_probes_are_the_shared_hardware_module(self):
+        from this_voice_thing.core import hardware
+        self.assertIs(self.adapter.probe_usable_torch_cuda, hardware.probe_usable_torch_cuda)
+        self.assertIs(self.adapter.has_system_nvidia_gpu, hardware.has_system_nvidia_gpu)
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,13 +9,15 @@ from dataclasses import dataclass
 import inspect
 import os
 from pathlib import Path
-import subprocess
 
-import torch
 from huggingface_hub import snapshot_download
 from huggingface_hub.errors import EntryNotFoundError, LocalEntryNotFoundError, RepositoryNotFoundError
 from chatterbox.tts import ChatterboxTTS
 from chatterbox.mtl_tts import ChatterboxMultilingualTTS
+
+# GPU detection is shared by every engine and lives in core.hardware; re-exported here
+# for callers of the historical chatterbox_backend import path.
+from this_voice_thing.core.hardware import has_system_nvidia_gpu, probe_usable_torch_cuda  # noqa: F401
 
 
 DEFAULT_MODEL_REPO = "ResembleAI/chatterbox"
@@ -207,36 +209,3 @@ def load_chatterbox_model(repo_id, backend, device, multilingual_t3_model=None):
             "and add a token on the Models page."
         ) from exc
     return ChatterboxSession(engine, backend, repo_id, languages)
-
-
-def has_system_nvidia_gpu():
-    try:
-        result = subprocess.run(
-            ("nvidia-smi", "-L"), capture_output=True, text=True, check=True
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return False
-    return bool(result.stdout.strip())
-
-
-def probe_usable_torch_cuda():
-    if not torch.cuda.is_available():
-        return False, "torch.cuda.is_available() returned False."
-    try:
-        capability = torch.cuda.get_device_capability(0)
-        architecture = f"sm_{capability[0]}{capability[1]}"
-        installed = set(torch.cuda.get_arch_list())
-        if architecture not in installed:
-            return False, (
-                f"Installed PyTorch CUDA kernels do not include {architecture}. "
-                f"Supported architectures: {sorted(installed)}"
-            )
-        # Inference requires both matrix operations and recurrent layers, not
-        # merely a CUDA device that is visible to torch.
-        matrix = torch.randn((8, 8), device="cuda")
-        (matrix @ matrix).sum().item()
-        recurrent = torch.nn.GRU(4, 4).to("cuda")
-        recurrent(torch.randn((2, 1, 4), device="cuda"))
-    except Exception as exc:
-        return False, str(exc)
-    return True, None
