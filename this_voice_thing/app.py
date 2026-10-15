@@ -26,8 +26,9 @@ class TeeFile:
 
     def write(self, value):
         text = str(value)
-        self.log_handle.write(text)
-        self.log_handle.flush()
+        if not self.log_handle.closed:      # a background thread may print after the log closes
+            self.log_handle.write(text)
+            self.log_handle.flush()
         if self.original_stream is not None:
             try:
                 self.original_stream.write(text)
@@ -36,7 +37,8 @@ class TeeFile:
         return len(text)
 
     def flush(self):
-        self.log_handle.flush()
+        if not self.log_handle.closed:
+            self.log_handle.flush()
         if self.original_stream is not None:
             try:
                 self.original_stream.flush()
@@ -63,21 +65,30 @@ def show_startup_error(log_path, exc_text):
 
 
 def main():
+    previous = sys.stdout, sys.stderr
     with open(LOG_PATH, "a", encoding="utf-8") as log_handle:
         sys.stdout = TeeFile(sys.__stdout__, log_handle)
         sys.stderr = TeeFile(sys.__stderr__, log_handle)
-
-        print(f"Launching Sonic Rift at {datetime.datetime.now().isoformat()}")
-        print(f"Python executable: {sys.executable}")
-        print(f"Working directory: {os.getcwd()}")
-
         try:
-            runpy.run_module("this_voice_thing.ui.main_window", run_name="__main__", alter_sys=True)
-        except Exception:
-            tb = traceback.format_exc()
-            print(tb)
-            show_startup_error(LOG_PATH, tb.splitlines()[-1] if tb.splitlines() else "Unknown startup error")
-            raise
+            _run_window()
+        finally:
+            # The window ends with sys.exit(), which leaves this block and closes the log.
+            # Put the original streams back first: Python flushes sys.stdout at shutdown, and a
+            # flush into the closed log turned every clean exit into exit code 120.
+            sys.stdout, sys.stderr = previous
+
+
+def _run_window():
+    print(f"Launching Sonic Rift at {datetime.datetime.now().isoformat()}")
+    print(f"Python executable: {sys.executable}")
+    print(f"Working directory: {os.getcwd()}")
+    try:
+        runpy.run_module("this_voice_thing.ui.main_window", run_name="__main__", alter_sys=True)
+    except Exception:
+        tb = traceback.format_exc()
+        print(tb)
+        show_startup_error(LOG_PATH, tb.splitlines()[-1] if tb.splitlines() else "Unknown startup error")
+        raise
 
 
 if __name__ == "__main__":
