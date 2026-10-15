@@ -15,8 +15,13 @@ class NavigationTests(unittest.TestCase):
         from PySide6.QtWidgets import QApplication
         from this_voice_thing.ui import main_window
         cls.app = QApplication.instance() or QApplication([])
+        from this_voice_thing import paths
         cls.tmp = tempfile.mkdtemp()
-        with patch.object(main_window.ChatterboxApp, "start_default_model_load", lambda self: None), \
+        # The window keeps its data (settings, voices, pronunciations, models.json) in the
+        # project folder and saves settings when it closes. Point it at a scratch folder so
+        # the suite never overwrites the owner's real settings, even while the app is running.
+        with patch.object(paths, "ROOT", cls.tmp), \
+                patch.object(main_window.ChatterboxApp, "start_default_model_load", lambda self: None), \
                 patch.object(main_window.ChatterboxApp, "restart_api_server", lambda self: None):
             cls.window = main_window.ChatterboxApp()
         cls.window.output_directory = cls.tmp
@@ -24,6 +29,12 @@ class NavigationTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.window.close()
+
+    def test_window_data_stays_out_of_the_project_folder(self):
+        from this_voice_thing import paths
+        for path in (self.window.app_settings_path, self.window.model_config_path, self.window.script_dir):
+            self.assertTrue(os.path.abspath(path).startswith(os.path.abspath(self.tmp)), path)
+        self.assertNotEqual(os.path.abspath(self.window.script_dir), os.path.abspath(paths.ROOT))
 
     def sidebar_labels(self):
         return [self.window.sidebar.item(i).text() for i in range(self.window.sidebar.count())]
