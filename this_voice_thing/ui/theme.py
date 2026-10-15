@@ -21,8 +21,8 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPalette, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QFrame, QWidget
 
-APP_NAME = "This Voice Thing"
-TAGLINE = "Definitely not just Chatterbox UI."
+APP_NAME = "Sonic Rift"
+TAGLINE = "Make worlds you can hear."
 
 # Every theme defines exactly these roles (tests check both themes match).
 SEMANTIC_ROLES = (
