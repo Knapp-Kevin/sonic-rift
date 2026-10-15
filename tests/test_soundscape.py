@@ -142,6 +142,33 @@ class WidenTests(unittest.TestCase):
         self.assertLess(np.sqrt(np.mean(side ** 2)), 0.05 * np.sqrt(np.mean(bass[:, 0] ** 2)))
 
 
+class DynamicsTests(unittest.TestCase):
+    def test_start_soft_opens_quiet_and_stays_seamless(self):
+        x = mastering.normalize(procedural.generate("ocean", seconds=30, seed=11, intensity=0.9), SR, -24.0)
+        soft = mastering.start_soft(x, SR)
+        self.assertLessEqual(mastering.opening_level_db(soft, SR), mastering.opening_level_db(x, SR) + 1e-6)
+        self.assertLess(mastering.opening_level_db(soft, SR), -1.0)        # quieter than the median
+        self.assertTrue(mastering.seam_report(soft, SR)["seamless"])
+        self.assertEqual(len(soft), len(x))
+
+    def test_even_dynamics_narrows_the_swings_and_keeps_the_loop(self):
+        x = procedural.generate("ocean", seconds=40, seed=12, intensity=1.0)
+        before = mastering.loudness_range(x, SR)
+        even = mastering.even_dynamics(x, SR, loop=True, amount=0.5)
+        self.assertLess(mastering.loudness_range(even, SR), before * 0.75)
+        self.assertTrue(mastering.seam_report(mastering.normalize(even, SR, -24.0), SR)["seamless"])
+
+    def test_render_applies_both_and_reports_them(self):
+        from this_voice_thing.core.soundscape import render
+        plain = render.render(render.SoundRequest(engine="procedural", preset="ocean", seconds=30, seed=11,
+                                                  candidates=1, start_soft=False))[0]
+        shaped = render.render(render.SoundRequest(engine="procedural", preset="ocean", seconds=30, seed=11,
+                                                   candidates=1, even_dynamics=True, target_lufs=-26.0))[0]
+        self.assertAlmostEqual(shaped.metrics["integrated_lufs"], -26.0, delta=0.5)
+        self.assertLess(shaped.metrics["loudness_range_db"], plain.metrics["loudness_range_db"])
+        self.assertLess(shaped.metrics["opening_vs_median_db"], 0.0)
+
+
 class SeamDetectionTests(unittest.TestCase):
     def test_flags_real_seams(self):
         t = np.arange(SR * 12) / SR
@@ -252,7 +279,7 @@ class RenderTests(unittest.TestCase):
         self.assertEqual([c.seed for c in results], [40, 41])
         self.assertFalse(np.allclose(results[0].audio, results[1].audio))
         for candidate in results:
-            self.assertAlmostEqual(candidate.metrics["integrated_lufs"], -22.0, delta=0.6)
+            self.assertAlmostEqual(candidate.metrics["integrated_lufs"], procedural.PRESETS["rain"].target_lufs, delta=0.6)
             self.assertTrue(candidate.metrics["seam"]["seamless"])
 
     def test_model_loops_are_healed_and_one_shots_are_not(self):

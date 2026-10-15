@@ -28,14 +28,14 @@ class Preset:
 
 
 PRESETS = {
-    "ocean": Preset("ocean", "Ocean waves", "Swells that build, break and wash back.", True, 60.0, -20.0,
+    "ocean": Preset("ocean", "Ocean waves", "Swells that build, break and wash back.", True, 60.0, -24.0,
                     "Wave size"),
-    "rain": Preset("rain", "Rain", "Steady rain on leaves, with individual drops.", True, 60.0, -22.0,
+    "rain": Preset("rain", "Rain", "Steady rain on leaves, with individual drops.", True, 60.0, -25.0,
                    "Rainfall"),
-    "storm": Preset("storm", "Thunderstorm", "Heavy rain with rolling thunder.", True, 60.0, -20.0,
+    "storm": Preset("storm", "Thunderstorm", "Heavy rain with rolling thunder.", True, 60.0, -23.0,
                     "Storm strength"),
-    "wind": Preset("wind", "Wind", "Moving air with slow gusts.", True, 60.0, -23.0, "Gusts"),
-    "drone": Preset("drone", "Ambient drone", "A soft, evolving tonal bed.", True, 60.0, -24.0,
+    "wind": Preset("wind", "Wind", "Moving air with slow gusts.", True, 60.0, -25.0, "Gusts"),
+    "drone": Preset("drone", "Ambient drone", "A soft, evolving tonal bed.", True, 60.0, -27.0,
                     "Movement"),
     "ui_success": Preset("ui_success", "Chime: success", "A bright two-note rising chime.", False, 1.6,
                          -16.0, "Sparkle"),

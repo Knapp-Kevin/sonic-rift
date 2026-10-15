@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 from this_voice_thing.core.soundscape import catalog, mastering, procedural
 
-DEFAULT_MODEL_LUFS = -20.0
+DEFAULT_MODEL_LUFS = -24.0   # calm background level; presets carry their own
 
 
 @dataclass
@@ -20,7 +20,9 @@ class SoundRequest:
     width: float = 0.5
     prompt: str = ""            # models
     negative_prompt: str = ""
-    target_lufs: float = DEFAULT_MODEL_LUFS
+    target_lufs: float = None     # None: the preset's (procedural) or DEFAULT_MODEL_LUFS
+    start_soft: bool = True       # loops begin at their quietest moment and build
+    even_dynamics: bool = False   # gently level loud and quiet stretches
 
 
 @dataclass
@@ -32,9 +34,11 @@ class Candidate:
 
 
 def target_lufs(request):
+    if request.target_lufs is not None:
+        return float(request.target_lufs)
     if request.engine == "procedural":
         return procedural.PRESETS[request.preset].target_lufs
-    return request.target_lufs
+    return DEFAULT_MODEL_LUFS
 
 
 def render(request, model=None, cancelled=lambda: False, progress=lambda _done, _total: None):
@@ -65,6 +69,10 @@ def render(request, model=None, cancelled=lambda: False, progress=lambda _done, 
             if mastering.is_mono(audio):
                 # e.g. MOSS-SoundEffect: give it stereo width without touching its mono mix
                 audio = mastering.widen(audio, sample_rate, request.width, loop=is_loop, seed=seed)
+        if is_loop and request.even_dynamics:
+            audio = mastering.even_dynamics(audio, sample_rate, loop=True)
+        if is_loop and request.start_soft:
+            audio = mastering.start_soft(audio, sample_rate)
         audio = mastering.normalize(audio, sample_rate, target_lufs(request))
         results.append(Candidate(audio, sample_rate, seed, mastering.measure(audio, sample_rate, is_loop)))
         progress(index + 1, request.candidates)

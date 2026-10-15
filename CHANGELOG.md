@@ -14,7 +14,7 @@ Changes since upstream commit `22460fd` ("Add best-effort macOS/Linux shell laun
     - Stable Audio 3 Small SFX was built in, evaluated and removed: its ambience was rejected in listening tests, and its license carries conditions.
   - **Install and consent:** each model gets its own environment, and the app shows the license and download size and asks before installing.
   - **Takes:** several at once, with seeds for repeatability. Loops are seamless (folding for MOSS) and come out at the requested length.
-  - **Mastering:** LUFS loudness with true-peak headroom and a gentle limiter, a seam check, and stereo widening for mono models.
+  - **Mastering:** LUFS loudness with true-peak headroom and a gentle limiter, a seam check, stereo widening for mono models, **Start soft** (loops begin at their quietest moment and build) and **Even out dynamics** (a slow leveler that roughly halves the swings); calm ambience defaults to -24 to -27 LUFS.
   - **Export:** WAV, OGG or MP3.
   - **Asset Library:** keeps each sound with its provenance (engine, model, license, prompt or preset, seed, settings, checksum).
 - **`scripts/restart_app.py`** (Windows) closes the app the way its close button does, so it saves its settings, then starts it again; it forces the app only if it hangs for 30 seconds. `--close` just closes it.

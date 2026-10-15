@@ -141,6 +141,68 @@ def widen(x, sr, width=0.5, loop=True, seed=0, crossover_hz=300.0):
     return np.stack([mid + side, mid - side], axis=1).astype(np.float32)
 
 
+def _frame_levels(x, sr, hop_seconds, window_seconds, loop):
+    """Level (dB RMS of the mid) in `window_seconds` windows every `hop_seconds`.
+    For loops the window wraps around, so the curve is circular like the sound."""
+    mono = as_stereo(x).astype(np.float64).mean(axis=1)
+    hop, win = max(1, int(hop_seconds * sr)), max(1, int(window_seconds * sr))
+    power = mono ** 2
+    padded = np.concatenate([power, power[:win]]) if loop else np.concatenate([power, np.zeros(win)])
+    cumulative = np.concatenate([[0.0], np.cumsum(padded)])
+    starts = np.arange(0, len(mono), hop)
+    mean = (cumulative[starts + win] - cumulative[starts]) / win
+    return 10 * np.log10(mean + 1e-12), hop, win
+
+
+def loudness_range(x, sr, loop=True):
+    """How much the level swings, in dB: 95th minus 10th percentile of 3 s levels, with
+    near-silence ignored (in the spirit of EBU R128 LRA, on unweighted RMS)."""
+    levels, _hop, _win = _frame_levels(x, sr, 0.5, 3.0, loop)
+    levels = levels[levels > levels.max() - 30]
+    return float(np.percentile(levels, 95) - np.percentile(levels, 10))
+
+
+def even_dynamics(x, sr, loop=True, amount=0.5, max_gain_db=8.0):
+    """Slowly pull loud and quiet stretches toward the median level (a gentle leveler):
+    `amount` 0.5 halves the swings. Gain moves over seconds, never fast enough to pump.
+    For loops the gain curve is circular, so the wrap stays seamless."""
+    x = as_stereo(x)
+    levels, hop, win = _frame_levels(x, sr, 0.1, 1.0, loop)
+    gain_db = np.clip(-amount * (levels - np.median(levels)), -max_gain_db, max_gain_db)
+    width = 21                                                     # 2 s of 0.1 s frames
+    kernel = np.hanning(width + 2)[1:-1]
+    kernel /= kernel.sum()
+    pad = width // 2
+    if loop:
+        edges = (gain_db[-pad:], gain_db[:pad])
+    else:
+        edges = (np.repeat(gain_db[:1], pad), np.repeat(gain_db[-1:], pad))
+    smooth = np.convolve(np.concatenate([edges[0], gain_db, edges[1]]), kernel, "same")[pad:-pad]
+    centres = np.arange(len(smooth)) * hop + win // 2              # each frame describes its window's middle
+    positions = np.arange(len(x))
+    if loop:
+        curve = np.interp(positions, np.concatenate([centres - len(x), centres, centres + len(x)]),
+                          np.concatenate([smooth, smooth, smooth]))
+    else:
+        curve = np.interp(positions, centres, smooth)
+    return (x * (10 ** (curve / 20))[:, None]).astype(np.float32)
+
+
+def start_soft(x, sr, window_seconds=3.0):
+    """Rotate a loop so it begins at its quietest moment, so playback opens soft and builds.
+    Nothing is faded: the old start/end join (already seamless) moves inside the loop."""
+    x = as_stereo(x)
+    levels, hop, _win = _frame_levels(x, sr, 0.1, window_seconds, True)
+    quietest = int(np.argmin(levels)) * hop
+    return np.ascontiguousarray(np.roll(x, -quietest, axis=0))
+
+
+def opening_level_db(x, sr, seconds=3.0):
+    """Level of the first `seconds` relative to the whole clip's median 3 s level."""
+    levels, _hop, _win = _frame_levels(x, sr, 0.5, seconds, True)
+    return float(levels[0] - np.median(levels))
+
+
 LOOP_FOLD_SECONDS = 2.0
 
 
@@ -219,6 +281,9 @@ def measure(x, sr, loop):
         "true_peak_db": round(true_peak_db(x), 2),
         "clipped_samples": int(np.sum(np.abs(x) >= 1.0)),
     }
+    if len(x) >= 6 * sr:
+        row["loudness_range_db"] = round(loudness_range(x, sr, loop), 1)
+        row["opening_vs_median_db"] = round(opening_level_db(x, sr), 1)
     if loop:
         row["seam"] = seam_report(x, sr)
     return row

@@ -309,6 +309,9 @@ Sound beyond speech: ambience loops, rain and waves, tonal beds and UI chimes, k
 - **Mastering:**
   - Every take is mastered to a loudness target (LUFS), with true peaks under -1 dB.
   - A gentle limiter stops one loud moment from making the whole take quiet.
+  - **Start soft** begins a loop at its quietest moment, so it opens softly and builds; nothing is faded, so it stays seamless.
+  - **Even out dynamics** slowly levels loud and quiet stretches so swells don't jump out at high volume; each take shows how much its level swings.
+  - Calm ambience defaults to about -24 to -27 LUFS (adjustable per take).
   - Mono models are spread into stereo without changing their mono mix.
 - **Asset Library:** keep a take with its name, engine, model, license, preset or prompt, seed and settings. Rename, delete, or export as a WAV master, OGG or MP3.
 

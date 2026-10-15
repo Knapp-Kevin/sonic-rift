@@ -39,6 +39,8 @@ def take_summary(index, candidate):
     metrics = candidate.metrics
     parts = [f"Take {index + 1}", f"seed {candidate.seed}", f"{metrics['seconds']:.1f} s",
              f"{metrics['integrated_lufs']:.1f} LUFS", f"peak {metrics['true_peak_db']:.1f} dBTP"]
+    if "loudness_range_db" in metrics:
+        parts.append(f"swings {metrics['loudness_range_db']:.0f} dB")
     if "seam" in metrics:
         parts.append("no seam detected" if metrics["seam"]["seamless"] else "seam detected: listen to the loop")
     return " · ".join(parts)
@@ -120,6 +122,31 @@ class SoundscapePage:
         options_row.addWidget(self.sound_takes_spin)
         options_row.addStretch(1)
         make_layout.addLayout(options_row)
+
+        shaping_row = QHBoxLayout()
+        shaping_row.addWidget(QLabel("Loudness"))
+        self.sound_lufs_spin = QDoubleSpinBox()
+        self.sound_lufs_spin.setRange(-40.0, -10.0)
+        self.sound_lufs_spin.setDecimals(1)
+        self.sound_lufs_spin.setSingleStep(1.0)
+        self.sound_lufs_spin.setSuffix(" LUFS")
+        self.sound_lufs_spin.setToolTip("How loud the finished sound is. Calm background ambience sits around "
+                                        "-24 to -27 LUFS; lower is quieter.")
+        shaping_row.addWidget(self.sound_lufs_spin)
+        self.sound_soft_start_checkbox = QCheckBox("Start soft")
+        self.sound_soft_start_checkbox.setChecked(bool(settings.get("start_soft", True)))
+        self.sound_soft_start_checkbox.setToolTip(
+            "Begin the loop at its quietest moment, so it opens softly and builds. Nothing is faded; "
+            "the loop stays seamless.")
+        shaping_row.addWidget(self.sound_soft_start_checkbox)
+        self.sound_even_checkbox = QCheckBox("Even out dynamics")
+        self.sound_even_checkbox.setChecked(bool(settings.get("even_dynamics", True)))
+        self.sound_even_checkbox.setToolTip(
+            "Gently level the loud and quiet stretches over several seconds, so swells don't jump out at "
+            "high volume. Each take shows how much its level swings.")
+        shaping_row.addWidget(self.sound_even_checkbox)
+        shaping_row.addStretch(1)
+        make_layout.addLayout(shaping_row)
 
         self.sound_sliders = {}
         self.sound_slider_row = QHBoxLayout()
@@ -267,6 +294,11 @@ class SoundscapePage:
         one_shot = engine.kind == "procedural" and not preset.loop
         self.sound_seconds_spin.setEnabled(not one_shot)
         self.sound_loop_checkbox.setEnabled(not one_shot)
+        self.sound_soft_start_checkbox.setEnabled(not one_shot)
+        self.sound_even_checkbox.setEnabled(not one_shot)
+        # Each preset (and each model) suggests its own level; the user can change it.
+        self.sound_lufs_spin.setValue(preset.target_lufs if engine.kind == "procedural"
+                                      else render.DEFAULT_MODEL_LUFS)
 
     def sound_engine_action(self):
         engine = self.current_sound_engine()
@@ -370,13 +402,16 @@ class SoundscapePage:
             engine=engine.key, seconds=self.sound_seconds_spin.value(),
             loop=self.sound_loop_checkbox.isChecked(), seed=self.sound_seed_spin.value(),
             candidates=self.sound_takes_spin.value(), preset=self.sound_preset_combo.currentData(),
-            prompt=self.sound_prompt_input.text().strip(), **sliders)
+            prompt=self.sound_prompt_input.text().strip(), target_lufs=self.sound_lufs_spin.value(),
+            start_soft=self.sound_soft_start_checkbox.isChecked(),
+            even_dynamics=self.sound_even_checkbox.isChecked(), **sliders)
 
     def save_sound_settings(self, request):
         stored = self.app_settings.setdefault("soundscape", {})
         stored.update(engine=request.engine, preset=request.preset, prompt=request.prompt,
                       seconds=request.seconds, loop=request.loop, seed=request.seed, takes=request.candidates,
-                      intensity=request.intensity, brightness=request.brightness, width=request.width)
+                      intensity=request.intensity, brightness=request.brightness, width=request.width,
+                      start_soft=request.start_soft, even_dynamics=request.even_dynamics)
 
     def start_sound_render(self):
         if self.sound_busy():
@@ -470,7 +505,9 @@ class SoundscapePage:
         if not ok:
             return
         provenance = dict(seed=candidate.seed, license=engine.license_name, metrics=candidate.metrics,
-                          settings={"seconds": request.seconds, "loop": request.loop})
+                          settings={"seconds": request.seconds, "loop": request.loop,
+                                    "target_lufs": render.target_lufs(request), "start_soft": request.start_soft,
+                                    "even_dynamics": request.even_dynamics})
         if engine.kind == "procedural":
             provenance.update(preset=request.preset)
             provenance["settings"].update(intensity=request.intensity, brightness=request.brightness,
