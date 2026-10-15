@@ -20,7 +20,7 @@ These workstreams have separate acceptance criteria.
 
 ## Evidence on today's main
 
-The [dated upstream provenance audit](../upstream-provenance-audit.md) initially identified a byte-identical copied backend. **PR #77 has since replaced its implementation** with a Sonic Rift provider adapter; the old `chatterbox_backend.py` path is now a compatibility facade. Real Chatterbox English/V2/V3 audio tests on Windows support the functional acceptance of that specific replacement. Evolved upstream worker/UI/helper code still exists in `ui/threads.py`, `ui/main_window.py`, startup/install scripts and portions of `ui/common.py`. Current source is **not fully independently authored or legally cleared**.
+The [dated upstream provenance audit](upstream-provenance-audit.md) initially identified a byte-identical copied backend. **PR #77 has since replaced its implementation** with a Sonic Rift provider adapter; the old `chatterbox_backend.py` path is now a compatibility facade. Real Chatterbox English/V2/V3 audio tests on Windows support the functional acceptance of that specific replacement. Evolved upstream worker/UI/helper code still exists in `ui/threads.py`, `ui/main_window.py`, startup/install scripts and portions of `ui/common.py`. Current source is **not fully independently authored or legally cleared**.
 
 An expanded file-level analysis is in draft PR #62, which reports 5 byte-identical files and 19 adapted files at its audited revision. These counts are **historical audit evidence**, not current independent-author percentages or legal conclusions. Reconcile #62 against the current branch before using that ledger to authorize source license changes.
 
