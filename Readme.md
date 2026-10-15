@@ -1,20 +1,14 @@
-# This Voice Thing
+# Sonic Rift
 
-![This Voice Thing](assets/branding/this-voice-thing-banner.jpg)
+![Sonic Rift: Make worlds you can hear](assets/branding/sonic-rift-banner.svg)
 
-> **Definitely not just Chatterbox UI.**  
-> **All the good names were taken.**  
-> **A name was apparently required, so here we are.**
+> **Make worlds you can hear.** Local-first creative audio for voices, soundscapes, and the ideas that connect them.
 
-**This Voice Thing** is a Windows-first, local-first desktop app for working with voice AI models.
+**Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines multiple speech engines with voice design, cloning, narration, transcription, and soundscape generation. The long-term direction includes arranging environmental audio with spoken performances; these composition workflows are still evolving and should not be confused with independently validated release features.
 
-It supports [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) alongside several other speech engines. Today it is a multi-engine voice workbench rather than a UI for any single model. Historical project lineage and upstream license notices are preserved in [Acknowledgements](#acknowledgements) and [LICENSE](LICENSE).
+The application started from [Chatterbox TTS UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI) and retains [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several providers. Historical provenance, retained third-party licenses, and acknowledgements are documented in [Acknowledgements](#acknowledgements), [LICENSE](LICENSE) and [the provenance audit](docs/upstream-provenance-audit.md).
 
-So this is **This Voice Thing**.
-
-You may also think of it as **Not Chatterbox**, **Name Required**, **Good Names Taken**, or **That Voice App We Apparently Had To Name**. Those are not separate editions. Naming software is simply a deeply unserious activity and we have chosen to stop pretending otherwise.
-
-Underneath the stupid name is a fairly serious voice workbench: six local speech engines, voice cloning and design, preset voices, multi-speaker conversations, document narration, model discovery and management, a reusable voice library, pronunciation controls, subtitles, speech-to-text transcription, audio finishing tools, and a local API.
+The current voice workbench supports six speech engines, model discovery and management, reusable voices, multi-speaker conversations, document narration, pronunciation tools, subtitles, Whisper transcription, and audio finishing. The **Sounds** workspace provides ambience, loops, effects, presets, and a reusable sound asset library. See [CHANGELOG.md](CHANGELOG.md) for release-by-release details, and [the branding guide](assets/branding/README.md) for visual assets and usage.
 
 | Engine | From | Does |
 | --- | --- | --- |
@@ -36,7 +30,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the long version of how this got out of han
 
 ## System Requirements & Platform Compatibility
 
-**Before installing:** This Voice Thing runs AI speech models on your own computer. Being able to open the desktop app does not guarantee that a particular model will install, use hardware acceleration, or generate audio successfully.
+**Before installing:** Sonic Rift runs AI speech models on your own computer. Being able to open the desktop app does not guarantee that a particular model will install, use hardware acceleration, or generate audio successfully.
 
 | Platform | Current project status | What to expect |
 | --- | --- | --- |
@@ -56,7 +50,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the long version of how this got out of han
 
 **Have an Apple Silicon Mac (including an M4 MacBook)?** You're welcome to try it and share results, but **macOS has not been tested by the maintainer** and is **not a supported or guaranteed setup**. Potential issues include unavailable or incompatible Python dependencies, failure of the installer to select a working PyTorch build, CPU-only inference instead of Metal/MPS acceleration, model-specific operators that do not run on MPS, slow performance, or failures during model loading and audio generation. A successful app launch alone does not establish engine compatibility.
 
-**Community testing is welcome.** If you try it on macOS, please [open a GitHub issue](https://github.com/Knapp-Kevin/this-voice-thing/issues/new) with your Mac model and chip, macOS version, RAM, Python version, the engine/model tested, installation steps, whether inference used MPS or CPU, whether audio was generated, and relevant error logs (with tokens and private paths removed). Reports of both success and failure are useful. No Mac hardware or maintainer-led Apple testing is currently available; community reports will help establish what actually works.
+**Community testing is welcome.** If you try it on macOS, please [open a GitHub issue](https://github.com/Knapp-Kevin/sonic-rift/issues/new) with your Mac model and chip, macOS version, RAM, Python version, the engine/model tested, installation steps, whether inference used MPS or CPU, whether audio was generated, and relevant error logs (with tokens and private paths removed). Reports of both success and failure are useful. No Mac hardware or maintainer-led Apple testing is currently available; community reports will help establish what actually works.
 
 ## Table of Contents
 
@@ -124,7 +118,7 @@ Choose **one** method.
 **Or, if you use Git:**
 
 ```bat
-git clone https://github.com/Knapp-Kevin/this-voice-thing
+git clone https://github.com/Knapp-Kevin/sonic-rift
 cd this-voice-thing
 ```
 
@@ -662,7 +656,7 @@ Thanks goes to these wonderful people:
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Knapp-Kevin"><img src="https://avatars.githubusercontent.com/u/205245245?v=4?s=100" width="100px;" alt="Kevin Knapp"/><br /><sub><b>Kevin Knapp</b></sub></a><br /><a href="https://github.com/Knapp-Kevin/this-voice-thing/commits?author=Knapp-Kevin" title="Code">💻</a> <a href="#ideas-Knapp-Kevin" title="Ideas, Planning, & Feedback">🤔</a> <a href="#design-Knapp-Kevin" title="Design">🎨</a> <a href="https://github.com/Knapp-Kevin/this-voice-thing/commits?author=Knapp-Kevin" title="Documentation">📖</a> <a href="#projectManagement-Knapp-Kevin" title="Project Management">📆</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Knapp-Kevin"><img src="https://avatars.githubusercontent.com/u/205245245?v=4?s=100" width="100px;" alt="Kevin Knapp"/><br /><sub><b>Kevin Knapp</b></sub></a><br /><a href="https://github.com/Knapp-Kevin/sonic-rift/commits?author=Knapp-Kevin" title="Code">💻</a> <a href="#ideas-Knapp-Kevin" title="Ideas, Planning, & Feedback">🤔</a> <a href="#design-Knapp-Kevin" title="Design">🎨</a> <a href="https://github.com/Knapp-Kevin/sonic-rift/commits?author=Knapp-Kevin" title="Documentation">📖</a> <a href="#projectManagement-Knapp-Kevin" title="Project Management">📆</a></td>
     </tr>
   </tbody>
 </table>
