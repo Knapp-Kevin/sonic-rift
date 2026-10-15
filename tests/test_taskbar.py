@@ -15,6 +15,24 @@ class TaskbarTests(unittest.TestCase):
         with open(taskbar.ICON_FILE, "rb") as handle:
             self.assertEqual(handle.read(4), b"\x00\x00\x01\x00")  # ICO header
 
+    def test_ico_carries_every_windows_size(self):
+        """Taskbar, title bar, Alt+Tab and Explorer each ask for a different size."""
+        import struct
+        with open(taskbar.ICON_FILE, "rb") as handle:
+            data = handle.read()
+        count = struct.unpack_from("<H", data, 4)[0]
+        sizes = {struct.unpack_from("<B", data, 6 + 16 * i)[0] or 256 for i in range(count)}
+        self.assertTrue({16, 24, 32, 48, 64, 128, 256} <= sizes, sizes)
+        for i in range(count):
+            length, offset = struct.unpack_from("<II", data, 6 + 16 * i + 8)
+            self.assertEqual(data[offset:offset + 8], b"\x89PNG\r\n\x1a\n")   # each entry is a PNG
+            self.assertLessEqual(offset + length, len(data))
+
+    def test_taskbar_icon_is_the_sonic_rift_icon(self):
+        self.assertEqual(os.path.basename(taskbar.ICON_FILE), "sonic-rift.ico")
+        # The AppUserModelID stays, so users' pinned taskbar buttons keep working.
+        self.assertEqual(taskbar.APP_ID, "KnappKevin.ThisVoiceThing")
+
     def test_relaunch_runs_main_py_from_the_project(self):
         command = taskbar.relaunch_command()
         self.assertIn(os.path.join(paths.ROOT, "main.py"), command)

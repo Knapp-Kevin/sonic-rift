@@ -20,10 +20,10 @@ set LOG_FILE=%LOG_DIR%\installer_%LOG_TIMESTAMP%.log
 set CHATTERBOX_INSTALL_LOG=%CD%\%LOG_FILE%
 
 echo.
-echo === Starting This Voice Thing Installer ===
+echo === Starting Sonic Rift Installer ===
 echo.
 echo Installer log: %LOG_FILE%
-call :LOG_MESSAGE "=== Starting This Voice Thing Installer ==="
+call :LOG_MESSAGE "=== Starting Sonic Rift Installer ==="
 call :LOG_MESSAGE "Dry Run Mode: %UV_APP_DRY%"
 
 where python >nul

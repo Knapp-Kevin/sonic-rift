@@ -4,7 +4,7 @@ Run from Python, the window would otherwise be grouped under python.exe (Python'
 icon), or under a taskbar ID whose icon Windows has cached as the generic one. So
 the process gets its own ID, and the window carries that ID plus an explicit icon
 file and relaunch command; Windows then shows the brand icon, and pinning the app
-pins This Voice Thing rather than Python. Everything here is a no-op off Windows.
+pins Sonic Rift rather than Python. Everything here is a no-op off Windows.
 """
 
 import ctypes
@@ -16,7 +16,7 @@ from this_voice_thing import paths
 
 APP_ID = "KnappKevin.ThisVoiceThing"
 APP_NAME = "Sonic Rift"           # the AppUserModelID above stays, so existing pinned buttons keep working
-ICON_FILE = os.path.join(paths.ASSETS_DIR, "branding", "this-voice-thing.ico")
+ICON_FILE = os.path.join(paths.ASSETS_DIR, "branding", "sonic-rift.ico")   # built by scripts/build_icons.py
 
 VT_LPWSTR = 31
 # PKEY_AppUserModel_*: {9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}

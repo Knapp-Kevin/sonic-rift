@@ -49,10 +49,10 @@ build_runtime_lock() {
     grep -Ev '^(torch|torchaudio|torchvision)==' "$REQUIREMENTS_LOCK_FILE" > "$RUNTIME_LOCK_FILE"
 }
 
-log_message "=== Starting This Voice Thing Installer ==="
+log_message "=== Starting Sonic Rift Installer ==="
 log_message "Dry Run Mode: $UV_APP_DRY"
 echo
-echo "=== Starting This Voice Thing Installer ==="
+echo "=== Starting Sonic Rift Installer ==="
 echo
 echo "Installer log: $LOG_FILE"
 

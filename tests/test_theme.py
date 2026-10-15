@@ -142,6 +142,17 @@ class AppIcon(unittest.TestCase):
         self.assertEqual(ui_theme.app_icon_path(), expected)
         self.assertFalse(os.path.isabs(os.path.relpath(ui_theme.BRAND_ICON, ROOT)))  # inside the repo
 
+    def test_window_icon_has_every_size_and_small_sizes_are_redrawn(self):
+        from PySide6.QtCore import QSize
+        from PySide6.QtWidgets import QApplication
+        QApplication.instance() or QApplication([])
+        files = dict(ui_theme.app_icon_files())
+        self.assertEqual(sorted(files), sorted(ui_theme.APP_ICON_SIZES))
+        icon = ui_theme.app_icon()
+        for size in (16, 24, 32, 48, 256):
+            self.assertIn(QSize(size, size), icon.availableSizes())
+        self.assertIn("sonic-rift", os.path.basename(ui_theme.app_icon_path()))
+
     def test_branding_assets_decode(self):
         """Catch truncated or corrupt brand images before they ship."""
         from PySide6.QtGui import QImage

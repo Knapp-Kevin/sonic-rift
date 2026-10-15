@@ -17,7 +17,7 @@ import os
 import numpy as np
 
 from this_voice_thing import paths
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPalette, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QFrame, QWidget
 
@@ -122,9 +122,11 @@ LIGHT["chevron"] = _asset("chevron_down_light.svg")
 DARK["check"] = _asset("check_dark.svg")    # dark tick on the cyan fill
 LIGHT["check"] = _asset("check_light.svg")  # white tick on the deep-cyan fill
 
-# Keep the existing, shipped app icon until a replacement is reviewed and tested;
-# the new Sonic Rift symbol is a candidate, not an automatic runtime replacement.
-BRAND_ICON = _asset("branding/this-voice-thing-app-icon.png")
+# The Sonic Rift app icon: one PNG per size, built by scripts/build_icons.py. The small
+# sizes are redrawn for legibility, so the icon carries every size and Qt picks the closest
+# (title bar ~16-24 px, Alt+Tab and taskbar 32-48 px, larger elsewhere).
+APP_ICON_SIZES = (16, 20, 24, 32, 40, 48, 64, 96, 128, 256, 512)
+BRAND_ICON = _asset("branding/app-icon/sonic-rift-512.png")
 FALLBACK_ICON = _asset("logo.svg")
 
 
@@ -136,8 +138,24 @@ def app_icon_path():
     return FALLBACK_ICON
 
 
+def app_icon_files():
+    """The per-size icon PNGs that exist and decode."""
+    files = []
+    for size in APP_ICON_SIZES:
+        path = _asset(f"branding/app-icon/sonic-rift-{size}.png")
+        if os.path.exists(path) and not QImage(path).isNull():
+            files.append((size, path))
+    return files
+
+
 def app_icon():
-    return QIcon(app_icon_path())
+    files = app_icon_files()
+    if not files:
+        return QIcon(app_icon_path())
+    icon = QIcon()
+    for size, path in files:
+        icon.addFile(path, QSize(size, size))
+    return icon
 
 
 def current():
