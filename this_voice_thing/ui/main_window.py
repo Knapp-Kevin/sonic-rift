@@ -87,7 +87,7 @@ class SidebarDelegate(QStyledItemDelegate):
         painter.restore()
 
 
-class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, EngineControls, Player,
+class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, EngineControls, Player,
                     StudioPage, SoundscapePage, VoicePage, VoicePicker, Library, VoiceUse, Recording, TranscribePage, ModelPage, Discover, ModelLoading, ModelSettings,
                     AdvancedPage, ApiServer, Pronunciations, QMainWindow):
     log_message_signal = Signal(str)
@@ -560,13 +560,17 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
 
 
 
+# Historical import remains available for downstream scripts during migration.
+# This is an alias, not a separate implementation or claim of new authorship.
+ChatterboxApp = SonicRiftApp
+
 if __name__ == "__main__":
     taskbar.set_process_app_id()
     app = QApplication(sys.argv)
     app.setApplicationName(ui_theme.APP_NAME)
     app.setApplicationDisplayName(ui_theme.APP_NAME)
     ui_theme.apply_theme(app)
-    window = ChatterboxApp()
+    window = SonicRiftApp()
     # Before show(): the taskbar button then never asks a busy window for its icon
     # (start-up work can block the UI thread, and Windows would cache the generic icon).
     taskbar.set_window_identity(window)
