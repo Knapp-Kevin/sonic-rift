@@ -1,13 +1,15 @@
 # Audio Studio: Phase 0 research and proposed ADR (#53)
 
+> **Historical research snapshot, 2026-10-13.** Counts, source comparisons, package inventories, model licensing, and recommendations describe the audited revision, **not the current Sonic Rift `main`**. Subsequent implementation includes independent provider #77, core refactors #75/#78/#85/#86, and adopted MOSS soundscape implementation. Review current `docs/upstream-provenance-audit.md`, `THIRD_PARTY_NOTICES.md`, and release issue #61 before treating any result as a live production assertion. No new tests or downloads were performed during this archival integration. **Stable Audio 3 was evaluated but not retained as the selected shipping sound model; MOSS and procedural generation were adopted later.**
+
 **Status:** research complete. **ADR accepted 2026-10-13: full GO** (see §6). This document records the research; implementation is tracked in the child issues.
 **Date:** 2026-10-13. **Machine:** Windows 11, RTX 5070 Ti 16 GB, Ryzen 7 7800X3D, 1.7 TB free disk.
 
 | File | What it holds |
 | --- | --- |
 | This document | Reuse map, baseline results, options, ADR |
-| [model-matrix.md](model-matrix.md) | Every candidate model with cited license, length, sample rate, VRAM, Windows risk |
-| [model-shortlist.md](model-shortlist.md) | Ranked benchmark shortlist, exclusions, unverified points |
+| [model-matrix.md](model_matrix.md) | Every candidate model with cited license, length, sample rate, VRAM, Windows risk |
+| [model-shortlist.md](model_shortlist.md) | Ranked benchmark shortlist, exclusions, unverified points |
 | [procedural_baseline.py](procedural_baseline.py) + [metrics](procedural_baseline_metrics.json) | Zero-model baseline generator and its measurements |
 
 ## Recommendation in one paragraph
@@ -54,7 +56,7 @@ Loudness target in LUFS, true peak kept ≤ −1 dBTP.
 
 ## 3. Model candidates (summary)
 
-Full table with citations: [model-matrix.md](model-matrix.md). Ranked shortlist: [model-shortlist.md](model-shortlist.md).
+Full table with citations: [model-matrix.md](model_matrix.md). Ranked shortlist: [model-shortlist.md](model_shortlist.md).
 
 - **Most well-known open models can't be used commercially:** AudioGen/MusicGen, AudioLDM 1/2, Tango/Tango 2, TangoFlux, MMAudio and AudioX all have non-commercial or research-only weights. They're excluded for a project that will publish assets on a website.
 - **Best fit: `stabilityai/stable-audio-3-small-sfx`** (released 2026-05-17).
