@@ -1,13 +1,15 @@
 # Accent Design Studio: engine and architecture research
 
+> **Research snapshot:** Findings and model-license claims reflect the original October 10, 2026 assessment. Links were reconciled to the Sonic Rift repository on October 15. No inference, accent authenticity, updated dependency licensing, or hardware performance is newly certified by merging this document. The owner GO/NO-GO gate remains #44.
+
 **Status:** research finding, not a performance certification or implementation authorization.  
 **Checked:** 2026-10-10  
-**Workstream:** [epic #40](https://github.com/Knapp-Kevin/this-voice-thing/issues/40), [capability issue #41](https://github.com/Knapp-Kevin/this-voice-thing/issues/41).  
+**Workstream:** [epic #40](https://github.com/Knapp-Kevin/sonic-rift/issues/40), [capability issue #41](https://github.com/Knapp-Kevin/sonic-rift/issues/41).  
 **Decision:** #44 must explicitly approve a scoped implementation after comparative listening evidence.
 
 ## Executive finding
 
-This Voice Thing already has the building blocks to **attempt** accent design. Do **not** add an engine or implement a calibrated accent slider yet. Compare (1) free-text Qwen3 VoiceDesign, (2) free-text VoxCPM2 Design, and (3) an explicitly permissioned reference-clone condition. OmniVoice provides a valuable structured-accent baseline **only for its published attribute values**. Glasgow, Edinburgh, French-accented English and accent intensity are **not verified** capabilities of these engines.
+Sonic Rift already has the building blocks to **attempt** accent design. Do **not** add an engine or implement a calibrated accent slider yet. Compare (1) free-text Qwen3 VoiceDesign, (2) free-text VoxCPM2 Design, and (3) an explicitly permissioned reference-clone condition. OmniVoice provides a valuable structured-accent baseline **only for its published attribute values**. Glasgow, Edinburgh, French-accented English and accent intensity are **not verified** capabilities of these engines.
 
 Distinguish:
 - **Documented API:** can pass a voice description, fixed accent enum, style text or reference audio.
