@@ -22,6 +22,7 @@ class Pad:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     kind: str = "tts"
     voice_id: str = ""
+    speaker: str = ""        # a model's built-in voice (Kokoro, Qwen presets); "" = none or unknown
     model_repo_id: str = ""
     model_backend: str = ""
     model_mode: str = ""
@@ -306,6 +307,7 @@ class SoundboardStore:
         payload = {
             "schema_version": SCHEMA_VERSION,
             "pad": {
+                **({"speaker": pad.speaker} if pad.speaker else {}),   # keeps older pads' keys
                 "kind": pad.kind,
                 "text": pad.text,
                 "voice_id": pad.voice_id,

@@ -128,5 +128,51 @@ class PadCacheSteps(unittest.TestCase):
         self.assertIsNone(LiveVoicePage._soundboard_synthesis_context(window, pad)["live_steps"])
 
 
+
+class PadSpeaker(unittest.TestCase):
+    def test_speaker_persists_and_is_part_of_the_cache_key(self):
+        from this_voice_thing.core.soundboard import Pad
+        with tempfile.TemporaryDirectory() as folder:
+            store = SoundboardStore(folder)
+            pad = store.add_pad(Pad(label="Hi", text="Hello there.", speaker="af_heart", model_backend="kokoro"))
+            self.assertEqual(SoundboardStore(folder).get_pad(pad.id).speaker, "af_heart")
+        heart = SoundboardStore.cache_digest(Pad(label="a", text="t", speaker="af_heart"), {})
+        bella = SoundboardStore.cache_digest(Pad(label="a", text="t", speaker="af_bella"), {})
+        self.assertNotEqual(heart, bella)
+
+    def test_pads_without_a_speaker_keep_their_old_cache_key(self):
+        from this_voice_thing.core import soundboard
+        pad = soundboard.Pad(label="a", text="t")
+        payload = {"schema_version": soundboard.SCHEMA_VERSION, "pad": {
+            k: getattr(pad, k) for k in ("kind", "text", "voice_id", "model_repo_id", "model_backend", "model_mode",
+                                         "language", "style", "temperature", "exaggeration", "cfg_weight",
+                                         "repetition_penalty", "min_p", "top_p")}, "synthesis": {}}
+        import hashlib
+        old = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False,
+                                        separators=(",", ":")).encode("utf-8")).hexdigest()
+        self.assertEqual(SoundboardStore.cache_digest(pad, {}), old)
+
+    def test_rebuild_needs_the_pads_own_built_in_voice(self):
+        page = mock.Mock()
+        page.loaded_entry.return_value = {"repo_id": "hexgrad/Kokoro-82M", "backend": "kokoro"}
+        page.active_qwen_model.return_value = mock.Mock(speakers=["af_heart", "af_bella"])
+        page.qwen_instruct_input.text.return_value = ""
+        page.active_voice_id = None
+        page.language_combo.currentData.return_value = "en"
+        for name in ("temp_slider", "exaggeration_slider", "cfg_slider"):
+            getattr(page, name).get_value.return_value = 0.5
+        page.repetition_penalty, page.min_p, page.top_p = 1.2, 0.05, 1.0
+        page._current_model_speaker = lambda: "af_bella"
+        pad = SimpleNamespace(voice_id="", speaker="af_heart", model_repo_id="hexgrad/Kokoro-82M",
+                              model_backend="kokoro", model_mode="", language="en", style="", temperature=0.5,
+                              exaggeration=0.5, cfg_weight=0.5, repetition_penalty=1.2, min_p=0.05, top_p=1.0)
+        self.assertFalse(LiveVoicePage._current_context_matches_pad(page, pad))
+        page._current_model_speaker = lambda: "af_heart"
+        self.assertTrue(LiveVoicePage._current_context_matches_pad(page, pad))
+        pad.speaker = ""                      # saved before speakers were recorded
+        page._current_model_speaker = lambda: "af_bella"
+        self.assertTrue(LiveVoicePage._current_context_matches_pad(page, pad))
+
+
 if __name__ == "__main__":
     unittest.main()

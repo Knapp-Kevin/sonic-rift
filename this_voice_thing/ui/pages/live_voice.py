@@ -1706,6 +1706,13 @@ class LiveVoicePage:
             pad, self._soundboard_synthesis_context(pad)
         )
 
+    def _current_model_speaker(self):
+        """The loaded model's built-in voice (Kokoro voice, Qwen preset speaker), or ""."""
+        worker = self.active_qwen_model()
+        if worker is None or not getattr(worker, "speakers", None):
+            return ""
+        return str(self.qwen_speaker_combo.currentData() or getattr(worker, "speaker", "") or "")
+
     def _current_soundboard_pad(self, label, text):
         loaded = self.loaded_entry()
         worker = self.active_qwen_model()
@@ -1713,6 +1720,7 @@ class LiveVoicePage:
             label=label,
             text=text,
             voice_id=self.active_voice_id or "",
+            speaker=self._current_model_speaker(),
             model_repo_id=loaded["repo_id"] if loaded else "",
             model_backend=loaded.get("backend", "") if loaded else "",
             model_mode=loaded.get("mode", "") if loaded else "",
@@ -2200,6 +2208,7 @@ class LiveVoicePage:
         current_style = self.qwen_instruct_input.text().strip() if worker is not None else ""
         return (
             (self.active_voice_id or "") == pad.voice_id
+            and (not pad.speaker or self._current_model_speaker() == pad.speaker)
             and loaded["repo_id"] == pad.model_repo_id
             and loaded.get("backend", "") == pad.model_backend
             and (loaded.get("mode", "") or "") == (pad.model_mode or "")
