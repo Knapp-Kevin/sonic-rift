@@ -1,5 +1,7 @@
 # Phase 0 (#53): local text-to-audio / SFX / ambience model matrix
 
+> **Historical research snapshot, 2026-10-13.** Counts, source comparisons, package inventories, model licensing, and recommendations describe the audited revision, **not the current Sonic Rift `main`**. Subsequent implementation includes independent provider #77, core refactors #75/#78/#85/#86, and adopted MOSS soundscape implementation. Review current `docs/upstream-provenance-audit.md`, `THIRD_PARTY_NOTICES.md`, and release issue #61 before treating any result as a live production assertion. No new tests or downloads were performed during this archival integration. **Stable Audio 3 was evaluated but not retained as the selected shipping sound model; MOSS and procedural generation were adopted later.**
+
 Researched 2026-10-13. I only read web pages, model cards, repos and papers. Nothing was downloaded or installed.
 Target: RTX 5070 Ti 16 GB (Blackwell, sm_120, needs CUDA 12.8+ builds), Win 11, Python 3.11, torch 2.8 cu128. A no-GPU fallback is also required.
 Use: ambience loops (ocean, rain, thunder, forest; 60 s seamless), UI chimes and SFX, maybe music beds. **Generated assets will be used commercially on a website.**
