@@ -153,7 +153,7 @@ class AppIcon(unittest.TestCase):
                 self.assertFalse(QImage(os.path.join(folder, name)).isNull(), f"{name} doesn't decode")
 
     def test_product_name(self):
-        self.assertEqual(ui_theme.APP_NAME, "This Voice Thing")
+        self.assertEqual(ui_theme.APP_NAME, "Sonic Rift")
 
 
 if __name__ == "__main__":

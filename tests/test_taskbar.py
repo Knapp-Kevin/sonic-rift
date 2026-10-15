@@ -33,3 +33,12 @@ class TaskbarTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TaskbarNameTests(unittest.TestCase):
+    def test_taskbar_shows_the_product_name_but_keeps_its_id(self):
+        from this_voice_thing import APP_NAME as PACKAGE_NAME
+        from this_voice_thing.ui import taskbar
+        self.assertEqual(taskbar.APP_NAME, PACKAGE_NAME)
+        # Changing the AppUserModelID would detach users' existing pinned taskbar buttons.
+        self.assertEqual(taskbar.APP_ID, "KnappKevin.ThisVoiceThing")

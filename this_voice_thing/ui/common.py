@@ -118,6 +118,7 @@ except ImportError:
 
 from this_voice_thing.core import documents
 from this_voice_thing.core import model_registry
+from this_voice_thing.core.hardware import has_system_nvidia_gpu, probe_usable_torch_cuda
 from this_voice_thing.engines import qwen as qwen_engine
 from this_voice_thing.engines import kokoro as kokoro_engine
 from this_voice_thing.engines import voxcpm as voxcpm_engine
@@ -155,20 +156,10 @@ get_supported_languages_for_backend = getattr(
     "get_supported_languages_for_backend",
     lambda _backend: {"en": "English"},
 )
-has_system_nvidia_gpu = getattr(
-    chatterbox_backends,
-    "has_system_nvidia_gpu",
-    lambda: False,
-)
 load_chatterbox_model = getattr(
     chatterbox_backends,
     "load_chatterbox_model",
     lambda repo_id, backend, device, multilingual_t3_model=None: None,
-)
-probe_usable_torch_cuda = getattr(
-    chatterbox_backends,
-    "probe_usable_torch_cuda",
-    lambda: (False, "torch.cuda probe unavailable."),
 )
 resolve_multilingual_t3_model = getattr(
     chatterbox_backends,
