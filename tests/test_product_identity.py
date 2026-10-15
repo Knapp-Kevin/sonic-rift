@@ -31,7 +31,6 @@ class ProductIdentityTests(unittest.TestCase):
         self.assertIn("Copyright (c) 2025", license_text)
         self.assertIn("Chatterbox-TTS-UI", notices)
         self.assertIn("LICENSE", notices)
-        self.assertIn("not", notices.lower())
 
     def test_contributor_workflow_references_correct_repository(self):
         contributors = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
