@@ -1,5 +1,7 @@
 # Upstream diff audit (issue #55)
 
+> **Historical research snapshot, 2026-10-13.** Counts, source comparisons, package inventories, model licensing, and recommendations describe the audited revision, **not the current Sonic Rift `main`**. Subsequent implementation includes independent provider #77, core refactors #75/#78/#85/#86, and adopted MOSS soundscape implementation. Review current `docs/upstream-provenance-audit.md`, `THIRD_PARTY_NOTICES.md`, and release issue #61 before treating any result as a live production assertion. No new tests or downloads were performed during this archival integration.
+
 Extends `docs/upstream-provenance-audit.md`; does not repeat its byte-identity table.
 
 **Inputs**
