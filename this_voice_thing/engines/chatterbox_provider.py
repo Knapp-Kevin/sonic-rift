@@ -42,6 +42,16 @@ _T3_NAMES = {
     "t3_mtl23ls_v3": "t3_mtl23ls_v3.safetensors",
 }
 
+# Non-code model identifiers retained for configuration compatibility.
+LEGACY_MODEL_FILES = list(_ENGLISH_ASSETS)
+MULTILINGUAL_MODEL_FILES = list(_MULTILINGUAL_ASSETS)
+MULTILINGUAL_T3_MODEL_ALIASES = {
+    **_T3_NAMES,
+    "t3_mtl23ls_v2.safetensors": _T3_NAMES["v2"],
+    "t3_mtl23ls_v3.safetensors": _T3_NAMES["v3"],
+}
+
+
 
 class UnsupportedChatterboxRepoError(RuntimeError):
     """The requested repository does not contain compatible model assets."""
