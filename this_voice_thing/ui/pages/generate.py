@@ -58,11 +58,27 @@ class GeneratePage:
         voice_row.addWidget(self.model_repo_combo)
         generate_layout.addLayout(voice_row)
 
+        # Project mode is opt-in: keep the established single-text Create flow.
+        project_row = QHBoxLayout()
+        project_hint = QLabel("Layer narration and sounds in a saved project")
+        project_hint.setObjectName("Muted")
+        project_row.addWidget(project_hint, 1)
+        project_button = self._link(QPushButton("Project…"))
+        project_button.setToolTip("Arrange saved voice takes and sounds, then export a layered mix.")
+        project_button.clicked.connect(self.open_project_editor)
+        project_row.addWidget(project_button)
+        generate_layout.addLayout(project_row)
+
         generate_layout.addWidget(self._build_text_card(), 3)
         self._build_engine_rows()
         generate_layout.addWidget(self._build_delivery_card())
         generate_layout.addWidget(self._build_player_card(), 2)
         self.pages.addWidget(generate_page)
+
+    def open_project_editor(self):
+        from this_voice_thing.ui.pages.project_editor import ProjectEditorDialog
+        editor = ProjectEditorDialog(self)
+        editor.exec()
 
     def _build_text_card(self):
         text_card, text_card_layout = self._make_card()
