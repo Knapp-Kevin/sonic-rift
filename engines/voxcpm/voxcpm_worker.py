@@ -29,12 +29,58 @@ def reply(**payload):
     REPLY.flush()
 
 
+def numba_free_load(path, sr=22050, mono=True, **_ignored):
+    """librosa.load for one file: soundfile + soxr (librosa's own default resampler)."""
+    import numpy as np
+    import soundfile as sf
+    import soxr
+    audio, rate = sf.read(path, dtype="float32", always_2d=True)
+    audio = audio.mean(axis=1) if mono else audio
+    if sr is not None and rate != sr:
+        audio = soxr.resample(audio, rate, sr, quality="HQ")
+        rate = sr
+    audio = audio if mono else audio.T
+    return np.ascontiguousarray(audio, dtype=np.float32), rate
+
+
+def numba_free_trim(y, top_db=60, ref=None, frame_length=2048, hop_length=512, **_ignored):
+    """librosa.effects.trim: drop leading/trailing frames quieter than top_db below ref
+    (centred, zero-padded RMS frames, as librosa computes them)."""
+    import numpy as np
+    y = np.asarray(y, dtype=np.float32)
+    mono = y if y.ndim == 1 else y.mean(axis=0)
+    padded = np.pad(mono, frame_length // 2)
+    count = 1 + max(0, len(padded) - frame_length) // hop_length
+    frames = np.lib.stride_tricks.sliding_window_view(padded, frame_length)[::hop_length][:count]
+    power = np.mean(frames.astype(np.float64) ** 2, axis=1)
+    reference = (ref or np.max)(power) if len(power) else 0.0
+    amin = 1e-10
+    db = 10.0 * np.log10(np.maximum(amin, power)) - 10.0 * np.log10(max(amin, reference))
+    loud = np.flatnonzero(db > -top_db)   # never empty: the loudest frame is at 0 dB
+    start = int(loud[0] * hop_length)
+    end = int(min(mono.shape[-1], (loud[-1] + 1) * hop_length))
+    return y[..., start:end], (start, end)
+
+
+def use_numba_free_audio():
+    """VoxCPM2 reads reference clips with librosa.load (and trims with librosa.effects.trim),
+    which import Numba. Windows Smart App Control and other Application Control policies can
+    block Numba's compiled modules, and then every cloning request fails with "Numba could
+    not be imported". Give VoxCPM the same two calls without Numba."""
+    import types
+    from voxcpm.model import voxcpm2
+    voxcpm2.librosa = types.SimpleNamespace(load=numba_free_load,
+                                            effects=types.SimpleNamespace(trim=numba_free_trim))
+
+
 def main():
     import numpy as np
     import soundfile as sf
     import torch
     from huggingface_hub import snapshot_download
     from voxcpm import VoxCPM
+
+    use_numba_free_audio()
 
     cuda = torch.cuda.is_available()
     state = {"model": None, "model_id": None}
