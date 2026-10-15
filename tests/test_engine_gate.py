@@ -35,6 +35,21 @@ class ChatterboxGateTests(unittest.TestCase):
         self.assertEqual(loaded, [])
         self.assertIn("Other engines still work", errors[0])
 
+    def test_unregistered_backend_never_defaults_to_chatterbox(self):
+        with patch.object(threads, "load_chatterbox_model") as chatterbox_loader:
+            loaded, errors = self.run_loader("unregistered-engine")
+        self.assertEqual(loaded, [])
+        self.assertIn("No registered audio engine", errors[0])
+        chatterbox_loader.assert_not_called()
+
+    def test_qwen_unavailable_does_not_attempt_model_load(self):
+        with patch.object(threads.qwen_engine, "is_installed", return_value=False), \
+                patch.object(threads.qwen_engine, "load_qwen_model") as qwen_loader:
+            loaded, errors = self.run_loader(common.QWEN_BACKEND)
+        self.assertEqual(loaded, [])
+        self.assertIn("Qwen engine isn't installed", errors[0])
+        qwen_loader.assert_not_called()
+
     def test_needs_chatterbox(self):
         self.assertTrue(common.needs_chatterbox(common.BACKEND_MULTILINGUAL))
         self.assertTrue(common.needs_chatterbox(common.BACKEND_LEGACY))
