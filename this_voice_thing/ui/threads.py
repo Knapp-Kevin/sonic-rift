@@ -29,7 +29,6 @@ from this_voice_thing.ui.common import (
     BACKEND_LEGACY,
     BACKEND_MULTILINGUAL,
     CHATTERBOX_AVAILABLE,
-    needs_chatterbox,
     DEFAULT_MODEL_REPO,
     DEFAULT_MULTILINGUAL_T3_MODEL,
     DEFAULT_PREVIEW_CHARS,
