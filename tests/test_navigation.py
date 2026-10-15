@@ -59,6 +59,17 @@ class NavigationTests(unittest.TestCase):
         w.reset_finishing()
         self.assertEqual(w.current_finishing_settings().speed, 1.0)
 
+    def test_models_page_has_a_sounds_tab_with_every_sound_model(self):
+        w = self.window
+        w.show_sound_models()
+        self.assertEqual(w.pages.currentIndex(), w.PAGE_MODEL)
+        self.assertEqual(w.current_capability(), "sound")
+        self.assertEqual(len(w.your_tiles.findChildren(type(w.sound_engine_tile(w.sound_model_engines()[0])))),
+                         len(w.sound_model_engines()))
+        self.assertTrue(w.discover_section.isHidden())
+        w.show_capability("clone")
+        self.assertFalse(w.discover_section.isHidden())
+
     def test_settings_holds_the_log(self):
         w = self.window
         settings_page = w.pages.widget(w.PAGE_ADVANCED)

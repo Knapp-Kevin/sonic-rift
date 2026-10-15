@@ -6,6 +6,7 @@ import tempfile
 import time
 
 from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -27,8 +29,10 @@ from PySide6.QtWidgets import (
 )
 
 from this_voice_thing.core.soundscape import assets as sound_assets
+from this_voice_thing.core import model_registry
 from this_voice_thing.core.soundscape import catalog, mastering, procedural, render
 from this_voice_thing.engines import sound_models
+from this_voice_thing.ui import tiles as model_tiles
 from this_voice_thing.ui.threads import SoundRenderThread, TaskThread
 
 EXPORT_FILTER = "WAV master (*.wav);;OGG Vorbis (*.ogg);;MP3 (*.mp3)"
@@ -77,6 +81,10 @@ class SoundscapePage:
         self.sound_engine_button = QPushButton()
         self.sound_engine_button.clicked.connect(self.sound_engine_action)
         engine_row.addWidget(self.sound_engine_button)
+        manage = self._link(QPushButton("All models"))
+        manage.setToolTip("Sound models live on the Models page too, next to the voice models.")
+        manage.clicked.connect(self.show_sound_models)
+        engine_row.addWidget(manage)
         make_layout.addLayout(engine_row)
 
         self.sound_preset_row = QHBoxLayout()
@@ -283,6 +291,93 @@ class SoundscapePage:
         busy = self.sound_busy()
         self.sound_generate_button.setEnabled(not busy)
         self.sound_engine_button.setEnabled(not busy)
+        if hasattr(self, "capability_tabs") and self.current_capability() == "sound":
+            self.render_model_tiles()     # keep the Models page's Sounds tab current
+
+    # --- on the Models page --------------------------------------------------------------
+    @staticmethod
+    def sound_model_engines():
+        return [engine for engine in catalog.ENGINES.values() if engine.kind == "model"]
+
+    def show_sound_models(self):
+        self.show_page(self.PAGE_MODEL)
+        self.show_capability("sound")
+
+    def sound_hardware_line(self, engine):
+        """(kind, text, tooltip) comparing a sound model's measured GPU memory with this PC."""
+        gpu = self.gpu_memory()
+        need = engine.vram_gb
+        detail = f"Peak GPU memory measured at about {need:.0f} GB. {engine.gpu}."
+        if gpu is None:
+            return "short", "Needs an NVIDIA GPU", detail + "\nNo NVIDIA GPU was found."
+        name, memory = gpu
+        detail += f"\nYour GPU: {name}, {memory:.0f} GB."
+        if memory + 0.5 >= need + 2:
+            return "good", f"\u2713 GPU {need:.0f} GB \u00b7 yours {memory:.0f} GB", detail
+        if memory + 0.5 >= need:
+            return "tight", f"! GPU {need:.0f} GB \u00b7 yours {memory:.0f} GB", \
+                detail + "\nIt fits on its own; unload the voice model first."
+        return "short", f"\u2717 Needs {need:.0f} GB GPU \u00b7 yours {memory:.0f} GB", detail
+
+    def sound_engine_tile(self, engine):
+        installed = sound_models.is_installed(engine.key)
+        running = self.sound_model is not None and self.sound_model.key == engine.key
+        sizes = getattr(self, "model_cache_sizes", None) or {}
+        badges = []
+        if running:
+            badges.append(("active", "Running", f"Ready on {self.sound_model.device}; generate on the Sounds page."))
+        elif not installed:
+            badges.append(("status", "Needs engine",
+                           f"Click to install: about {engine.download_gb:.1f} GB of weights and a "
+                           f"{engine.env_gb:.0f} GB environment, after you accept its license."))
+        elif sizes.get(engine.repo_id):
+            badges.append(("status", f"Ready \u00b7 {model_registry.format_size(sizes[engine.repo_id])}",
+                           "Installed and downloaded; starts when you generate on the Sounds page."))
+        else:
+            badges.append(("status", f"Download {engine.download_gb:.1f} GB",
+                           "Installed; the model downloads the first time it starts."))
+        badges.append(model_tiles.license_badge(engine.license_id))
+        subtitle = f"Sound effects \u00b7 {engine.sample_rate // 1000} kHz \u00b7 up to {engine.max_seconds:.0f} s per take"
+        needs = self.sound_hardware_line(engine)
+        tooltip = "\n".join((f"{engine.label}  ({engine.repo_id})", engine.description,
+                              f"License: {engine.license_name}. {engine.commercial}",
+                              "Click to open it on the Sounds page." if installed else "Click to install.",
+                              needs[2]))
+        tile = model_tiles.ModelTile(engine.label, subtitle, badges, engine.speed_note, tooltip,
+                                     active=running, with_menu=True, needs=needs)
+        tile.clicked.connect(lambda e=engine: self.sound_engine_tile_clicked(e))
+        tile.menu_requested.connect(lambda pos, e=engine: self.show_sound_engine_menu(e, pos))
+        return tile
+
+    def sound_engine_tile_clicked(self, engine):
+        if self.sound_busy():
+            self.set_status_message("Status: A sound model is busy; try again when it finishes.")
+            return
+        if not sound_models.is_installed(engine.key):
+            self.install_sound_engine(engine)
+            return
+        self.sound_engine_combo.setCurrentIndex(self.sound_engine_combo.findData(engine.key))
+        self.show_page(self.PAGE_SOUNDSCAPE)
+
+    def show_sound_engine_menu(self, engine, pos):
+        menu = QMenu(self)
+        running = self.sound_model is not None and self.sound_model.key == engine.key
+        installed = sound_models.is_installed(engine.key)
+        idle = not self.sound_busy()
+        menu.addAction("Use on the Sounds page").triggered.connect(lambda: self.sound_engine_tile_clicked(engine))
+        start = menu.addAction("Unload" if running else "Start")
+        start.setEnabled(installed and idle)
+        start.triggered.connect(lambda: (self.release_sound_model(), self.refresh_sound_engine()) if running
+                                else self.start_sound_engine(engine))
+        install = menu.addAction("Install..." if not installed else "Installed")
+        install.setEnabled(not installed and idle)
+        install.triggered.connect(lambda: self.install_sound_engine(engine))
+        menu.addSeparator()
+        menu.addAction("Open on Hugging Face").triggered.connect(
+            lambda: QDesktopServices.openUrl(QUrl(f"https://huggingface.co/{engine.repo_id}")))
+        menu.addAction("Read the license").triggered.connect(
+            lambda: QDesktopServices.openUrl(QUrl(engine.license_url)))
+        menu.exec(pos)
 
     def on_sound_preset_changed(self, *_args):
         if not hasattr(self, "sound_sliders"):

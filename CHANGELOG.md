@@ -8,6 +8,7 @@ Changes since upstream commit `22460fd` ("Add best-effort macOS/Linux shell laun
 
 ### Added
 - **Navigation by task.** The sidebar is grouped by what you're doing: **Create** (was Generate), **Voices** (the library, with the Studio as its **New voice** tab), **Sounds** (was Soundscape), then **Tools** (Transcribe) and **Setup** (**Models**, and **Settings** for pronunciation, the local API and the log). Speed, pitch, MP3 and subtitle format moved from Advanced into **Finishing touches** on Create, next to what they change. Nothing else changed: voices, sounds, settings and outputs stay where they were.
+- **One Models page for every engine.** Sound models now have a **Sounds** tab on Models, next to Cloning, Presets, Design and Conversations, with the same tiles: status, license badge, GPU fit and typical speed. Click to install (after the license and size are shown) or to use it on the Sounds page; **All models** on Sounds jumps there.
 - **Soundscape page and Asset Library (Audio Studio, #53).**
   - **Engines:** ambience loops and sound effects from two restriction-free engines:
     - **Procedural:** no model; ocean, rain, thunderstorm, wind, drone, UI chimes.

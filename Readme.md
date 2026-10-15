@@ -301,7 +301,7 @@ Sound beyond speech: ambience loops, rain and waves, tonal beds and UI chimes, k
   | **MOSS-SoundEffect v2** | Apache-2.0, no restrictions; training data not disclosed | ~23 s per take; long clips are stitched | ~15 GB (the app offers to unload the voice model) |
 
   - **Procedural** needs no model or download. Presets: ocean, rain, thunderstorm, wind, drone and three UI chimes.
-  - **MOSS** runs in its own environment. Before installing, the app shows the license and download size and asks. In listening tests it suited ocean, rain and richer tonal beds; the procedural engine suits simpler, exactly repeating beds.
+  - **MOSS** runs in its own environment, and is listed with the voice models on **Models → Sounds**. Before installing, the app shows the license and download size and asks. In listening tests it suited ocean, rain and richer tonal beds; the procedural engine suits simpler, exactly repeating beds.
   - Stable Audio 3 Small SFX was evaluated and dropped: its ambience was rejected in listening tests, and its license has conditions.
 - **Takes:** make 1 to 6 at once with consecutive seeds. The same engine, settings and seed give the same sound again.
 - **Seamless loops:**

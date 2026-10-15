@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QLabel
 from PySide6.QtWidgets import QLineEdit
 from PySide6.QtWidgets import QMenu
 from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QWidget
 from PySide6.QtWidgets import QPushButton
 from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtWidgets import QTabBar
@@ -36,7 +37,7 @@ class ModelPage:
 
     def _build_model_page(self):
         model_page, model_layout = self._make_page(
-            "Model", "Models download once, then load from the local cache.")
+            "Models", "Voice and sound models: each downloads once, then loads from the local cache.")
         model_layout.addWidget(self._build_models_card(), 1)
         model_layout.addWidget(self._build_hf_card())
         model_layout.addWidget(self._build_tuning_card())
@@ -56,10 +57,14 @@ class ModelPage:
             index = self.capability_tabs.addTab(model_registry.CAPABILITY_TABS[key])
             self.capability_tabs.setTabData(index, key)
             self.capability_tabs.setTabToolTip(index, f"{title}: {description}")
+        index = self.capability_tabs.addTab("Sounds")
+        self.capability_tabs.setTabData(index, "sound")
+        self.capability_tabs.setTabToolTip(index, "Sound models: ambience and sound effects for the Sounds page.")
         self.capability_tabs.currentChanged.connect(lambda _index: self.render_model_tiles())
         tabs_row.addWidget(self.capability_tabs)
         tabs_row.addStretch(1)
         add_model_button = self._link(QPushButton("+ Add repo..."))
+        self.add_model_button = add_model_button
         add_model_button.setToolTip("Add a Hugging Face repo you already know, e.g. owner/model-name.")
         add_model_button.clicked.connect(self.add_model)
         tabs_row.addWidget(add_model_button)
@@ -77,6 +82,9 @@ class ModelPage:
         models_layout.addWidget(self.your_tiles, 3)
 
         discover_row = QHBoxLayout()
+        self.discover_section = QWidget()
+        self.discover_section.setLayout(discover_row)
+        discover_row.setContentsMargins(0, 0, 0, 0)
         discover_label = QLabel("DISCOVER ON HUGGING FACE")
         discover_label.setObjectName("SectionLabel")
         discover_row.addWidget(discover_label)
@@ -90,7 +98,7 @@ class ModelPage:
         discover_button = QPushButton("Search")
         discover_button.clicked.connect(self.start_discover)
         discover_row.addWidget(discover_button)
-        models_layout.addLayout(discover_row)
+        models_layout.addWidget(self.discover_section)
         self.discover_tiles = model_tiles.TileArea(min_rows=1)
         models_layout.addWidget(self.discover_tiles, 2)
         self.discover_status = QLabel()
@@ -146,10 +154,23 @@ class ModelPage:
                   in model_registry.group_by_capability(self.model_entries)}
         for index in range(self.capability_tabs.count()):
             capability = self.capability_tabs.tabData(index)
+            if capability == "sound":
+                count = len(self.sound_model_engines())
+                self.capability_tabs.setTabText(index, f"Sounds  {count}" if count else "Sounds")
+                continue
             title = model_registry.CAPABILITY_TABS[capability]
             count = len(groups.get(capability, []))
             self.capability_tabs.setTabText(index, f"{title}  {count}" if count else title)
         capability = self.current_capability()
+        sounds = capability == "sound"
+        for widget in (self.add_model_button, self.discover_section, self.discover_tiles, self.discover_status):
+            widget.setVisible(not sounds)
+        if sounds:
+            self.capability_note.setText(
+                "Ambience and sound effects for the Sounds page. You see the license and size before installing.")
+            self.your_tiles.set_tiles([self.sound_engine_tile(e) for e in self.sound_model_engines()],
+                                      "No sound models available.")
+            return
         self.capability_note.setText(model_registry.CAPABILITIES[capability][1])
         self.your_tiles.set_tiles(
             [self.model_tile(entry) for entry in groups.get(capability, [])],
