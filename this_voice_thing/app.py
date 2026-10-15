@@ -51,7 +51,7 @@ class TeeFile:
 
 def show_startup_error(log_path, exc_text):
     message = (
-        "This Voice Thing failed to start.\n\n"
+        "Sonic Rift failed to start.\n\n"
         f"Log file:\n{log_path}\n\n"
         "Last error:\n"
         f"{exc_text}"
