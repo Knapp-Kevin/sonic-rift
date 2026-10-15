@@ -11,10 +11,9 @@ class VoicePage:
     """The Voices page and the current reference clip. Mixed into ChatterboxApp."""
 
     def _build_voice_page(self):
-        voice_page, voice_layout = self._make_page(
-            "Voices", "Your saved voices. Click one to use it on Generate; make new ones in the Studio.")
+        voice_page, voice_layout = self._make_page(None, None)
         voice_layout.addWidget(self._build_library_card(), 1)
-        self.pages.addWidget(voice_page)
+        self.voices_stack.addWidget(voice_page)
 
     @property
     def reference_path(self):

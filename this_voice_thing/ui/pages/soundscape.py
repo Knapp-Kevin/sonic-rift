@@ -29,7 +29,6 @@ from PySide6.QtWidgets import (
 from this_voice_thing.core.soundscape import assets as sound_assets
 from this_voice_thing.core.soundscape import catalog, mastering, procedural, render
 from this_voice_thing.engines import sound_models
-from this_voice_thing.ui import theme as ui_theme
 from this_voice_thing.ui.threads import SoundRenderThread, TaskThread
 
 EXPORT_FILTER = "WAV master (*.wav);;OGG Vorbis (*.ogg);;MP3 (*.mp3)"
@@ -62,7 +61,7 @@ class SoundscapePage:
         settings = self.app_settings.get("soundscape", {})
 
         page, layout = self._make_page(
-            "Soundscape", "Ambience, loops and sound effects: procedural, or from a sound model.")
+            "Sounds", "Ambience, loops and sound effects, and the library of sounds you've kept.")
 
         make_card, make_layout = self._make_card("Make a sound")
         engine_row = QHBoxLayout()
@@ -326,13 +325,13 @@ class SoundscapePage:
                 self, engine.label,
                 f"{engine.label} is gated on Hugging Face. Accept its terms at "
                 f"https://huggingface.co/{engine.repo_id} while signed in, then add your Hugging Face "
-                "token on the Model page. The environment installs now; the model downloads when it "
+                "token on the Models page. The environment installs now; the model downloads when it "
                 "first starts.")
         self.app_settings.setdefault("soundscape", {}).setdefault("accepted_licenses", {})[engine.key] = \
             engine.license_name
         self.save_app_settings()
         self.run_sound_task(lambda: sound_models.install(engine.key, log=print),
-                            f"Installing {engine.label} (several GB; progress on the Log page)...",
+                            f"Installing {engine.label} (several GB; progress in the log (Settings))...",
                             lambda _result: self.set_status_message(f"Status: {engine.label} installed."))
 
     def free_gpu_for(self, engine):
@@ -343,7 +342,7 @@ class SoundscapePage:
         answer = QMessageBox.question(
             self, engine.label,
             f"{engine.label} needs about {engine.vram_gb:.0f} GB of GPU memory, and a voice model is "
-            "loaded. Unload the voice model first? (Reload it from the Model page afterwards.)\n\n"
+            "loaded. Unload the voice model first? (Reload it from the Models page afterwards.)\n\n"
             "Starting alongside it can make each take many times slower.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
         if answer == QMessageBox.StandardButton.Cancel:
@@ -377,7 +376,7 @@ class SoundscapePage:
             self.sound_task_thread = None
             if error:
                 self.set_status_message(f"Status: {error}")
-                QMessageBox.warning(self, "Soundscape", f"{error}\n\nDetails are on the Log page.")
+                QMessageBox.warning(self, "Sounds", f"{error}\n\nDetails are in the log (Settings).")
             else:
                 on_success(result)
             self.refresh_sound_engine()
@@ -420,7 +419,7 @@ class SoundscapePage:
         engine = catalog.ENGINES[request.engine]
         if engine.kind == "model":
             if not request.prompt:
-                QMessageBox.information(self, "Soundscape", "Describe the sound you want first.")
+                QMessageBox.information(self, "Sounds", "Describe the sound you want first.")
                 return
             if not sound_models.is_installed(engine.key):
                 self.install_sound_engine(engine)
@@ -461,9 +460,9 @@ class SoundscapePage:
         self.sound_stop_button.setEnabled(False)
         self.refresh_sound_engine()
         if error:
-            self.sound_status.setText("Couldn't generate; see the Log page.")
+            self.sound_status.setText("Couldn't generate; see the log (Settings).")
             self.set_status_message(f"Status: Couldn't generate: {error}")
-            QMessageBox.warning(self, "Soundscape", f"Couldn't generate the sound.\n\n{error}")
+            QMessageBox.warning(self, "Sounds", f"Couldn't generate the sound.\n\n{error}")
             return
         self.sound_status.setText(f"{len(results)} take(s) in "
                                   f"{time.monotonic() - self.sound_render_started:.1f} s")

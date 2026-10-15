@@ -90,10 +90,10 @@ def explain_load_error(engine, message):
     if "GatedRepoError" in message or "authorized list" in message or "403" in message:
         return (f"{engine.label} is gated on Hugging Face and this account doesn't have access yet. "
                 f"Sign in at https://huggingface.co/{engine.repo_id}, accept the terms there, and make "
-                "sure your Hugging Face token is saved on the Model page. Then start it again.")
+                "sure your Hugging Face token is saved on the Models page. Then start it again.")
     if "401" in message or "Invalid credentials" in message:
         return (f"Hugging Face rejected the saved token while downloading {engine.label}. "
-                "Check the token on the Model page.")
+                "Check the token on the Models page.")
     return message
 
 

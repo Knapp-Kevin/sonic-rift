@@ -29,8 +29,9 @@ class WindowStructureTests(unittest.TestCase):
                 seen[name] = klass.__name__
 
     def test_every_page_has_a_builder(self):
-        for name in ("_build_generate_page", "_build_voice_page", "_build_transcribe_page",
-                     "_build_model_page", "_build_advanced_page", "_build_log_page"):
+        for name in ("_build_generate_page", "_build_voices_section", "_build_voice_page",
+                     "_build_studio_page", "_build_soundscape_page", "_build_transcribe_page",
+                     "_build_model_page", "_build_advanced_page", "_build_log_card"):
             self.assertTrue(callable(getattr(self.window_class, name, None)), name)
 
     def test_mixins_stay_plain(self):

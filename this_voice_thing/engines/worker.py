@@ -2,7 +2,7 @@
 
 Each such engine lives in engines/<name>/ with its own .venv and a worker
 script that speaks JSON lines: one request per line on stdin, one reply per
-line on stdout, with library output on stderr (shown on the Log page).
+line on stdout, with library output on stderr (shown in the log (Settings)).
 """
 
 import glob
@@ -124,7 +124,7 @@ class WorkerProcess:
     """One long-lived worker process; requests are serialised with a lock."""
 
     def __init__(self, python, script, tag, log=print, skip=None, env=None):
-        """skip(line) -> True hides a noisy stderr line from the Log page; env adds variables."""
+        """skip(line) -> True hides a noisy stderr line from the log (Settings); env adds variables."""
         self.tag = tag
         self.log = log
         self.skip = skip or (lambda _line: False)
@@ -149,7 +149,7 @@ class WorkerProcess:
     def _read_reply(self):
         line = self.process.stdout.readline()
         if not line:
-            raise RuntimeError(f"The {self.tag} worker stopped unexpectedly. See the Log page.")
+            raise RuntimeError(f"The {self.tag} worker stopped unexpectedly. See the log (Settings).")
         return json.loads(line)
 
     def request(self, **payload):

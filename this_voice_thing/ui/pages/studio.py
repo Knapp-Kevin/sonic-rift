@@ -53,8 +53,7 @@ class StudioPage:
     # ---------- layout ----------
 
     def _build_studio_page(self):
-        studio_page, studio_layout = self._make_page(
-            "Studio", "Make a voice once, then use it everywhere. Saved voices sound the same in every render.")
+        studio_page, studio_layout = self._make_page(None, None)
         self.studio_dir = tempfile.mkdtemp(prefix="tvt_studio_")
         self.studio_takes = []
         self.studio_source = None
@@ -67,7 +66,7 @@ class StudioPage:
         studio_layout.addWidget(self._build_studio_start_card())
         studio_layout.addWidget(self._build_studio_takes_card(), 1)
         studio_layout.addWidget(self._build_studio_refine_card())
-        self.pages.addWidget(studio_page)
+        self.voices_stack.addWidget(studio_page)
         self.set_studio_mode("design")
 
     def _build_studio_start_card(self):
@@ -370,8 +369,8 @@ class StudioPage:
         self.studio_action_button.setEnabled(bool(entries) and not self.studio_busy)
         if not entries:
             self.studio_engine_combo.addItem(
-                "VoxCPM2 voice cloning (add it on the Model page)" if self.studio_mode() == "remix"
-                else "No suitable model (add one on the Model page)")
+                "VoxCPM2 voice cloning (add it on the Models page)" if self.studio_mode() == "remix"
+                else "No suitable model (add one on the Models page)")
             self.studio_engine_combo.setEnabled(False)
         else:
             self.studio_engine_combo.setEnabled(True)
@@ -423,8 +422,8 @@ class StudioPage:
             self.set_studio_mode("clone")
         self._studio_add_takes([voice_studio.Take(path, transcript, "Source: " + label, "source",
                                                   self.studio_source.seconds)], select_first=True)
-        self.sidebar.setCurrentRow(self.PAGE_STUDIO)
-        self.set_status_message(f"Status: {label} is in the Studio. Use it as it is, or make takes from it.")
+        self.show_page(self.PAGE_STUDIO)
+        self.set_status_message(f"Status: {label} is in New voice. Use it as it is, or make takes from it.")
 
     def studio_open_source_file(self):
         path, _filter = QFileDialog.getOpenFileName(
@@ -540,7 +539,7 @@ class StudioPage:
     def studio_with_model(self, entry, then):
         """Run `then` once `entry` is the loaded model, loading it first if needed."""
         if entry is None:
-            QMessageBox.information(self, "Studio", "There's no model for this yet. Add one on the Model page.")
+            QMessageBox.information(self, "Studio", "There's no model for this yet. Add one on the Models page.")
             return
         if self.model_busy():
             self.set_status_message("Status: Wait for the current load or generation to finish.")
@@ -552,7 +551,7 @@ class StudioPage:
             self.install_engine(entry)
             return
         self.pending_studio = (self.entry_key(entry), then)
-        self.set_status_message(f"Status: Loading {entry['label']} for the Studio...")
+        self.set_status_message(f"Status: Loading {entry['label']} for New voice...")
         self.load_entry(entry)
 
     def run_pending_studio(self):
@@ -578,7 +577,7 @@ class StudioPage:
         def finished(result, error):
             self._studio_set_busy(False)
             if error:
-                self.set_status_message("Status: The Studio couldn't finish. See the Log page.")
+                self.set_status_message("Status: New voice couldn't finish. See the log (Settings).")
                 print(f"Studio: {error}")
                 QMessageBox.warning(self, "Studio", error)
                 return
@@ -755,7 +754,7 @@ class StudioPage:
         voice.clip = self.voice_library.to_stored(path)
         self.voice_library.add(voice)
         self.render_voice_tiles()
-        self.set_status_message(f"Status: Saved {voice.name}. It's frozen: pick it in Voices or on Generate "
+        self.set_status_message(f"Status: Saved {voice.name}. It's frozen: pick it in Voices or on Create "
                                 "and it sounds the same every time.")
 
     def _voxcpm_design_entry(self):

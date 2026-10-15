@@ -213,12 +213,12 @@ def key_weight_file(entry):
 
 # What each model is for. The order is the order groups appear in the UI.
 CAPABILITIES = {
-    "clone": ("Voice cloning", "Speak in the voice of a reference clip from the Voice page."),
+    "clone": ("Voice cloning", "Speak in the voice of a reference clip from Voices."),
     "preset": ("Preset voices", "Pick a built-in speaker; some models also take a style."),
     "design": ("Voice design", "Describe a voice in words and the model creates it."),
     "conversation": ("Conversations", "Scripts with up to 4 speakers, each in their own voice."),
 }
-# Short labels for the Model page tabs, so four tabs fit the narrowest window.
+# Short labels for the Models page tabs, so four tabs fit the narrowest window.
 CAPABILITY_TABS = {"clone": "Cloning", "preset": "Presets", "design": "Design", "conversation": "Conversations"}
 QWEN_CAPABILITY = {"base": "clone", "custom_voice": "preset", "voice_design": "design"}
 

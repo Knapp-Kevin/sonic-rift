@@ -150,7 +150,7 @@ If setup fails, the launcher tells you where the installer log was written. Look
 
 When the app opens:
 
-1. Go to **Generate**.
+1. Go to **Create**.
 2. Type or paste a short sentence into the text box.
 3. Keep the default model and voice for the first test.
 4. Click **Preview** to make a short sample.
@@ -263,8 +263,10 @@ In other words, calling the whole thing “Chatterbox UI” eventually became le
 
 ## Features
 
+The sidebar is organized by what you're doing: **Create** (write or open text and generate speech), **Voices** (your library, and **New voice** to make one), **Sounds** (ambience and effects), then **Tools** (Transcribe) and **Setup** (Models, Settings).
+
 <details>
-<summary><strong>Generate</strong></summary>
+<summary><strong>Create</strong></summary>
 
 - **Voice first:** pick a voice with **Change** (one of yours, or a model's built-in voices), and the model list shows only the models that can speak it. A clip or Studio voice works with every cloning model; picking one while a non-cloning model is loaded loads a cloning model for you.
 - Per-model time estimates for the current text (click the estimate to compare and switch).
@@ -287,7 +289,7 @@ In other words, calling the whole thing “Chatterbox UI” eventually became le
 </details>
 
 <details>
-<summary><strong>Soundscape (ambience and sound effects)</strong></summary>
+<summary><strong>Sounds (ambience and sound effects)</strong></summary>
 
 Sound beyond speech: ambience loops, rain and waves, tonal beds and UI chimes, kept with a record of how each was made.
 
@@ -318,7 +320,7 @@ Sound beyond speech: ambience loops, rain and waves, tonal beds and UI chimes, k
 </details>
 
 <details>
-<summary><strong>Studio</strong></summary>
+<summary><strong>Voices: New voice</strong> (the Studio)</summary>
 
 One place to make a voice, so generating is just a matter of picking it. Every voice the Studio saves is frozen: a clip plus the words it says. Any cloning model can speak it, and it sounds the same in every render and batch.
 
@@ -334,7 +336,7 @@ One place to make a voice, so generating is just a matter of picking it. Every v
 <details>
 <summary><strong>Voice library</strong></summary>
 
-The **Voices** page holds your saved voices: search, tag, rename, preview, and click one to use it on Generate. New voices start in the Studio.
+The **Voices** page holds your saved voices: search, tag, rename, preview, and click one to use it on Create. New voices start under **New voice**.
 
 - **Clip voices:** recordings or imported audio plus transcript. They work with every cloning model.
 - **Preset voices:** built-in voices from engines such as Kokoro or Qwen.
@@ -390,20 +392,20 @@ Optional engines install themselves into their own `engines/<name>/.venv` the fi
 </details>
 
 <details>
-<summary><strong>Finishing touches and Advanced</strong></summary>
+<summary><strong>Finishing touches and Settings</strong></summary>
 
 - Paragraph pause control, volume levelling and start/end silence trimming.
-- WAV, FLAC and optional MP3 output.
-- Speed and pitch adjustment (formant-preserving with FFmpeg's Rubber Band).
+- WAV, FLAC or MP3 output, chosen in **Finishing touches** on Create.
+- Speed and pitch adjustment (formant-preserving with FFmpeg's Rubber Band), also in Finishing touches.
 - SRT and WebVTT subtitles, timed from the generation itself.
-- A pronunciation dictionary with import/export and auditioning.
+- A pronunciation dictionary with import/export and auditioning (**Settings**).
 - An optional inaudible AI watermark on engines that don't add one themselves.
 
 </details>
 
 ## Local API
 
-Other programs on the same PC can use the app's models and voices. Enable it under **Advanced → Local API**. The server listens only on `127.0.0.1` (port `8765` by default) and can require a bearer token. Speech requests use the same pipeline as the desktop UI: model selection, sectioning, batching, voice handling, pronunciation and finishing. It can also transcribe audio.
+Other programs on the same PC can use the app's models and voices. Enable it under **Settings → Local API**. The server listens only on `127.0.0.1` (port `8765` by default) and can require a bearer token. Speech requests use the same pipeline as the desktop UI: model selection, sectioning, batching, voice handling, pronunciation and finishing. It can also transcribe audio.
 
 <details>
 <summary><strong>Examples</strong></summary>

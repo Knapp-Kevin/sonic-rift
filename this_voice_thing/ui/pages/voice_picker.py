@@ -83,7 +83,7 @@ class VoicePicker:
         voices = sorted(self.voice_library.voices, key=lambda voice: voice.name.lower())
         menu.addSection("Your voices")
         if not voices:
-            menu.addAction("None yet: make one in the Studio").setEnabled(False)
+            menu.addAction("None yet: make one in Voices, New voice").setEnabled(False)
         for voice in voices:
             label = voice.name
             if voice.kind == "preset":
@@ -110,9 +110,9 @@ class VoicePicker:
                               else "Loads the model; give each speaker a voice with Cast… under Delivery.")
             action.triggered.connect(lambda _checked=False, entry=entry: self.pick_model_voice(entry))
         menu.addSeparator()
-        menu.addAction("Make a new voice in the Studio…").triggered.connect(
-            lambda: self.sidebar.setCurrentRow(self.PAGE_STUDIO))
-        menu.addAction("Manage voices…").triggered.connect(lambda: self.sidebar.setCurrentRow(self.PAGE_VOICE))
+        menu.addAction("Make a new voice…").triggered.connect(
+            lambda: self.show_page(self.PAGE_STUDIO))
+        menu.addAction("Manage voices…").triggered.connect(lambda: self.show_page(self.PAGE_VOICE))
 
     def pick_default_voice(self):
         entry = None
@@ -121,7 +121,7 @@ class VoicePicker:
             entry = next((item for item in self.get_visible_model_entries()
                           if item.get("backend") in CHATTERBOX_BACKENDS), None)
             if entry is None:
-                QMessageBox.information(self, "Voice", "Add a Chatterbox model on the Model page to use its voice.")
+                QMessageBox.information(self, "Voice", "Add a Chatterbox model on the Models page to use its voice.")
                 return
         self.clear_reference_audio()
         if entry is not None:
@@ -144,7 +144,7 @@ class VoicePicker:
         Returns True when a load started (the voice is applied once it's ready)."""
         entry = self.preferred_clone_entry()
         if entry is None:
-            QMessageBox.information(self, "Voice", "Add a voice cloning model on the Model page to use clip voices.")
+            QMessageBox.information(self, "Voice", "Add a voice cloning model on the Models page to use clip voices.")
             return True
         if self.model_busy():
             self.set_status_message("Status: Wait for the current load or generation to finish.")

@@ -73,7 +73,7 @@ def consent_text(engine):
     ]
     if engine.gated:
         lines += ["", "This model is gated: sign in to Hugging Face, open the model page and accept "
-                      "its terms first, and add your Hugging Face token on the Model page."]
+                      "its terms first, and add your Hugging Face token on the Models page."]
     lines += ["", "By installing it you accept this license for your own use of the model and of "
                   "what you generate with it."]
     return "\n".join(lines)

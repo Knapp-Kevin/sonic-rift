@@ -113,7 +113,7 @@ class ModelLoading:
         selected_entry = self.get_selected_model_entry()
         tooltip = (f"{selected_entry['repo_id']} \u00b7 "
                    f"{model_registry.engine_for(selected_entry).label}\n"
-                   "Switching loads the model. Manage models on the Model page.")
+                   "Switching loads the model. Manage models on the Models page.")
         if selected_entry.get("notes"):
             tooltip += f"\n\n{selected_entry['notes']}"
         self.model_repo_combo.setToolTip(tooltip)
@@ -155,7 +155,7 @@ class ModelLoading:
             QMessageBox.critical(
                 self, "Chatterbox unavailable",
                 "The Chatterbox engine isn't available: the chatterbox-tts library failed to import "
-                "(see the Log page). Other engines still work; pick one on the Model page.")
+                "(see the log in Settings). Other engines still work; pick one on the Models page.")
             return
         selected_repo = selected_entry["repo_id"]
         selected_backend = selected_entry.get("backend", BACKEND_MULTILINGUAL)
@@ -172,7 +172,7 @@ class ModelLoading:
         self.current_multilingual_t3_model = selected_multilingual_t3_model
         self.set_status_message(
             f"Status: Loading {selected_entry['label']}. A model that isn't downloaded yet "
-            "is fetched first; progress appears on the Log page."
+            "is fetched first; progress appears in the log (Settings)."
         )
         self.generate_button.setEnabled(False)
         self.preview_button.setEnabled(False)

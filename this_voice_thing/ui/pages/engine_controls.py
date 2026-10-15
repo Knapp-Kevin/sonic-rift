@@ -160,7 +160,7 @@ class EngineControls:
             text, tip = f"Designed: {name}", ("Locked to a voice you kept: every section uses it. Change "
                                               "the description to design a new voice.")
         elif qwen is not None and qwen.mode == "voice_design":
-            text, tip = "No voice picked", "Pick a designed voice with Change, or make one in the Studio."
+            text, tip = "No voice picked", "Pick a designed voice with Change, or make one in Voices, New voice."
         elif reference:
             saved = self.voice_library.find_clip(reference)
             text, tip = (saved.name if saved else os.path.basename(reference)), reference
@@ -179,7 +179,7 @@ class EngineControls:
             return None
         instruct = self.qwen_instruct_input.text().strip()
         if qwen.mode == "voice_design" and not getattr(qwen, "locked_anchor", None):
-            return ("Pick a designed voice with Change (next to Voice), or design one in the Studio. "
+            return ("Pick a designed voice with Change (next to Voice), or design one in Voices, New voice. "
                     "Designed voices are saved there, so every render sounds the same.")
         if qwen.mode == "base" and not self.reference_path:
             return "Pick a voice with Change (next to Voice); this cloning model needs one."

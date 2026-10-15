@@ -177,7 +177,7 @@ class OmniVoiceModel:
 
 def load_omnivoice_model(repo_id, mode="clone", log=print):
     if not is_installed():
-        raise RuntimeError("The OmniVoice engine isn't installed. Click its tile on the Model page to install it.")
+        raise RuntimeError("The OmniVoice engine isn't installed. Click its tile on the Models page to install it.")
     worker = engine_worker.WorkerProcess(
         PYTHON, WORKER, "omnivoice", log,
         skip=lambda line: "warn" in line.lower() or "it/s]" in line or "s/it]" in line)

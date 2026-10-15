@@ -118,7 +118,7 @@ class Estimates:
             f"{sections} section{'s' if sections != 1 else ''} \u00b7 {len(text):,} characters"
             + (f" \u00b7 {respelled} respelled" if respelled else ""))
         self.text_stats_label.setToolTip(
-            "Words changed by the pronunciation dictionary (Advanced page)." if respelled else "")
+            "Words changed by the pronunciation dictionary (Settings page)." if respelled else "")
         visible = self.get_visible_model_entries()
         for index in range(self.model_repo_combo.count()):
             position = self.model_repo_combo.itemData(index)

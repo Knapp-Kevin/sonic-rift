@@ -117,7 +117,7 @@ class KokoroModel:
 
 def load_kokoro_model(repo_id, log=print):
     if not is_installed():
-        raise RuntimeError("The Kokoro engine isn't installed. Click its tile on the Model page to install it.")
+        raise RuntimeError("The Kokoro engine isn't installed. Click its tile on the Models page to install it.")
     worker = engine_worker.WorkerProcess(PYTHON, WORKER, "kokoro", log,
                                          skip=lambda line: "words count mismatch" in line
                                          or "warn" in line.lower())

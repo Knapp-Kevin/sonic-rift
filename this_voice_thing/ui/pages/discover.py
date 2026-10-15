@@ -9,7 +9,7 @@ from this_voice_thing.ui.common import DUAL_MODE_BACKENDS
 
 
 class Discover:
-    """Hugging Face discovery on the Model page. Mixed into ChatterboxApp."""
+    """Hugging Face discovery on the Models page. Mixed into ChatterboxApp."""
 
     # --- Discover ---
 

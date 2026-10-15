@@ -93,7 +93,7 @@ class ModelLoaderThread(QThread):
             if self.backend == QWEN_BACKEND:
                 if not qwen_engine.is_installed():
                     raise RuntimeError(
-                        "The Qwen engine isn't installed. Use Load this model on the Model page "
+                        "The Qwen engine isn't installed. Use Load this model on the Models page "
                         "to install it.")
                 model_instance = qwen_engine.load_qwen_model(self.repo_id, log=print)
             elif self.backend == KOKORO_BACKEND:

@@ -231,7 +231,7 @@ class ModelPage:
             f"{entry['label']}  ({repo})",
             engine.description,
             entry.get("notes", ""),
-            "" if entry.get("enabled", True) else "Hidden from the model switcher on the Generate page.",
+            "" if entry.get("enabled", True) else "Hidden from the model switcher on Create.",
             f"Speed {'measured from your runs' if measured else 'estimated until you generate with it'}.",
             "" if active else "Click to load. Right-click for more.") if line)
         needs = self.hardware_line(entry.get("backend"), repo)
@@ -349,12 +349,12 @@ class ModelPage:
         backend = entry.get("backend")
         name, note = ENGINE_INSTALL_NOTES[backend]
         if getattr(self, "engine_install_thread", None) is not None and self.engine_install_thread.isRunning():
-            self.set_status_message("Status: An engine is still installing. Progress is on the Log page.")
+            self.set_status_message("Status: An engine is still installing. Progress is in the log (Settings).")
             return
         answer = QMessageBox.question(self, f"Install {name} Engine", f"{note}\n\nInstall now?")
         if answer != QMessageBox.StandardButton.Yes:
             return
-        self.set_status_message(f"Status: Installing the {name} engine. Progress is on the Log page.")
+        self.set_status_message(f"Status: Installing the {name} engine. Progress is in the log (Settings).")
         self.pending_install_entry = entry
         self.engine_install_thread = EngineInstallThread(ENGINE_MODULES[backend])
         self.engine_install_thread.finished_with.connect(
@@ -363,7 +363,7 @@ class ModelPage:
 
     def on_engine_install_finished(self, name, error):
         if error:
-            self.set_status_message(f"Status: {name} engine install failed. See the Log page.")
+            self.set_status_message(f"Status: {name} engine install failed. See the log (Settings).")
             QMessageBox.warning(self, f"{name} Engine", f"The install failed:\n{error}")
         else:
             self.set_status_message(f"Status: {name} engine installed. Loading the model...")
