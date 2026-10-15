@@ -1687,7 +1687,7 @@ class LiveVoicePage:
         voice = self.voice_library.get(pad.voice_id) if pad.voice_id else None
         clip_path = self.voice_library.clip_path(voice) if voice is not None and voice.has_clip else ""
         transcript = voice_library.read_transcript(clip_path) if clip_path else ""
-        return {
+        context = {
             "voice_fingerprint": soundboard.voice_fingerprint(voice, clip_path, transcript),
             "pronunciations": self._soundboard_pronunciation_fingerprint(),
             "synthesis_settings": {
@@ -1698,12 +1698,14 @@ class LiveVoicePage:
                 "min_p": pad.min_p,
                 "top_p": pad.top_p,
             },
+        }
+        if pad.model_backend == "voxcpm":
             # VoxCPM2's Live steps change the audio, so a pad cached at 6 steps rebuilds at 10.
             # Read from the setting, not the loaded model, so cached pads still play with no model.
-            "live_steps": (voxcpm_engine.LIVE_STEP_PRESETS.get(
-                self.live_voxcpm_steps_combo.currentData() or voxcpm_engine.DEFAULT_LIVE_PRESET,
-                voxcpm_engine.LIVE_STEP_PRESETS["full"])[0] if pad.model_backend == "voxcpm" else None),
-        }
+            key = self.live_voxcpm_steps_combo.currentData() or voxcpm_engine.DEFAULT_LIVE_PRESET
+            context["live_steps"] = voxcpm_engine.LIVE_STEP_PRESETS.get(
+                key, voxcpm_engine.LIVE_STEP_PRESETS["full"])[0]
+        return context
 
     def _soundboard_cache_key(self, pad):
         return self.soundboard_store.cache_digest(

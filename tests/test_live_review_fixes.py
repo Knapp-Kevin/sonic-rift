@@ -138,8 +138,32 @@ class PadCacheSteps(unittest.TestCase):
         combo.currentData.return_value = "full"
         ten = LiveVoicePage._soundboard_synthesis_context(window, pad)["live_steps"]
         self.assertEqual((six, ten), (6, 10))
-        pad.model_backend = "kokoro"
-        self.assertIsNone(LiveVoicePage._soundboard_synthesis_context(window, pad)["live_steps"])
+        pad.model_backend = "kokoro"         # other pads keep the key they had before
+        self.assertNotIn("live_steps", LiveVoicePage._soundboard_synthesis_context(window, pad))
+
+
+class StoppedSpeech(unittest.TestCase):
+    def test_a_line_stopped_mid_stream_reports_cancelled(self):
+        """Its partial audio must not become a soundboard pad's cache."""
+        from PySide6.QtWidgets import QApplication
+        from this_voice_thing.ui.live_audio import LiveSpeechThread
+        QApplication.instance() or QApplication([])
+        frame = SimpleNamespace(pcm=bytes(200), sample_rate=24000, channels=1)
+
+        class Session:
+            delivery_mode, sample_rate, provenance = "native", 24000, "test"
+            def frames(self, is_stopped):
+                yield frame
+                thread.stop()           # Stop pressed between frames
+                yield frame
+            def metrics(self):
+                return {"cancelled": False}
+
+        thread = LiveSpeechThread(Session())
+        done = []
+        thread.session_complete.connect(done.append)
+        thread.run()                    # in this thread: direct signal delivery
+        self.assertTrue(done and done[0]["cancelled"])
 
 
 

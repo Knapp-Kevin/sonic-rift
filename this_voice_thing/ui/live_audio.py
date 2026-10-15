@@ -59,6 +59,10 @@ class LiveSpeechThread(QThread):
                 self.output_buffered_seconds += len(frame.pcm) / float(
                     max(1, frame.sample_rate) * 2 * max(1, frame.channels))
             metrics = dict(self.session.metrics())
+            if self._stop.is_set():
+                # Stopped before the session saw it: the audio is partial, so it must not be
+                # cached as a pad's sound (or counted as a completed line).
+                metrics["cancelled"] = True
             if self.backpressure_seconds > 0.0:
                 # Waiting for playback isn't generation time: keep TTFA/RTF honest.
                 metrics["backpressure_seconds"] = round(self.backpressure_seconds, 4)
@@ -149,6 +153,7 @@ class LiveAudioOutput(QObject):
         self._configured_at = None
         self._sink_started_at = None
         self._bytes_written = 0
+        self._bytes_at_configure = 0
         self._underruns = 0
         self._last_state = None
         self._last_stats = {}
@@ -281,9 +286,10 @@ class LiveAudioOutput(QObject):
             self._drained_emitted = False
             self._last_stats = {}
             # Diagnostics are per utterance: a reused sink would otherwise report every
-            # earlier item's underruns and bytes as this one's.
+            # earlier item's underruns and bytes as this one's. _bytes_written itself keeps
+            # counting (the underrun check needs to know the sink has played before).
             self._underruns = 0
-            self._bytes_written = 0
+            self._bytes_at_configure = self._bytes_written
             self._timer.start()
             return
 
@@ -305,6 +311,7 @@ class LiveAudioOutput(QObject):
         self._configured_at = time.monotonic()
         self._sink_started_at = None
         self._bytes_written = 0
+        self._bytes_at_configure = 0
         self._underruns = 0
         self._last_state = None
         self._last_stats = {}
@@ -446,7 +453,7 @@ class LiveAudioOutput(QObject):
             "sample_format": self._sample_format_label(),
             "buffered_ms": round(self.buffered_ms(), 2),
             "underruns": int(self._underruns),
-            "bytes_written": int(self._bytes_written),
+            "bytes_written": int(self._bytes_written - self._bytes_at_configure),
             "configured_to_start_seconds": (
                 round(configured_to_start, 4) if configured_to_start is not None else None
             ),
