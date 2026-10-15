@@ -1,7 +1,9 @@
 # How Accent Development Actually Works: Speech Science, Architectures, and Engineering Choices
 
+> **Research snapshot:** Findings and model-license claims reflect the original October 10, 2026 assessment. Links were reconciled to the Sonic Rift repository on October 15. No inference, accent authenticity, updated dependency licensing, or hardware performance is newly certified by merging this document. The owner GO/NO-GO gate remains #44.
+
 **Research snapshot:** 2026-10-10. **Status:** source-backed research, not implemented, trained, acoustically benchmarked, or independently peer reviewed here.  
-**Work:** [#50](https://github.com/Knapp-Kevin/this-voice-thing/issues/50); parent [#40](https://github.com/Knapp-Kevin/this-voice-thing/issues/40); decision gate [#44](https://github.com/Knapp-Kevin/this-voice-thing/issues/44).
+**Work:** [#50](https://github.com/Knapp-Kevin/sonic-rift/issues/50); parent [#40](https://github.com/Knapp-Kevin/sonic-rift/issues/40); decision gate [#44](https://github.com/Knapp-Kevin/sonic-rift/issues/44).
 
 ## Executive decision
 
@@ -89,8 +91,8 @@ The right UI may ultimately expose **mode/capability** rather than pretending th
 ## 6. Revised research order and hold points
 
 1. **Current-engine baseline:** Existing [#43 protocol](accent-design-benchmark-protocol.md) can validate prompt outcomes on Qwen/VoxCPM2. Don't discard it, but it doesn't fully test controllable accents.
-2. **DEFINE source/licensing feasibility:** [#51](https://github.com/Knapp-Kevin/this-voice-thing/issues/51) traces checkpoint, licensed weights and Windows feasibility *without installing first*. Experimental use requires explicit authorization; base F5 weights are noncommercial.
-3. **Phonetic inventory and data rights:** [#52](https://github.com/Knapp-Kevin/this-voice-thing/issues/52) decides what Scotland and French-English examples mean, which data can be accessed, and who can validate.
+2. **DEFINE source/licensing feasibility:** [#51](https://github.com/Knapp-Kevin/sonic-rift/issues/51) traces checkpoint, licensed weights and Windows feasibility *without installing first*. Experimental use requires explicit authorization; base F5 weights are noncommercial.
+3. **Phonetic inventory and data rights:** [#52](https://github.com/Knapp-Kevin/sonic-rift/issues/52) decides what Scotland and French-English examples mean, which data can be accessed, and who can validate.
 4. **Controlled 3-way comparison:** prompt design vs reference clone vs separate-accent-exemplar (if feasible and authorized) on *the same target* with separately reported speaker similarity, accent fidelity, intelligibility, latency/VRAM and dataset/permission coverage.
 5. **Decision #44:** GO / LIMITED GO / NO-GO only after technical, data/rights and human evidence. This is a **research expansion**, not authorization to expand implementation issues #45–#48.
 
