@@ -18,6 +18,13 @@ class InstallEnvTests(unittest.TestCase):
         self.assertIn("bad-dep", commands[-1])
         self.assertEqual(commands[-2][-1], "pkg")      # after the last install step
 
+    def test_kokoro_drops_the_unused_spacy_transformer_plugin(self):
+        from this_voice_thing.engines import kokoro
+        with patch.object(worker, "install_env") as install_env:
+            kokoro.install(log=lambda _l: None)
+        self.assertEqual(set(install_env.call_args.kwargs["remove"]),
+                         {"spacy-curated-transformers", "curated-tokenizers"})
+
     def test_voxcpm_drops_funasr_and_kaldiio(self):
         with patch.object(worker, "install_env") as install_env:
             voxcpm.install(log=lambda _l: None)
