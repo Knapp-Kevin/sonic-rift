@@ -67,9 +67,13 @@ class ChatterboxProviderContractTests(unittest.TestCase):
         class EntryNotFoundError(Exception):
             pass
 
+        class LocalEntryNotFoundError(EntryNotFoundError):   # as in huggingface_hub
+            pass
+
         class RepositoryNotFoundError(Exception):
             pass
         errors.EntryNotFoundError = EntryNotFoundError
+        errors.LocalEntryNotFoundError = LocalEntryNotFoundError
         errors.RepositoryNotFoundError = RepositoryNotFoundError
         hf.snapshot_download = lambda **_kwargs: "/tmp/fake-checkpoint"
         chatterbox = module("chatterbox")
@@ -149,8 +153,10 @@ class ChatterboxProviderContractTests(unittest.TestCase):
 
     def _snapshot_with(self, files):
         """A fake snapshot folder holding `files`; records the patterns requested."""
+        import shutil
         import tempfile
         folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder, True)
         for name in files:
             (folder / name).write_bytes(b"x")
         requested = []
@@ -195,6 +201,61 @@ class ChatterboxProviderContractTests(unittest.TestCase):
             with self.assertRaisesRegex(m.UnsupportedChatterboxRepoError, "t3_cfg.safetensors"):
                 m.load_chatterbox_model("other/model", m.BACKEND_LEGACY, "cpu")
         self.assertEqual(FakeLegacy.calls, [])
+
+    def test_v2_hint_only_when_v3_was_requested_and_is_the_only_gap(self):
+        m = self.adapter
+        base = ["ve.pt", "s3gen.pt", "grapheme_mtl_merged_expanded_v1.json"]
+        _folder, _requested, fake = self._snapshot_with(base)        # v2 requested, v2 missing
+        with patch.object(m, "snapshot_download", fake):
+            with self.assertRaises(m.UnsupportedChatterboxRepoError) as raised:
+                m.load_chatterbox_model("custom/audio", m.BACKEND_MULTILINGUAL, "cpu", "v2")
+        self.assertIn("t3_mtl23ls_v2.safetensors", str(raised.exception))
+        self.assertNotIn("set its multilingual_t3_model to v2", str(raised.exception))
+        _folder, _requested, fake = self._snapshot_with(base)        # v3 requested, v3 missing
+        with patch.object(m, "snapshot_download", fake):
+            with self.assertRaises(m.UnsupportedChatterboxRepoError) as raised:
+                m.load_chatterbox_model("custom/audio", m.BACKEND_MULTILINGUAL, "cpu", "v3")
+        self.assertIn("set its multilingual_t3_model to v2", str(raised.exception))
+        self.assertEqual(raised.exception.missing, ["t3_mtl23ls_v3.safetensors"])
+        self.assertIsInstance(raised.exception.__cause__, m.UnsupportedChatterboxRepoError)
+
+    def test_offline_without_cache_is_not_called_incompatible(self):
+        m = self.adapter
+        error = m.LocalEntryNotFoundError("offline")
+        with patch.object(m, "snapshot_download", side_effect=error):
+            with self.assertRaises(m.UnsupportedChatterboxRepoError) as raised:
+                m.load_chatterbox_model("custom/audio", m.BACKEND_MULTILINGUAL, "cpu", "v3")
+        self.assertIn("unreachable or offline", str(raised.exception))
+        self.assertIs(raised.exception.__cause__, error)
+
+    def test_resolver_matches_the_previous_backend(self):
+        resolve = self.adapter.resolve_multilingual_t3_model
+        cases = {None: "t3_mtl23ls_v3.safetensors", "": "t3_mtl23ls_v3.safetensors",
+                 "v2": "t3_mtl23ls_v2.safetensors", " V3 ": "t3_mtl23ls_v3.safetensors",
+                 "T3_MTL23LS_V2.safetensors": "t3_mtl23ls_v2.safetensors",
+                 "v2.safetensors": "v2.safetensors",                      # a repository's own file name
+                 "t3_23lang.safetensors": "t3_23lang.safetensors", "Custom_T3": "Custom_T3"}
+        for value, expected in cases.items():
+            self.assertEqual(resolve(value), expected, value)
+
+    def test_older_engine_without_t3_selection_uses_the_full_download_set(self):
+        m = self.adapter
+
+        class OlderMultilingual(FakeMultilingual):
+            from_pretrained = None
+            calls = []
+
+            @classmethod
+            def from_local(cls, folder, device):          # no t3_model parameter
+                cls.calls.append((folder, device))
+                return FakeSpeechEngine()
+
+        folder, requested, fake = self._snapshot_with(["ve.pt", "s3gen.pt"])
+        with patch.object(m, "ChatterboxMultilingualTTS", OlderMultilingual), \
+                patch.object(m, "snapshot_download", fake):
+            m.load_chatterbox_model(m.DEFAULT_MODEL_REPO, m.BACKEND_MULTILINGUAL, "cpu", "v2")
+        self.assertEqual(OlderMultilingual.calls, [(folder, "cpu")])
+        self.assertEqual(set(requested[0]), set(m.MULTILINGUAL_MODEL_FILES))
 
     def test_unknown_or_gated_repository_is_explained(self):
         m = self.adapter

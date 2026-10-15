@@ -13,7 +13,7 @@ import subprocess
 
 import torch
 from huggingface_hub import snapshot_download
-from huggingface_hub.errors import EntryNotFoundError, RepositoryNotFoundError
+from huggingface_hub.errors import EntryNotFoundError, LocalEntryNotFoundError, RepositoryNotFoundError
 from chatterbox.tts import ChatterboxTTS
 from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 
@@ -65,9 +65,10 @@ class UnsupportedChatterboxRepoError(RuntimeError):
 
 
 def resolve_multilingual_t3_model(value):
+    """An alias (v2, v3, t3_mtl23ls_v3, their .safetensors names; any case) to its file name.
+    Anything else is returned as given (stripped), so a repository's own file name still works."""
     requested = str(value or DEFAULT_MULTILINGUAL_T3_MODEL).strip()
-    key = requested.lower()
-    return _T3_NAMES.get(key.removesuffix(".safetensors"), requested)
+    return MULTILINGUAL_T3_MODEL_ALIASES.get(requested.lower(), requested)
 
 
 def _has_parameter(method, name):
@@ -156,7 +157,9 @@ def _create_multilingual(repo_id, device, t3_choice):
             required=(*_MULTILINGUAL_REQUIRED, requested))
         print(f"Loading multilingual checkpoint from '{repo_id}' with from_local (t3_model='{requested}').")
         return local_factory(checkpoint_dir, device, t3_model=requested)
-    checkpoint_dir = _fetch_assets(repo_id, _MULTILINGUAL_ASSETS, required=_MULTILINGUAL_REQUIRED)
+    # Older chatterbox-tts (no t3_model): keep the full historical download set, and require only
+    # the files every version reads, so a working older setup isn't refused.
+    checkpoint_dir = _fetch_assets(repo_id, _MULTILINGUAL_ASSETS, required=("ve.pt", "s3gen.pt"))
     if requested != _T3_NAMES["v2"]:
         print("Installed multilingual engine does not support explicit T3 selection; "
               "using its built-in default.")
@@ -177,12 +180,20 @@ def load_chatterbox_model(repo_id, backend, device, multilingual_t3_model=None):
             languages = {"en": "English"}
     except UnsupportedChatterboxRepoError as exc:
         missing = getattr(exc, "missing", [])
-        if backend == BACKEND_MULTILINGUAL and missing and all(n.startswith("t3_mtl23ls") for n in missing):
-            # Only the selected T3 weights are absent: likely an older multilingual repository.
-            raise UnsupportedChatterboxRepoError(
+        if (backend == BACKEND_MULTILINGUAL and missing == [_T3_NAMES["v3"]]
+                and resolve_multilingual_t3_model(multilingual_t3_model) == _T3_NAMES["v3"]):
+            # Only the v3 weights are absent: likely an older repository that publishes v2.
+            hinted = UnsupportedChatterboxRepoError(
                 f"{exc} If this is an older repository, set its multilingual_t3_model to v2 "
-                "in models.json.") from exc.__cause__
+                "in models.json.")
+            hinted.missing = missing
+            raise hinted from exc
         raise
+    except LocalEntryNotFoundError as exc:   # offline, or Hugging Face unreachable, with no full cache
+        raise UnsupportedChatterboxRepoError(
+            f"Couldn't download '{repo_id}': Hugging Face is unreachable or offline mode is on, and "
+            "the model isn't fully cached on this PC. Connect to the internet once to download it."
+        ) from exc
     except EntryNotFoundError as exc:
         layout = "multilingual" if backend == BACKEND_MULTILINGUAL else "English"
         raise UnsupportedChatterboxRepoError(
