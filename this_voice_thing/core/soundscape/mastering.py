@@ -110,7 +110,7 @@ def trim_to_ceiling(x, ceiling_db):
 
 def is_mono(x, threshold_db=-40.0):
     """True when the side signal is negligible (under -40 dB relative to the mid): some
-    "stereo" models, e.g. Stable Audio 3 Small SFX, write two nearly identical channels."""
+    "stereo" models write two nearly identical channels."""
     x = as_stereo(x).astype(np.float64)
     mid = np.sqrt(np.mean(((x[:, 0] + x[:, 1]) / 2) ** 2)) + 1e-12
     side = np.sqrt(np.mean(((x[:, 0] - x[:, 1]) / 2) ** 2))
@@ -142,7 +142,6 @@ def widen(x, sr, width=0.5, loop=True, seed=0, crossover_hz=300.0):
 
 
 LOOP_FOLD_SECONDS = 2.0
-SEAM_POLISH_SECONDS = 0.05   # micro-crossfade after inpainting, which can leave a click at the ends
 
 
 def make_loop(x, sr, crossfade_seconds=LOOP_FOLD_SECONDS):

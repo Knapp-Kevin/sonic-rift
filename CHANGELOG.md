@@ -8,12 +8,12 @@ Changes since upstream commit `22460fd` ("Add best-effort macOS/Linux shell laun
 
 ### Added
 - **Soundscape page and Asset Library (Audio Studio, #53).**
-  - **Engines:** ambience loops and sound effects from three engines:
+  - **Engines:** ambience loops and sound effects from two restriction-free engines:
     - **Procedural:** no model; ocean, rain, thunderstorm, wind, drone, UI chimes.
     - **MOSS-SoundEffect v2:** Apache-2.0.
-    - **Stable Audio 3 Small SFX:** Stability AI Community License; gated.
+    - Stable Audio 3 Small SFX was built in, evaluated and removed: its ambience was rejected in listening tests, and its license carries conditions.
   - **Install and consent:** each model gets its own environment, and the app shows the license and download size and asks before installing.
-  - **Takes:** several at once, with seeds for repeatability. Loops are seamless (inpainting or folding for models) and come out at the requested length.
+  - **Takes:** several at once, with seeds for repeatability. Loops are seamless (folding for MOSS) and come out at the requested length.
   - **Mastering:** LUFS loudness with true-peak headroom and a gentle limiter, a seam check, and stereo widening for mono models.
   - **Export:** WAV, OGG or MP3.
   - **Asset Library:** keeps each sound with its provenance (engine, model, license, prompt or preset, seed, settings, checksum).

@@ -291,20 +291,20 @@ In other words, calling the whole thing “Chatterbox UI” eventually became le
 
 Sound beyond speech: ambience loops, rain and waves, tonal beds and UI chimes, kept with a record of how each was made.
 
-- **Three engines:**
+- **Two engines, both free of license restrictions:**
 
   | Engine | License | Speed (RTX 5070 Ti) | GPU memory |
   | --- | --- | --- | --- |
   | **Procedural** | your own work | 30 s loop in ~2 s on the CPU | none |
   | **MOSS-SoundEffect v2** | Apache-2.0, no restrictions; training data not disclosed | ~23 s per take; long clips are stitched | ~15 GB (the app offers to unload the voice model) |
-  | **Stable Audio 3 Small SFX** | Stability AI Community License: free under US$1M yearly revenue, with registration and "Powered by Stability AI" attribution; gated on Hugging Face | 30 s loop in ~1.5 s | ~3 GB |
 
   - **Procedural** needs no model or download. Presets: ocean, rain, thunderstorm, wind, drone and three UI chimes.
-  - **The two models** each run in their own environment. Before installing, the app shows the license and download size and asks.
+  - **MOSS** runs in its own environment. Before installing, the app shows the license and download size and asks. In listening tests it suited ocean, rain and richer tonal beds; the procedural engine suits simpler, exactly repeating beds.
+  - Stable Audio 3 Small SFX was evaluated and dropped: its ambience was rejected in listening tests, and its license has conditions.
 - **Takes:** make 1 to 6 at once with consecutive seeds. The same engine, settings and seed give the same sound again.
 - **Seamless loops:**
   - Procedural loops repeat exactly by construction.
-  - Stable Audio regenerates the seam by inpainting; MOSS folds the tail over the head. Loops still come out at the length you asked for.
+  - MOSS folds the tail over the head, and generates a little extra so loops still come out at the length you asked for.
   - Each take shows a seam check, which flags a join only if it's more abrupt than anything inside the sound. "No seam detected" isn't a listening test.
 - **Mastering:**
   - Every take is mastered to a loudness target (LUFS), with true peaks under -1 dB.
@@ -558,7 +558,7 @@ this-voice-thing/
 │  │  ├─ chatterbox_backend.py  Chatterbox, loaded in-process
 │  │  ├─ worker.py              shared worker/environment support for the other engines
 │  │  ├─ qwen.py, kokoro.py, voxcpm.py, omnivoice.py, vibevoice.py
-│  │  └─ sound_models.py        Stable Audio 3 and MOSS-SoundEffect workers for the Soundscape page
+│  │  └─ sound_models.py        the MOSS-SoundEffect worker for the Soundscape page
 │  ├─ core/
 │  │  ├─ model_registry.py      engines, capabilities, licenses, hardware needs, Hugging Face discovery
 │  │  ├─ documents.py           document loading, sectioning, conversation scripts

@@ -124,7 +124,7 @@ class WidenTests(unittest.TestCase):
         mono = procedural.generate("rain", seconds=12, seed=4, width=0.0)
         self.assertTrue(mastering.is_mono(mono))
         nearly = mono.copy()
-        nearly[:, 1] += 0.001 * np.random.default_rng(0).standard_normal(len(nearly))  # SA3-like
+        nearly[:, 1] += 0.001 * np.random.default_rng(0).standard_normal(len(nearly))  # near-mono, like some stereo models
         self.assertTrue(mastering.is_mono(nearly))
         wide = mastering.widen(mono, SR, width=0.8, loop=True)
         self.assertFalse(mastering.is_mono(wide))
@@ -167,8 +167,9 @@ class CatalogTests(unittest.TestCase):
                 self.assertIn(fact, text)
             self.assertGreater(engine.download_gb, 0)
             self.assertGreater(engine.max_seconds, 0)
-        self.assertIn("gated", catalog.consent_text(catalog.SA3_SMALL_SFX))
         self.assertNotIn("gated", catalog.consent_text(catalog.MOSS_SFX_V2))
+        gated = __import__("dataclasses").replace(catalog.MOSS_SFX_V2, gated=True)
+        self.assertIn("gated", catalog.consent_text(gated))
 
     def test_every_model_engine_has_an_install_spec(self):
         from this_voice_thing.core.soundscape import catalog
@@ -181,12 +182,13 @@ class LoadErrorTests(unittest.TestCase):
     def test_gated_access_error_says_what_to_do(self):
         from this_voice_thing.core.soundscape import catalog
         from this_voice_thing.engines import sound_models
-        raw = ("GatedRepoError: 403 Client Error. Access to model stabilityai/stable-audio-3-small-sfx is "
+        engine = catalog.MOSS_SFX_V2
+        raw = (f"GatedRepoError: 403 Client Error. Access to model {engine.repo_id} is "
                "restricted and you are not in the authorized list.")
-        text = sound_models.explain_load_error(catalog.SA3_SMALL_SFX, raw)
+        text = sound_models.explain_load_error(engine, raw)
         self.assertIn("accept the terms", text)
-        self.assertIn(catalog.SA3_SMALL_SFX.repo_id, text)
-        self.assertEqual(sound_models.explain_load_error(catalog.SA3_SMALL_SFX, "other"), "other")
+        self.assertIn(engine.repo_id, text)
+        self.assertEqual(sound_models.explain_load_error(engine, "other"), "other")
 
 
 class StitchTests(unittest.TestCase):
@@ -209,8 +211,7 @@ class StitchTests(unittest.TestCase):
 class _FakeModel:
     """Stands in for a running SoundModel: noise that does not loop by itself."""
 
-    def __init__(self, can_inpaint):
-        self.can_inpaint = can_inpaint
+    def __init__(self):
         self.calls = []
 
     def generate(self, prompt, seconds, seed=0, **options):
@@ -242,21 +243,6 @@ class SoundModelLoopTests(unittest.TestCase):
         self.assertEqual(rate, SR)
         self.assertEqual(len(audio), SR * 8)
 
-    def test_inpainting_engine_rotates_and_regenerates_the_seam(self):
-        calls = {}
-
-        def take(prompt, seconds, seed, **options):
-            calls.update(options, seconds=seconds)
-            rotated, _ = __import__("soundfile").read(options["inpaint_path"], dtype="float32")
-            return rotated, SR
-        x = procedural.generate("rain", seconds=10, seed=1)
-        audio, rate = self._model("sa3_small_sfx", take).heal_loop(x, SR, "rain")
-        self.assertEqual((len(audio), rate), (len(x) - int(mastering.SEAM_POLISH_SECONDS * SR), SR))
-        self.assertAlmostEqual(calls["inpaint_start"], 5.0 - 1.5, places=3)  # old wrap is now mid-clip
-        self.assertAlmostEqual(calls["inpaint_end"], 5.0 + 1.5, places=3)
-        polish = int(mastering.SEAM_POLISH_SECONDS * SR)
-        np.testing.assert_allclose(audio[polish: SR * 5], x[SR * 5 + polish:], atol=1e-6)
-
 
 class RenderTests(unittest.TestCase):
     def test_procedural_candidates_differ_by_seed_and_are_mastered(self):
@@ -271,7 +257,7 @@ class RenderTests(unittest.TestCase):
 
     def test_model_loops_are_healed_and_one_shots_are_not(self):
         from this_voice_thing.core.soundscape import render
-        model = _FakeModel(can_inpaint=False)
+        model = _FakeModel()
         loop = render.render(render.SoundRequest(engine="moss_sfx_v2", prompt="rain", seconds=12,
                                                  candidates=1), model=model)
         self.assertIn("heal", [c[0] for c in model.calls])
@@ -297,7 +283,7 @@ class RenderTests(unittest.TestCase):
     def test_model_engine_without_a_running_model_fails_clearly(self):
         from this_voice_thing.core.soundscape import render
         with self.assertRaises(RuntimeError):
-            render.render(render.SoundRequest(engine="sa3_small_sfx", prompt="x", seconds=5))
+            render.render(render.SoundRequest(engine="moss_sfx_v2", prompt="x", seconds=5))
 
 
 class AssetLibraryTests(unittest.TestCase):

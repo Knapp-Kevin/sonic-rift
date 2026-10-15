@@ -37,23 +37,6 @@ PROCEDURAL = SoundEngine(
     kind="procedural", license_name="Your own work", commercial="Yes: you made it.",
     max_seconds=600.0, sample_rate=48000, gpu="None (CPU)")
 
-SA3_SMALL_SFX = SoundEngine(
-    key="sa3_small_sfx", label="Stable Audio 3 Small SFX",
-    description="Stability AI's sound-effects model: text to sound, up to 120 s of 44.1 kHz audio "
-                "per take (two channels, but nearly mono in practice), and it can regenerate a loop's "
-                "seam. Runs on GPU or CPU; a 30 s loop takes about 1.5 s on an RTX 5070 Ti.",
-    kind="model", repo_id="stabilityai/stable-audio-3-small-sfx",
-    license_name="Stability AI Community License",
-    license_url="https://stability.ai/license",
-    license_summary="Free for research, non-commercial use, and commercial use by individuals and "
-                    "organizations with under US$1M in total annual revenue. Commercial users must "
-                    "register with Stability AI and display \"Powered by Stability AI\". Above US$1M "
-                    "an enterprise license is required.",
-    commercial="Conditional: under US$1M annual revenue, with registration and attribution.",
-    gated=True, download_gb=3.5, env_gb=6.0, max_seconds=120.0, sample_rate=44100, channels=1,
-    gpu="Optional (about 2–3 GB VRAM); runs on CPU",
-    prompt_hint="e.g. gentle ocean waves rolling onto a sandy beach, distant gulls")
-
 MOSS_SFX_V2 = SoundEngine(
     key="moss_sfx_v2", label="MOSS-SoundEffect v2",
     description="OpenMOSS's sound-effects model: environments, cities, creatures and actions, "
@@ -69,7 +52,9 @@ MOSS_SFX_V2 = SoundEngine(
     gpu="NVIDIA GPU with 16 GB (about 15 GB at peak); unload the voice model first", vram_gb=15.2,
     prompt_hint="e.g. heavy rain on a tin roof with distant thunder")
 
-ENGINES = {engine.key: engine for engine in (PROCEDURAL, SA3_SMALL_SFX, MOSS_SFX_V2)}
+# Stable Audio 3 Small SFX was evaluated and removed (2026-10-14): its ocean, rain and tonal
+# output was rejected in the owner's listening review, and it carried license conditions.
+ENGINES = {engine.key: engine for engine in (PROCEDURAL, MOSS_SFX_V2)}
 
 
 def consent_text(engine):
