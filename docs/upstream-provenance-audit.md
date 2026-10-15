@@ -1,19 +1,17 @@
 # Upstream Provenance and Legacy Cleanup Audit
 
-Status: **Initial evidence inventory; not a legal clearance or dead-code certification.**
+Status: **Historical baseline audit (2026-10-09) with a 2026-10-15 mainline reconciliation; not legal clearance or dead-code certification.**
 
-> **Extended 2026-10-13 (#55):** file-level matrix, legacy-symbol inventory, import graph, package and model licenses, and risks are in [rebrand/README.md](rebrand/README.md).
-
-Audited: 2026-10-09. Scope: the `main` branch file trees of `Knapp-Kevin/this-voice-thing` and `AcTePuKc/Chatterbox-TTS-UI`. Upstream commit tree: `22460fd99ceb78c309f879b93878240241a0dc9b`. This Voice Thing baseline tree: `17657c653d9bed89f86b526cbae704cf12308d36`.
+Original audit snapshot: 2026-10-09. Scope: the then-current `main` branch file trees of `Knapp-Kevin/this-voice-thing` and `AcTePuKc/Chatterbox-TTS-UI`. Upstream commit tree: `22460fd99ceb78c309f879b93878240241a0dc9b`. This Voice Thing baseline tree: `17657c653d9bed89f86b526cbae704cf12308d36`.
 
 ## Verified findings
 
 - Upstream contains **17 tracked files**, including **4 Python files**. This Voice Thing contains **121 tracked files**, including **78 Python files**. Counts describe architectural expansion, **not** independently authored code share.
-- Git object hashes demonstrate these **exact, byte-identical** upstream payloads are still distributed:
+- At the **2026-10-09 baseline**, Git object hashes established the following exact upstream payloads. **This table is historical, not an assertion that all entries remain byte-identical on current `main`:**
 
 | Upstream file | Current file | Disposition |
 | --- | --- | --- |
-| `model_backends.py` | `this_voice_thing/engines/chatterbox_backend.py` | **Retained upstream implementation under a different path. Keep attribution.** |
+| `model_backends.py` | `this_voice_thing/engines/chatterbox_backend.py` | **2026-10-09 only:** identical upstream implementation. **2026-10-15:** replaced by a compatibility re-export facade in #77; see reconciliation below. Retain attribution for other derived code. |
 | `requirements.in` | `requirements.in` | **Identical upstream dependency declaration.** |
 | `requirements.lock.txt` | `requirements.lock.txt` | **Identical upstream dependency lock.** |
 | `LICENSE` | `LICENSE` | **Identical MIT notice. Preserve.** |
@@ -54,24 +52,24 @@ This audit compared upstream `main.py` with present application components by fu
 
 | Upstream implementation | Current implementation | Runtime evidence | Assessment |
 | --- | --- | --- | --- |
-| `model_backends.py` entire implementation | `this_voice_thing/engines/chatterbox_backend.py` | Identical Git blob; imported through `ui/common.py` and its `load_chatterbox_model` alias | **Exact upstream code, in active model-load path** |
+| `model_backends.py` entire implementation | `this_voice_thing/engines/chatterbox_backend.py` | **At 2026-10-09 only:** identical blob in active model-load path. **Current:** facade forwards to `engines/chatterbox_provider.py` via the existing `ui/common.py` import. | **Original copied backend replaced in #77; separate provenance review still required for any similar new code.** |
 | `main.py::ModelLoaderThread` | `ui/threads.py::ModelLoaderThread` | Shared initializer and CUDA fallback logic; `ui/pages/model_loading.py` constructs the worker | **Adapted upstream code, actively used** |
 | `main.py::AudioGeneratorThread` | `ui/threads.py::AudioGeneratorThread` | Retains `stop`, `set_seed_internal`, `run` entry points; `ui/pages/generation.py` imports and uses it | **Adapted upstream generation code; active** |
 | `main.py` console/config helper functions | `ui/common.py` | `patched_torch_load`, `configure_console_stream`, `safe_console_text`, `TeeStream`, `read_models_config_payload`, `load_models_config`, `read_json_payload`, `write_json_payload` survive by name and structure | **Relocated upstream-derived logic; individual call-site necessity requires detailed tests before deletion** |
-| `main.py::ChatterboxApp` | `ui/main_window.py::ChatterboxApp` | Same class identity; `_init_ui`, settings, logging, window methods persist, alongside substantial redesign | **Evolved/partly adapted UI, not clean-room replacement** |
+| `main.py::ChatterboxApp` | `ui/main_window.py::SonicRiftApp` (legacy alias `ChatterboxApp`) | Class identity changed in #76; `_init_ui`, settings, logging, window methods persist, alongside substantial redesign. | **Evolved/partly adapted UI; class renaming is not a source rewrite.** |
 | Original `main.py` | New 221-byte `main.py` delegating to `this_voice_thing.app.main` | Entry point is replaced, but implementation is relocated into current package | **Entry-point rewrite alone has no implications for upstream-code removal** |
 
 ### Product identity versus implementation provenance
 
-**Product conclusion:** This Voice Thing is a distinct, much broader voice workbench with independently expanded capabilities. It need not be described in prominent marketing copy as a Chatterbox UI edition or continuation.
+**Product conclusion:** Sonic Rift (formerly This Voice Thing) is a distinct, much broader creative-audio workbench with independently expanded capabilities. It need not be described in prominent marketing copy as a Chatterbox UI edition or continuation.
 
-**Code conclusion:** The application still uses identifiable upstream Chatterbox UI implementation, not merely Chatterbox **TTS model** code. The current dependency and model-loading paths depend on the copied/adapted material. Therefore it is **not justified** to assert that none of the original UI code is beneficial or retained. Keep original MIT copyright and permission notices in the distribution.
+**Code conclusion (updated 2026-10-15):** PR #77 replaced the byte-identical legacy Chatterbox UI backend with a new adapter, preserving model-loading and generation behavior in local real-audio tests. Other identifiable upstream Chatterbox UI-derived implementation remains in the threads, common bootstrap, UI shell, and launch scripts. Do not assert full source independence or remove required notices. The new adapter itself requires authorship/provenance assessment independent of whether it differs in Git hashes.
 
 ### Safe cleanup classification
 
 - **Remove/promote out of prominent product copy:** legacy fork-centered branding. Already addressed by the independent-product README work.
-- **Retain:** Chatterbox engine/backend, legacy compatibility output directory, settings migration paths, MIT notice, accurate upstream attribution in Acknowledgements.
-- **Refactor only with behavior tests:** `ChatterboxApp` class name, `ModelLoaderThread`, `AudioGeneratorThread`, `ui/common.py` bootstrap helpers, launcher and installer legacy implementation. Renaming alone will not eliminate derivation or legal attribution.
+- **Retain:** Chatterbox TTS as an optional engine; the now-thin `chatterbox_backend.py` compatibility import facade; legacy output directory, settings migration paths, MIT notice, and accurate upstream attribution in Acknowledgements.
+- **Refactor only with behavior tests:** remaining `ModelLoaderThread`, `AudioGeneratorThread`, `ui/common.py` bootstrap helpers, app shell methods, and launcher/installer legacy implementation. The `ChatterboxApp` class was renamed with a compatibility alias in #76; this did not eliminate code derivation.
 - **Potentially remove after reference check:** the archived upstream screenshot and redundant history-oriented narrative; neither should be used as evidence that active upstream code is gone.
 - **Do not detach as a substitute for attribution:** GitHub fork-network detachment changes hosting metadata, not code origins or obligations.
 
@@ -80,3 +78,40 @@ This audit compared upstream `main.py` with present application components by fu
 To assert that original UI runtime code is no longer used, demonstrate all of the following: (1) exact backend replacement or removal, (2) replaced/adjudicated upstream worker and helper functions, (3) comparable full application behavior in automated and local tests, (4) provenance review of startup scripts and UI methods, and (5) preservation of all remaining applicable notices. Even complete rewriting does not transfer third-party authorship or change the licenses of engine dependencies/model weights.
 
 **Audit disposition:** Retain MIT and upstream notices. Distinct product branding is supported. No code deletion or fork detachment is justified merely by codebase growth.
+
+## Mainline reconciliation, 2026-10-15 (after PRs #75, #76, #77, #78, #81)
+
+The dated findings above deliberately preserve what was true at the initial audit commit. For **current status**, rely on these rechecked paths:
+
+| Area | Current mainline implementation | Evidence | Residual disposition |
+| --- | --- | --- | --- |
+| Chatterbox UI backend | `engines/chatterbox_backend.py` is now a small compatibility import facade; `engines/chatterbox_provider.py` implements the active adapter using published Resemble AI Chatterbox TTS APIs. | #77 merged as `7c16a923`; the facade is no longer the original byte-identical 232-line implementation. | Adapter authorship and any retained adapted structures still need separate source review. Model weights and third-party package licenses remain separate. |
+| Model selection | `core/engine_loading.py` owns provider-neutral loading and validation; `ui/threads.py` delegates through it. | #75. | Thread lifecycle and generation code remain to be reviewed/replaced by provenance, not renamed wholesale. |
+| CUDA/NVIDIA probes | `core/hardware.py` owns shared hardware detection independently of optional Chatterbox imports. | #78; reused in #77. | Real hardware behavior must be measured on the release commit, as with other engine checks. |
+| Window class identity | `ui/main_window.py::SonicRiftApp` is canonical and the old `ChatterboxApp` import is a compatibility alias. | #76. | Much of the implementation remains adapted upstream code. |
+| Startup and close | Branding and restart behavior corrected; #81 addresses the exit-code/late-log failure. | #72, #73, #79 and #81. | Entry-point and installer provenance still open. |
+| Remaining legacy source | `ui/threads.py`, `ui/common.py`, and portions of UI modules/installers/launch scripts. | Earlier function-level audit and draft #62, which must be reconciled against new main. | Do not issue a clean-room or fully independent-source claim yet. |
+
+**Functional acceptance of #77:** Claude's local Windows test record in [PR #77](https://github.com/Knapp-Kevin/sonic-rift/pull/77) reports V2, V3, and English TTS, with/without voice reference, GPU and CPU, offline cache, existing settings/voice library, output and relaunch. Nine speech clips transcribed without errors in the tested phrases; CPU audio matched bit-for-bit and GPU differences were within measured run variation. The test suite passed locally and no new GitHub Actions were run. A third-party custom fine-tune model was **not** downloaded or validated. These results establish a substantial regression check, not a universal speech-quality guarantee.
+
+**Legal/provenance limitation:** A different file path or a distinct implementation text does not by itself erase obligations for derived code. Preserve the original MIT notice while material remains, and maintain separate dependency/model/artwork license inventories. Any new Sonic Rift-owned code licensing decision belongs to #60, with its own permission and attribution review.
+
+**Follow-up:** revise historical counts and matrices in draft #62 against actual current `main`; do not quietly reinterpret the original 2026-10-09 file totals as 2026-10-15 totals. The delivery/release gate remains #61.
+
+## Startup-helper reconciliation, 2026-10-15 (PRs #85 and #86)
+
+The historical table above lists several `ui/common.py` helpers that were once upstream-derived. The current implementation has since changed:
+
+| Historical helper | Current Sonic Rift boundary | Current disposition |
+| --- | --- | --- |
+| `read_models_config_payload`, `read_json_payload`, `write_json_payload` | `core/config_io.py` implements Qt-free JSON I/O, and `ui/common.py` retains small compatibility wrappers. | **Replaced implementation** in #85. Six identical-blob isolated regression tests passed. Full Windows application compatibility remains part of #61. |
+| `configure_console_stream`, `safe_console_text`, `TeeStream` | `core/console_io.py` implements generic forwarding with an injected live sink. `ui/common.py::TeeStream` is a small compatibility subclass retaining dynamic `APP_LOG_SINK`. | **Replaced implementation** in #86. Seven identical-blob isolated tests passed. Test GUI log-pane lifecycle under #61. |
+| `patched_torch_load`, global torch startup | Still in `ui/common.py`, with module-import side effects. | **Outstanding**: provenance, safe removal/encapsulation and target-machine regression evidence required. |
+| `load_models_config` normalization, default model constants | Still in `ui/common.py`, with model-registry and engine assumptions. | **Outstanding**: compare function-level origins, independently implement or retain with required notice, and test existing user `models.json`. |
+| `ModelLoaderThread`, `AudioGeneratorThread` | Still in `ui/threads.py`, though provider dispatch now calls `core/engine_loading.py`. | **Outstanding**: Qt lifecycle/generation refactor, real inference parity and data safety. |
+| Application window, installers and launchers | Still contain adapted upstream code; `SonicRiftApp` naming is a compatibility-level change. | **Outstanding**: function-level provenance review and tested implementation replacement. |
+
+**Scope reminder:** Moving source into a newly named module would not alone establish independent authorship. These new core modules use a new structure and explicit injected dependencies, but the question of what is materially derived or copyright-protected remains subject to the complete provenance and release-license review. Do not remove the retained root MIT text or detach the fork based only on these slices.
+
+**Validation note:** PRs #85 and #86 each executed their new core tests in isolated Python environments with exact Git object hashes confirmed. These were **not** whole-app tests on the owner’s Windows desktop, and are not a substitute for release acceptance.
+
