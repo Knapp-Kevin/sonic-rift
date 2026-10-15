@@ -1,5 +1,7 @@
 # Model weight licenses (issue #55)
 
+> **Historical research snapshot, 2026-10-13.** Counts, source comparisons, package inventories, model licensing, and recommendations describe the audited revision, **not the current Sonic Rift `main`**. Subsequent implementation includes independent provider #77, core refactors #75/#78/#85/#86, and adopted MOSS soundscape implementation. Review current `docs/upstream-provenance-audit.md`, `THIRD_PARTY_NOTICES.md`, and release issue #61 before treating any result as a live production assertion. No new tests or downloads were performed during this archival integration. **The actual release environments and transitive dependency licenses must be rescanned; the earlier VoxCPM funasr/kaldiio findings do not establish their presence in the current installation.**
+
 Source: the local Hugging Face cache (`~/.cache/huggingface/hub`), reading README.md front-matter and the
 license/usage sections of the card in each cached snapshot. Where the local card was missing, the license field came
 from the Hugging Face Hub API (repo metadata only). No weights were downloaded. **Not legal advice.**
