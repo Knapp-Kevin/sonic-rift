@@ -285,7 +285,7 @@ The sidebar is organized by what you're doing: **Create** (write or open text an
 - **Routes:** **Local output**, or an external route (**virtual microphone**, **Discord**, **Zoom**, **OBS**, **Other app**) that starts disarmed every launch and must be armed before anything is sent. An optional monitor plays the same audio on a second device. A missing saved device is shown as unavailable; Live never falls back to the speakers silently. With a virtual audio cable you already have, send to its playback side (often "CABLE Input") and pick its recording side ("CABLE Output") as the microphone in the other app; **Setup…** shows the steps. Sonic Rift doesn't install a virtual microphone driver.
 - **Privacy and provenance:** the Live history is session-only and can be cleared; **Clear cache** removes cached pad audio. The header shows the voice's origin and the watermark policy; **Copy diagnostics** copies timing, route and buffer figures without the spoken text.
 
-Live Voice is validated on local speakers and headphones. Virtual-cable, Discord, Zoom and OBS routes are implemented but not yet validated end to end. To check a Windows route without a model, play a quiet test tone:
+Live Voice has been validated on Windows 11 with local outputs (HDMI and USB digital), a USB microphone for Mic Effects, Kokoro and VoxCPM2, and a 30-minute soak ([record](docs/live-voice-validation-2026-10-15.md)). Virtual-cable, Discord, Zoom and OBS routes are implemented but not yet validated end to end. To check a Windows route without a model, play a quiet test tone:
 
 ```bat
 .venv\Scripts\python.exe scripts\live_voice_route_probe.py --output "CABLE Input" --monitor "YOUR HEADPHONES"
