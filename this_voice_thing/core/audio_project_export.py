@@ -20,6 +20,15 @@ from this_voice_thing.core.soundscape import mastering
 ALLOWED_FORMATS = frozenset({"wav", "ogg", "mp3"})
 
 
+class ExportCancelled(RuntimeError):
+    """Cooperative user cancellation; no partial delivery directory is published."""
+
+
+def _check_cancel(should_cancel):
+    if should_cancel is not None and should_cancel():
+        raise ExportCancelled("Project export cancelled")
+
+
 def _safe_metrics(row):
     """Convert nonfinite numpy/Python measurement numbers to valid JSON nulls."""
     if isinstance(row, dict):
@@ -34,7 +43,8 @@ def _safe_metrics(row):
 
 
 def export_project(project, media, destination, *, target_lufs=-16.0,
-                   formats=("wav",), use_ducking=True, include_stems=True):
+                   formats=("wav",), use_ducking=True, include_stems=True,
+                   should_cancel=None):
     """Render and atomically publish a new directory; refuse any overwrite.
 
     media implements resolve(asset_id). All stored project IDs are opaque and
@@ -48,12 +58,16 @@ def export_project(project, media, destination, *, target_lufs=-16.0,
     if type(use_ducking) is not bool or type(include_stems) is not bool:
         raise ValueError("Invalid export options")
 
+    _check_cancel(should_cancel)
     output = Path(destination)
     if output.exists() or output.is_symlink():
         raise FileExistsError("Refusing to overwrite an existing project export")
     raw = render_timeline(project, media.resolve)
+    _check_cancel(should_cancel)
     arranged = duck_ambience(project, raw) if use_ducking else raw
+    _check_cancel(should_cancel)
     master = mastering.normalize(arranged.audio, project.sample_rate, float(target_lufs))
+    _check_cancel(should_cancel)
     if not np.all(np.isfinite(master)):
         raise ValueError("Master output contains nonfinite samples")
     metrics = _safe_metrics(mastering.measure(master, project.sample_rate, loop=False))
@@ -63,16 +77,20 @@ def export_project(project, media, destination, *, target_lufs=-16.0,
     try:
         files = {}
         for fmt in formats:
+            _check_cancel(should_cancel)
             filename = f"master.{fmt}"
             mastering.write_audio(str(stage / filename), master, project.sample_rate, fmt)
+            _check_cancel(should_cancel)
             files[fmt] = filename
         stems = {}
         if include_stems:
             (stage / "stems").mkdir()
             for index, track in enumerate(project.tracks, 1):
+                _check_cancel(should_cancel)
                 digest = hashlib.sha256(track.id.encode("utf-8")).hexdigest()[:12]
                 filename = f"stems/track_{index:03d}_{digest}.wav"
                 mastering.write_audio(str(stage / filename), arranged.stems[track.id], project.sample_rate, "wav")
+                _check_cancel(should_cancel)
                 stems[track.id] = filename
         manifest = {
             "schema_version": 1,
@@ -89,6 +107,7 @@ def export_project(project, media, destination, *, target_lufs=-16.0,
             "metrics": metrics,
         }
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+        _check_cancel(should_cancel)
         if output.exists():
             raise FileExistsError("Export appeared while rendering; refusing overwrite")
         os.rename(stage, output)
