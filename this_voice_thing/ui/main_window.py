@@ -58,6 +58,7 @@ from this_voice_thing.ui.pages.finishing import Finishing
 from this_voice_thing.ui.pages.generate import GeneratePage
 from this_voice_thing.ui.pages.generation import Generation
 from this_voice_thing.ui.pages.library import Library
+from this_voice_thing.ui.pages.live_voice import LiveVoicePage
 from this_voice_thing.ui.pages.model_loading import ModelLoading
 from this_voice_thing.ui.pages.model_settings import ModelSettings
 from this_voice_thing.ui.pages.models import ModelPage
@@ -88,7 +89,7 @@ class SidebarDelegate(QStyledItemDelegate):
 
 
 class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, EngineControls, Player,
-                    StudioPage, SoundscapePage, VoicePage, VoicePicker, Library, VoiceUse, Recording, TranscribePage, ModelPage, Discover, ModelLoading, ModelSettings,
+                    LiveVoicePage, StudioPage, SoundscapePage, VoicePage, VoicePicker, Library, VoiceUse, Recording, TranscribePage, ModelPage, Discover, ModelLoading, ModelSettings,
                     AdvancedPage, ApiServer, Pronunciations, QMainWindow):
     log_message_signal = Signal(str)
 
@@ -199,11 +200,12 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         QTimer.singleShot(0, self.restart_api_server)
 
     # Pages in the stack, in sidebar order. The sidebar is grouped by what you're doing:
-    # make things (Create, Voices, Sounds), tools, then setup.
-    PAGE_GENERATE, PAGE_VOICE, PAGE_SOUNDSCAPE, PAGE_TRANSCRIBE, PAGE_MODEL, PAGE_ADVANCED = range(6)
+    # make things (Create, Voices, Sounds), perform them (Live), tools, then setup.
+    PAGE_GENERATE, PAGE_VOICE, PAGE_SOUNDSCAPE, PAGE_LIVE_VOICE, PAGE_TRANSCRIBE, PAGE_MODEL, PAGE_ADVANCED = range(7)
     PAGE_STUDIO = "studio"        # the New voice tab of Voices
     PAGE_LOG = PAGE_ADVANCED      # the log is a card on Settings
     SIDEBAR = (("Create", PAGE_GENERATE), ("Voices", PAGE_VOICE), ("Sounds", PAGE_SOUNDSCAPE),
+               ("Live", PAGE_LIVE_VOICE),
                ("Tools", None), ("Transcribe", PAGE_TRANSCRIBE),
                ("Setup", None), ("Models", PAGE_MODEL), ("Settings", PAGE_ADVANCED))
 
@@ -314,6 +316,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self._build_generate_page()
         self._build_voices_section()
         self._build_soundscape_page()
+        self._build_live_voice_page()
         self._build_transcribe_page()
         self._build_model_page()
         self._build_advanced_page()
@@ -522,6 +525,12 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
     OPENAI_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"}
 
     def on_page_changed(self, page):
+        if page == self.PAGE_LIVE_VOICE:
+            self.refresh_live_voice_summary()
+            self.refresh_live_audio_devices()
+            if not getattr(self, "live_board_defaults_applied", False)                     and self.soundboard_defaults_can_apply():
+                self.apply_soundboard_board_defaults(self.soundboard_store.active_board())
+                self.live_board_defaults_applied = True
         if page == self.PAGE_STUDIO and not self.studio_busy:
             self._fill_studio_engines()  # models may have been added or installed meanwhile
         if page == self.PAGE_MODEL and getattr(self, "discover_results", None) is None \
@@ -535,6 +544,16 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             self.set_status_message(current_tooltip)
 
     def closeEvent(self, event):
+        if hasattr(self, "live_hotkeys"):
+            self.live_hotkeys.close()
+        if hasattr(self, "live_mic_input"):
+            self.live_mic_input.stop()
+        if hasattr(self, "live_audio_output"):
+            self.live_audio_output.stop()
+        if hasattr(self, "live_monitor_output"):
+            self.live_monitor_output.stop()
+        if getattr(self, "live_speech_thread", None) is not None:
+            self.live_speech_thread.stop()   # waited for below, after settings are saved
         # the console tee in common forwards to this sink
         if self.api_server is not None:
             self.api_server.stop()
@@ -542,6 +561,9 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             common.APP_LOG_SINK = None
         self.save_window_settings()
         self.save_app_settings()
+        # A buffered (non-streaming) engine can't be interrupted mid-line, so wait only after saving.
+        if getattr(self, "live_speech_thread", None) is not None:
+            self.live_speech_thread.wait()
         if hasattr(self, 'model_loader_thread') and self.model_loader_thread.isRunning():
             self.model_loader_thread.quit()
             self.model_loader_thread.wait()

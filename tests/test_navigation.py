@@ -41,17 +41,24 @@ class NavigationTests(unittest.TestCase):
 
     def test_sidebar_is_grouped_by_task(self):
         self.assertEqual(self.sidebar_labels(),
-                         ["Create", "Voices", "Sounds", "TOOLS", "Transcribe", "SETUP", "Models", "Settings"])
+                         ["Create", "Voices", "Sounds", "Live", "TOOLS", "Transcribe", "SETUP", "Models", "Settings"])
         from PySide6.QtCore import Qt
         for i, label in enumerate(self.sidebar_labels()):
             selectable = bool(self.window.sidebar.item(i).flags() & Qt.ItemFlag.ItemIsSelectable)
             self.assertEqual(selectable, label not in ("TOOLS", "SETUP"), label)
 
+    def test_live_page_sits_at_its_index(self):
+        w = self.window
+        w.show_page(w.PAGE_LIVE_VOICE)
+        self.assertTrue(w.pages.currentWidget().isAncestorOf(w.live_speak_button))
+
     def test_show_page_reaches_every_page_and_the_new_voice_tab(self):
         w = self.window
-        for page in (w.PAGE_GENERATE, w.PAGE_VOICE, w.PAGE_SOUNDSCAPE, w.PAGE_TRANSCRIBE, w.PAGE_MODEL, w.PAGE_ADVANCED):
+        for page in (w.PAGE_GENERATE, w.PAGE_VOICE, w.PAGE_SOUNDSCAPE, w.PAGE_LIVE_VOICE, w.PAGE_TRANSCRIBE,
+                     w.PAGE_MODEL, w.PAGE_ADVANCED):
             w.show_page(page)
             self.assertEqual(w.pages.currentIndex(), page)
+        self.assertEqual(w.pages.count(), w.PAGE_ADVANCED + 1)   # one stack page per sidebar page, in order
         w.show_page(w.PAGE_STUDIO)
         self.assertEqual(w.pages.currentIndex(), w.PAGE_VOICE)
         self.assertEqual(w.voices_stack.currentIndex(), 1)

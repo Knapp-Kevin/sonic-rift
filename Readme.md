@@ -154,6 +154,7 @@ When the app opens:
 Once that works, the rest of the app is safe to explore:
 
 - **Studio** creates, clones, remixes and refines voices.
+- **Live** speaks typed lines and soundboard pads straight to an audio output, with a queue and stop controls.
 - **Voices** stores the voices you save.
 - **Transcribe** turns recordings into text.
 - **Model** switches engines, installs optional models and discovers compatible Hugging Face models.
@@ -257,7 +258,7 @@ The goal is one coherent creative-audio application, not a collection of unrelat
 
 ## Features
 
-The sidebar is organized by what you're doing: **Create** (write or open text and generate speech), **Voices** (your library, and **New voice** to make one), **Sounds** (ambience and effects), then **Tools** (Transcribe) and **Setup** (Models, Settings).
+The sidebar is organized by what you're doing: **Create** (write or open text and generate speech), **Voices** (your library, and **New voice** to make one), **Sounds** (ambience and effects), **Live** (speak to a device in real time), then **Tools** (Transcribe) and **Setup** (Models, Settings).
 
 <details>
 <summary><strong>Create</strong></summary>
@@ -268,6 +269,29 @@ The sidebar is organized by what you're doing: **Create** (write or open text an
 - Variation and take-number controls for repeatable takes where supported.
 - Language selection based on the active model.
 - A built-in player with history, seeking and optional auto-play.
+
+</details>
+
+<details>
+<summary><strong>Live</strong></summary>
+
+**Live** speaks with the loaded model and voice straight to an audio device, without rendering a file first. It uses the same voice, language and pronunciation settings as Create.
+
+- **Speak:** type a line and click **Speak** (or **Ctrl+Enter**). New lines queue in order; **Stop current** cuts the current line and keeps the queue, **Stop all** clears everything, **Repeat last** says the last line again. The queue is capped (25 items, about 10 minutes).
+- **Streaming:** VoxCPM2 streams natively (live quality **Low latency · 6 steps** by default, or 8 or 10 steps; Create always uses 10). Kokoro streams in short sections. Other engines speak after finishing the line. The status line says which mode is in use and warns when generation falls behind playback.
+- **Soundboard:** save lines as pads on one or more boards, or import WAV/FLAC/OGG/MP3/AIFF clips. A spoken pad is cached after its first render, so it plays again without the model or GPU, and is marked **rebuild needed** if its voice or settings change. Pads can queue, interrupt, or be ignored while busy; favourites, tags, search and reordering are built in.
+- **Shortcuts:** on the Live page, **Alt+1…9** triggers pads, **Ctrl+.** is Stop all. Optional Windows-wide hotkeys can be assigned to pads and Stop all, with a switch that turns pad hotkeys off at once.
+- **Mic effects:** pass a microphone through gain, tone and compression (or untouched) to the same outputs. The microphone is processed in memory and never recorded to disk.
+- **Routes:** **Local output**, or an external route (**virtual microphone**, **Discord**, **Zoom**, **OBS**, **Other app**) that starts disarmed every launch and must be armed before anything is sent. An optional monitor plays the same audio on a second device. A missing saved device is shown as unavailable; Live never falls back to the speakers silently. With a virtual audio cable you already have, send to its playback side (often "CABLE Input") and pick its recording side ("CABLE Output") as the microphone in the other app; **Setup…** shows the steps. Sonic Rift doesn't install a virtual microphone driver.
+- **Privacy and provenance:** the Live history is session-only and can be cleared; **Clear cache** removes cached pad audio. The header shows the voice's origin and the watermark policy; **Copy diagnostics** copies timing, route and buffer figures without the spoken text.
+
+Live Voice has been validated on Windows 11 with local outputs (HDMI and USB digital), a USB microphone for Mic Effects, Kokoro and VoxCPM2, and a 30-minute soak ([record](docs/live-voice-validation-2026-10-15.md)). Virtual-cable, Discord, Zoom and OBS routes are implemented but not yet validated end to end. To check a Windows route without a model, play a quiet test tone:
+
+```bat
+.venv\Scripts\python.exe scripts\live_voice_route_probe.py --output "CABLE Input" --monitor "YOUR HEADPHONES"
+```
+
+See the [Live Voice QA runbook](docs/live-voice-qa.md) and [app routing guide](docs/live-voice-app-routing.md).
 
 </details>
 
@@ -431,6 +455,16 @@ curl http://127.0.0.1:8765/v1/audio/transcriptions \
 `response_format` is `json` (default), `text`, `srt`, `vtt` or `verbose_json` (with timed segments).
 
 Discovery endpoints: `GET /v1/health`, `GET /v1/models`, `GET /v1/voices`.
+
+### Experimental live PCM streaming
+
+Add `"stream": true, "stream_format": "audio", "response_format": "pcm"` to a speech request to receive audio while it's being generated: natively from VoxCPM2 (48 kHz), in short sections from Kokoro (24 kHz).
+
+```bash
+curl http://127.0.0.1:8765/v1/audio/speech   -H "Content-Type: application/json"   -d '{"model":"VoxCPM2 voice cloning","input":"Hello while I am still being generated.","voice":"YOUR CLIP VOICE","stream":true,"stream_format":"audio","response_format":"pcm"}'   --no-buffer > speech.pcm
+```
+
+The stream is mono 16-bit little-endian PCM; headers give `X-Audio-Sample-Rate`, `X-Audio-Sample-Format`, `X-Streaming-Mode` and `X-Audio-Watermark`. Streaming requires `speed=1.0` and skips whole-file finishing (speed/pitch, final levelling, subtitles). VoxCPM2's native stream doesn't currently carry the Perth watermark; Kokoro's sections do. `scripts/benchmark_live_api.py` measures time to first audio and real-time factor. Design notes: [docs/live-tts-architecture.md](docs/live-tts-architecture.md). The desktop Live page uses the models directly, not this API.
 
 </details>
 
@@ -618,12 +652,13 @@ Optional engines use isolated environments where their dependencies conflict wit
 
 ## Live Voice architecture and research
 
-Live Voice is under active development. The design work is kept in-repo so future implementation does not require archaeological excavation through old chat logs.
+Live Voice ships on the **Live** page (see Features). The design work is kept in-repo so future implementation does not require archaeological excavation through old chat logs.
 
 - [Live Voice architecture](docs/live-voice-architecture.md)
 - [Live Voice product specification](docs/live-voice-product-spec.md)
 - [Live Voice adversarial review](docs/live-voice-adversarial-review.md)
 - [Advanced integration decisions](docs/live-voice-advanced-integrations.md)
+- [Microphone transformation roadmap](docs/live-voice-microphone-transformation-roadmap.md)
 
 The advanced-integration decision record covers a future branded Windows virtual microphone, Zoom SDK PCM publishing, Discord Social SDK, and true realtime microphone voice conversion. Those are research/roadmap decisions, not claims that those integrations ship in the current main branch.
 

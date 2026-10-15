@@ -127,6 +127,8 @@ class ModelLoading:
             self.model_load_progress.setValue(0)
             self.model_load_progress.setEnabled(False)
         self.model_is_loading = is_loading
+        if hasattr(self, "live_model_label"):
+            self.refresh_live_voice_summary()
         self.model_repo_combo.setEnabled(not is_loading)
         self.use_preset_button.setEnabled(not is_loading)
         self.update_model_details()
@@ -149,6 +151,9 @@ class ModelLoading:
 
     def load_model(self, selected_entry=None):
         if getattr(self, "model_is_loading", False):
+            return
+        if getattr(self, "live_voice_busy", False):
+            QMessageBox.information(self, "Live Voice", "Stop Live Voice before switching models.")
             return
         selected_entry = selected_entry or self.get_selected_model_entry()
         if needs_chatterbox(selected_entry.get("backend", BACKEND_MULTILINGUAL)) and not CHATTERBOX_AVAILABLE:
@@ -215,6 +220,8 @@ class ModelLoading:
         self.refresh_model_repo_options()
         self.render_voice_tiles()
         self.run_pending_studio()
+        if hasattr(self, "live_model_label"):
+            self.refresh_live_voice_summary()
 
     def on_model_loaded(self, model_instance, device_used):
         self.model_is_warm = False
@@ -255,4 +262,6 @@ class ModelLoading:
         self.preview_button.setEnabled(False)
         self.set_model_loading_state(False)
         self.refresh_models_page()
+        if hasattr(self, "live_model_label"):
+            self.refresh_live_voice_summary()
         QMessageBox.critical(self, "Model Load Error", error_msg)
