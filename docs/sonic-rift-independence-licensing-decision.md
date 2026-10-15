@@ -1,10 +1,10 @@
 # Sonic Rift: independence, provenance and source licensing decision
 
-**Status:** Proposal for owner decision, **not** a copyright clearance, change of license or approval to detach a fork.
+**Status (updated 2026-10-15):** Living decision register, **NOT an approved owned-source license, copyright clearance or GitHub fork-detachment authorization**. Implementation steps already merged are recorded as factual progress; remaining decisions and release gates stay open.
 
 **Repository:** `Knapp-Kevin/sonic-rift`  
 **Tracking:** #54 (epic), #55 (provenance), #56 (architecture), #57 (refactor), #60 (license, metadata and packaging), #61 (release gates).  
-**Decision already made:** Product brand and repository name are **Sonic Rift**; branding merged in #72. Window-title restart compatibility fixed in #73.
+**Decision already made:** Product brand and repository name are **Sonic Rift** (#72). The app icon (#83), user-facing identity/retained notices (#84), and window/restart/taskbar fixes (#73/#76/#79) are merged. The social preview was uploaded by the owner. Live Voice #24 is not integrated.
 
 ## Desired end state
 
@@ -20,11 +20,11 @@ These workstreams have separate acceptance criteria.
 
 ## Evidence on today's main
 
-The initial [upstream provenance audit](../upstream-provenance-audit.md) identifies an **identical** copied backend at `this_voice_thing/engines/chatterbox_backend.py`, and evolved upstream worker/UI/helper code in `this_voice_thing/ui/threads.py`, `ui/main_window.py` and `ui/common.py`. It explicitly says current code is **not a clean-room replacement**.
+The [dated upstream provenance audit](../upstream-provenance-audit.md) initially identified a byte-identical copied backend. **PR #77 has since replaced its implementation** with a Sonic Rift provider adapter; the old `chatterbox_backend.py` path is now a compatibility facade. Real Chatterbox English/V2/V3 audio tests on Windows support the functional acceptance of that specific replacement. Evolved upstream worker/UI/helper code still exists in `ui/threads.py`, `ui/main_window.py`, startup/install scripts and portions of `ui/common.py`. Current source is **not fully independently authored or legally cleared**.
 
 An expanded file-level analysis is in draft PR #62, which reports 5 byte-identical files and 19 adapted files at its audited revision. These counts are **historical audit evidence**, not current independent-author percentages or legal conclusions. Reconcile #62 against the current branch before using that ledger to authorize source license changes.
 
-At time of writing the root `LICENSE` is inherited MIT text. **Do not remove or overwrite it based on the product rename.** MIT's permission-and-copyright notice requirement continues for redistributed copies or substantial portions of upstream-derived code. If portions are fully and demonstrably replaced, provenance and distribution still need review; historical Git commits are not retroactively re-licensed.
+As of this 2026-10-15 reconciliation, the root `LICENSE` is inherited MIT text. **Do not remove or overwrite it based on the product rename.** MIT's permission-and-copyright notice requirement continues for redistributed copies or substantial portions of upstream-derived code. If portions are fully and demonstrably replaced, provenance and distribution still need review; historical Git commits are not retroactively re-licensed.
 
 ## Recommended implementation sequence
 
@@ -45,9 +45,9 @@ Include launcher, install scripts, model-adapter glue, audio threads, UI shell, 
 
 ### 2. Execute provider-neutral refactor slices (#56, #57)
 
-- Replace copied Chatterbox UI backend glue with a Sonic Rift-owned engine adapter that imports the genuine Chatterbox **TTS library**, not implementation copied from the old UI.
-- Replace or independently reimplement upstream-derived worker, model-loading and common-helper code. Require feature and parity tests before removing legacy code.
-- Extract `ChatterboxApp` into a Sonic Rift application shell after preserving UI behaviors, settings, startup errors, model selection, downloads, output and saved user assets.
+- **Delivered (#77):** replace the original copied Chatterbox UI backend with a Sonic Rift provider adapter around the genuine Chatterbox **TTS library**, with local Windows functional-parity evidence. Authorship/provenance assessment of retained structural similarities remains separate.
+- **Partially delivered (#75/#78/#85/#86):** provider-neutral model loading and hardware checks, independent Qt-free JSON config I/O, and independently structured console forwarding. **Not finished:** Qt model/generation workers, torch startup and config normalization, window methods and installers. Draft #91 proposes a torch compatibility boundary but is **not merged** and requires Windows GPU/CPU model-loading validation.
+- **Partially delivered (#76):** `SonicRiftApp` is the canonical class with a legacy import alias. Renaming did not replace all adapted UI implementation. Preserve UI behaviors, settings, startup errors, model selection, downloads, output and saved user assets as functional acceptance requirements.
 - Keep `this_voice_thing` import entrypoints and `chatterbox_outputs` data paths as documented compatibility shims until tested migrations and rollback evidence permit retirement. A package rename alone does not establish independence.
 - Independently adversarially review each slice's provenance, failure paths and regression evidence. Do not equate CI success with release readiness.
 - No new metered CI workflows, model downloads, or remote release/deploy as part of planning.
@@ -78,13 +78,13 @@ An independent application can **use** third-party engines while complying with 
 
 After decision: determine rightsholders and contributor authority, document SPDX/NOTICE boundaries, apply new license only where rights permit, review model-weight terms, inspect release bundles, and then update root license/NOTICE only with correct scope.
 
-**Suggested licensing policy:** license the *independently owned source code* separately, with explicit `THIRD_PARTY_NOTICES` and model-license manifests. Do not claim any new license automatically governs prior commits or dependencies. Legal specialist review is appropriate before claiming clean legal separation.
+**Suggested licensing policy:** license the *independently owned source code* separately, with existing [third-party notices](../THIRD_PARTY_NOTICES.md) and future release-specific model/dependency license manifests. Do not claim any new license automatically governs prior commits or dependencies. Legal specialist review is appropriate before claiming clean legal separation.
 
 ### 5. GitHub fork-network transition: **hold** (#54, #60)
 
 The official [GitHub fork-detachment documentation](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/detaching-a-fork) states that leaving the network preserves Git commit metadata but **does not retain issues, PRs, comments, stars or other repository metadata**, and the operation is irreversible. Current Sonic Rift project management relies on those artifacts. Do **not** detach now.
 
-Before any GitHub-network action:
+Before any GitHub-network action, follow [the preservation runbook](github-fork-detachment-preservation.md), introduced in #90. The archive utility is **available but has not been run against the live account**, and issue/PR identities cannot be losslessly restored.
 1. Explicit owner approval of losing the original issue/PR network, or a vetted archival/reconstruction alternative with checked completeness.
 2. Export and independently verify issues, PR review discussions, comments, labels, milestones and release refs before irreversible action.
 3. Preserve original Git commits, source notices, and full reproducibility/rollback procedures.
@@ -107,3 +107,16 @@ Before any GitHub-network action:
 - Replacing or removing Chatterbox **TTS** solely because Chatterbox **UI** was the ancestor.
 - Wholesale rename of runtime paths or package folders in a visual branding PR.
 - Claiming a completed legal or architectural separation before measured evidence.
+
+## Current delivery blockers (October 15, 2026)
+
+| Lane | Mainline / evidence | Still required |
+| --- | --- | --- |
+| Desktop branding | #72/#73/#76/#79/#83/#84 merged; icon and UI text established | Pinned taskbar shortcut and packaged executable icon on the final Windows build (#59/#61) |
+| Speech providers | Chatterbox #77, Kokoro Windows Smart App Control #80 and VoxCPM Numba-free audio #88 merged | Full exact-head multi-engine Windows release smoke; optional research-only/noncommercial distribution checks |
+| Source independence | Provider boundary #75/#78, config #85, console #86 merged; audit reconciled #82/#87 | Adapted UI/threads/installers; draft #91 runtime validation and licensed-source provenance (#55/#57) |
+| Live Voice | Major implementation and Windows QA evidence retained in #24; fixes integrated separately | Resolve stale branch against current main, independent review, exact integrated Windows device/soak tests and actual merge (#13/#15) |
+| Finished Audio Studio | Sounds, model management and asset library delivered | Layered project timeline/composer #71 is still not implemented; final ocean pilot browser playback check #68 |
+| Repository licensing/network | THIRD_PARTY_NOTICES index #84 and fork metadata archiver/runbook #90 merged | Rights inventory, owner source-license decision, tested private archive and owner approval for any irreversible detachment |
+
+**Management rule:** acceptance documentation can be merged as an evidence-based register without treating any pending owner decision as approved. Close implementation issues only when their conditions have genuinely passed, and keep draft/blocked PRs separate from released app capability.
