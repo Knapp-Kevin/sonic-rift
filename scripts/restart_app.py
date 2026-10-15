@@ -1,4 +1,4 @@
-"""Restart This Voice Thing gracefully (Windows): ask its window to close, so it saves
+"""Restart Sonic Rift gracefully (Windows): ask its window to close, so it saves
 its settings, then start it again with run.bat. Forces it only if it hangs.
 
     python scripts/restart_app.py          restart
@@ -13,7 +13,7 @@ import time
 from ctypes import wintypes
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TITLE = "This Voice Thing"
+TITLE = "Sonic Rift"
 WM_CLOSE = 0x0010
 
 
