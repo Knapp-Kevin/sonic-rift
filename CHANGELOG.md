@@ -83,6 +83,7 @@ Changes since upstream commit `22460fd` ("Add best-effort macOS/Linux shell laun
 - **Model settings** (repetition, min-p, top-p) are now remembered between sessions.
 
 ### Fixed
+- **Kokoro works with Windows Smart App Control on.** Kokoro's text front end pulled in an unused spaCy transformer plugin whose unsigned tokenizer binary Smart App Control blocks, so English Kokoro failed to load. Installs now remove the plugin (`spacy-curated-transformers`, `curated-tokenizers`); English G2P and speech were verified without it.
 - **A missing Chatterbox library no longer blocks every engine.** If `chatterbox-tts` fails to import, only the Chatterbox engine is unavailable; Qwen, Kokoro, VoxCPM2, OmniVoice and VibeVoice still load. The load log no longer says "Chatterbox model" for every engine.
 - **VoxCPM2 installs without `funasr` and `kaldiio`.** `voxcpm` declares `funasr`, which pulls in `kaldiio`, licensed by NTT for evaluation only (no redistribution); every kaldiio release carries that license. VoxCPM's inference uses neither, so they're removed after install; VoxCPM2 was verified to load and speak without them. Existing installs drop them on the next reinstall.
 - **Outputs always go to the app's own `chatterbox_outputs` folder**, even when the app is started from another directory.
