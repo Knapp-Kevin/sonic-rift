@@ -1,0 +1,139 @@
+name,version,spdx_normalized,family,spdx_source,license_expression,license_field,classifiers,license_files,license_file_names
+absl-py,2.4.0,Apache-2.0,permissive,License-Expression,Apache-2.0,,Apache Software License,1,absl_py-2.4.0.dist-info/licenses/LICENSE
+accelerate,1.7.0,Apache-2.0,permissive,License,,Apache,Apache Software License,1,accelerate-1.7.0.dist-info/LICENSE
+aiofiles,24.1.0,Apache-2.0,permissive,License,,Apache-2.0,Apache Software License,2,aiofiles-24.1.0.dist-info/licenses/LICENSE; aiofiles-24.1.0.dist-info/licenses/NOTICE
+annotated-doc,0.0.4,MIT,permissive,License-Expression,MIT,,,1,annotated_doc-0.0.4.dist-info/licenses/LICENSE
+annotated-types,0.7.0,MIT,permissive,classifier,,,MIT License,1,annotated_types-0.7.0.dist-info/licenses/LICENSE
+antlr4-python3-runtime,4.9.3,BSD (variant unspecified),permissive,License,,BSD,,0,
+anyio,4.13.0,MIT,permissive,License-Expression,MIT,,,1,anyio-4.13.0.dist-info/licenses/LICENSE
+audioread,3.0.1,MIT,permissive,override,,,,1,audioread-3.0.1.dist-info/LICENSE
+bitarray,3.8.1,PSF-2.0,permissive,License,,PSF-2.0,,1,bitarray-3.8.1.dist-info/licenses/LICENSE
+bitstring,4.4.0,MIT,permissive,License,,MIT,MIT License,1,bitstring-4.4.0.dist-info/licenses/LICENSE
+brotli,1.2.0,MIT,permissive,License,,MIT,,1,brotli-1.2.0.dist-info/licenses/LICENSE
+catalogue,2.0.10,MIT,permissive,License,,MIT,MIT License,1,catalogue-2.0.10.dist-info/LICENSE
+certifi,2025.4.26,MPL-2.0,weak copyleft,License,,MPL-2.0,Mozilla Public License 2.0 (MPL 2.0),1,certifi-2025.4.26.dist-info/licenses/LICENSE
+cffi,1.17.1,MIT,permissive,License,,MIT,MIT License,1,cffi-1.17.1.dist-info/LICENSE
+cfgv,3.4.0,MIT,permissive,License,,MIT,MIT License,1,cfgv-3.4.0.dist-info/LICENSE
+charset-normalizer,3.4.2,MIT,permissive,License,,MIT,MIT License,1,charset_normalizer-3.4.2.dist-info/licenses/LICENSE
+chatterbox-tts,0.1.7,MIT,permissive,License,,"MIT License  Copyright (c) 2025 Resemble AI  Permission is hereby granted, free of charge, to any person obtaining a ...",,1,chatterbox_tts-0.1.7.dist-info/licenses/LICENSE
+click,8.4.1,BSD-3-Clause,permissive,License-Expression,BSD-3-Clause,,,1,click-8.4.1.dist-info/licenses/LICENSE.txt
+colorama,0.4.6,BSD (variant unspecified),permissive,classifier,,,BSD License,1,colorama-0.4.6.dist-info/licenses/LICENSE.txt
+conformer,0.3.2,MIT,permissive,License,,MIT,MIT License,1,conformer-0.3.2.dist-info/LICENSE
+contourpy,1.3.3,BSD-3-Clause,permissive,License,,"BSD 3-Clause License   Copyright (c) 2021-2025, ContourPy Developers.  All rights reserved.   Redistribution and use ...",BSD License,1,contourpy-1.3.3.dist-info/LICENSE
+cycler,0.12.1,BSD-3-Clause,permissive,License,,"Copyright (c) 2015, matplotlib project All rights reserved.  Redistribution and use in source and binary forms, with ...",BSD License,1,cycler-0.12.1.dist-info/LICENSE
+decorator,5.2.1,BSD-2-Clause,permissive,License,,BSD-2-Clause,BSD License,1,decorator-5.2.1.dist-info/LICENSE.txt
+Deprecated,1.3.1,MIT,permissive,License,,MIT,MIT License,1,deprecated-1.3.1.dist-info/licenses/LICENSE.rst
+diffusers,0.29.0,Apache-2.0,permissive,License,,Apache 2.0 License,Apache Software License,1,diffusers-0.29.0.dist-info/LICENSE
+distlib,0.3.9,PSF-2.0,permissive,License,,PSF-2.0,Python Software Foundation License,1,distlib-0.3.9.dist-info/LICENSE.txt
+einops,0.8.1,MIT,permissive,License,,MIT,MIT License,1,einops-0.8.1.dist-info/licenses/LICENSE
+fastapi,0.136.3,MIT,permissive,License-Expression,MIT,,,1,fastapi-0.136.3.dist-info/licenses/LICENSE
+ffmpy,1.0.0,MIT,permissive,License-Expression,MIT,,MIT License,0,
+filelock,3.18.0,Unlicense,permissive,License-Expression,Unlicense,,The Unlicense (Unlicense),1,filelock-3.18.0.dist-info/licenses/LICENSE
+fonttools,4.63.0,MIT,permissive,License,,MIT,,2,fonttools-4.63.0.dist-info/licenses/LICENSE; fonttools-4.63.0.dist-info/licenses/LICENSE.external
+fsspec,2025.5.1,BSD-3-Clause,permissive,License,,"BSD 3-Clause License  Copyright (c) 2018, Martin Durant All rights reserved.  Redistribution and use in source and bi...",BSD License,1,fsspec-2025.5.1.dist-info/licenses/LICENSE
+gradio,6.8.0,Apache-2.0,permissive,License-Expression,Apache-2.0,,,1,gradio-6.8.0.dist-info/licenses/LICENSE
+gradio_client,2.2.0,Apache-2.0,permissive,License-Expression,Apache-2.0,,Apache Software License,0,
+groovy,0.1.2,MIT,permissive,classifier,,,MIT License,1,groovy-0.1.2.dist-info/licenses/LICENSE
+grpcio,1.81.1,Apache-2.0,permissive,License-Expression,Apache-2.0,,,1,grpcio-1.81.1.dist-info/licenses/LICENSE
+h11,0.16.0,MIT,permissive,License,,MIT,MIT License,1,h11-0.16.0.dist-info/licenses/LICENSE.txt
+hf-xet,1.5.1,Apache-2.0,permissive,License-Expression,Apache-2.0,,Apache Software License,1,hf_xet-1.5.1.dist-info/licenses/LICENSE
+httpcore,1.0.9,BSD-3-Clause,permissive,License-Expression,BSD-3-Clause,,BSD License,1,httpcore-1.0.9.dist-info/licenses/LICENSE.md
+httpx,0.28.1,BSD-3-Clause,permissive,License,,BSD-3-Clause,BSD License,1,httpx-0.28.1.dist-info/licenses/LICENSE.md
+huggingface_hub,1.18.0,Apache-2.0,permissive,License,,Apache-2.0,Apache Software License,1,huggingface_hub-1.18.0.dist-info/licenses/LICENSE
+identify,2.6.12,MIT,permissive,License,,MIT,,2,identify-2.6.12.dist-info/LICENSE; identify/vendor/licenses.py
+idna,3.10,BSD (variant unspecified),permissive,classifier,,,BSD License,1,idna-3.10.dist-info/LICENSE.md
+importlib_metadata,8.7.0,Apache-2.0,permissive,classifier,,,Apache Software License,1,importlib_metadata-8.7.0.dist-info/licenses/LICENSE
+jaconv,0.5.0,MIT,permissive,License,,MIT License,,1,jaconv-0.5.0.dist-info/licenses/LICENSE
+Jinja2,3.1.6,BSD (variant unspecified),permissive,classifier,,,BSD License,1,jinja2-3.1.6.dist-info/licenses/LICENSE.txt
+joblib,1.5.1,BSD-3-Clause,permissive,License,,BSD 3-Clause,BSD License,1,joblib-1.5.1.dist-info/licenses/LICENSE.txt
+kiwisolver,1.5.0,BSD-3-Clause,permissive,License,,=========================  The Kiwi licensing terms ========================= Kiwi is licensed under the terms of the...,BSD License,1,kiwisolver-1.5.0.dist-info/licenses/LICENSE
+lazy_loader,0.4,BSD-3-Clause,permissive,License,,"BSD 3-Clause License  Copyright (c) 2022--2023, Scientific Python project All rights reserved.  Redistribution and us...",BSD License,1,lazy_loader-0.4.dist-info/LICENSE.md
+librosa,0.11.0,ISC,permissive,License,,ISC,ISC License (ISCL),1,librosa-0.11.0.dist-info/LICENSE.md
+llvmlite,0.43.0,BSD-2-Clause AND Apache-2.0 WITH LLVM-exception,permissive,override,,BSD,,2,llvmlite-0.43.0.dist-info/LICENSE; llvmlite-0.43.0.dist-info/LICENSE.thirdparty
+Markdown,3.10.2,BSD-3-Clause,permissive,License-Expression,BSD-3-Clause,,,1,markdown-3.10.2.dist-info/licenses/LICENSE.md
+markdown-it-py,4.2.0,MIT,permissive,classifier,,,MIT License,2,markdown_it_py-4.2.0.dist-info/licenses/LICENSE; markdown_it_py-4.2.0.dist-info/licenses/LICENSE.markdown-it
+MarkupSafe,3.0.2,BSD-3-Clause,permissive,License,,"Copyright 2010 Pallets  Redistribution and use in source and binary forms, with or without modification, are permitte...",BSD License,1,MarkupSafe-3.0.2.dist-info/LICENSE.txt
+matplotlib,3.10.9,PSF-2.0 (matplotlib),permissive,License,,License agreement for matplotlib versions 1.3.0 and later  ========================================================= ...,Python Software Foundation License,3,matplotlib-3.10.9.dist-info/LICENSE; matplotlib/mpl-data/fonts/ttf/LICENSE_DEJAVU; matplotlib/mpl-data/fonts/ttf/LICENSE_STIX
+mdurl,0.1.2,MIT,permissive,classifier,,,MIT License,1,mdurl-0.1.2.dist-info/LICENSE
+mpmath,1.3.0,BSD (variant unspecified),permissive,License,,BSD,BSD License,1,mpmath-1.3.0.dist-info/LICENSE
+msgpack,1.1.0,Apache-2.0,permissive,License,,Apache 2.0,Apache Software License,1,msgpack-1.1.0.dist-info/COPYING
+networkx,3.2.1,BSD (variant unspecified),permissive,classifier,,,BSD License,1,networkx-3.2.1.dist-info/LICENSE.txt
+nltk,3.9.1,Apache-2.0,permissive,License,,"Apache License, Version 2.0",Apache Software License,1,nltk-3.9.1.dist-info/LICENSE.txt
+nodeenv,1.9.1,BSD (variant unspecified),permissive,License,,BSD,BSD License,1,nodeenv-1.9.1.dist-info/LICENSE
+numba,0.60.0,BSD (variant unspecified),permissive,License,,BSD,BSD License,2,numba-0.60.0.dist-info/LICENSE; numba-0.60.0.dist-info/LICENSES.third-party
+numpy,1.26.0,BSD-3-Clause,permissive,License,,"Copyright (c) 2005-2023, NumPy Developers. All rights reserved.  Redistribution and use in source and binary forms, w...",BSD License,4,numpy-1.26.0.dist-info/LICENSE.txt; numpy/core/include/numpy/random/LICENSE.txt; numpy/ma/LICENSE
+omegaconf,2.3.0,BSD (variant unspecified),permissive,classifier,,,BSD License,1,omegaconf-2.3.0.dist-info/LICENSE
+onnx,1.18.0,Apache-2.0,permissive,License,,Apache License v2.0,,1,onnx-1.18.0.dist-info/licenses/LICENSE
+orjson,3.11.9,MPL-2.0 AND (Apache-2.0 OR MIT),weak copyleft,License-Expression,MPL-2.0 AND (Apache-2.0 OR MIT),,Apache Software License; MIT License; Mozilla Public License 2.0 (MPL 2.0),3,orjson-3.11.9.dist-info/licenses/LICENSE-APACHE; orjson-3.11.9.dist-info/licenses/LICENSE-MIT; orjson-3.11.9.dist-info/licenses/LICENSE-MPL-2.0
+packaging,25.0,Apache-2.0,permissive,classifier,,,Apache Software License; BSD License,3,packaging-25.0.dist-info/licenses/LICENSE; packaging-25.0.dist-info/licenses/LICENSE.APACHE; packaging-25.0.dist-info/licenses/LICENSE.BSD
+pandas,3.0.3,BSD-3-Clause,permissive,License,,"BSD 3-Clause License   Copyright (c) 2008-2011, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Developm...",BSD License,1,pandas-3.0.3.dist-info/LICENSE
+peft,0.15.2,Apache-2.0,permissive,License,,Apache,Apache Software License,1,peft-0.15.2.dist-info/LICENSE
+pillow,11.2.1,MIT-CMU,permissive,License-Expression,MIT-CMU,,,1,pillow-11.2.1.dist-info/licenses/LICENSE
+platformdirs,4.3.8,MIT,permissive,License-Expression,MIT,,MIT License,1,platformdirs-4.3.8.dist-info/licenses/LICENSE
+pooch,1.8.2,BSD-3-Clause,permissive,License,,BSD-3-Clause,BSD License,1,pooch-1.8.2.dist-info/LICENSE.txt
+praat-parselmouth,0.4.7,GPL-3.0-or-later,strong copyleft,License,,GPLv3,GNU General Public License v3 or later (GPLv3+),1,praat_parselmouth-0.4.7.dist-info/licenses/LICENSE
+pre_commit,4.2.0,MIT,permissive,License,,MIT,MIT License,2,pre_commit-4.2.0.dist-info/LICENSE; pre_commit/resources/empty_template_LICENSE.renv
+protobuf,6.31.1,BSD-3-Clause,permissive,License,,3-Clause BSD License,,1,protobuf-6.31.1.dist-info/LICENSE
+psutil,7.0.0,BSD-3-Clause,permissive,License,,BSD-3-Clause,BSD License,1,psutil-7.0.0.dist-info/LICENSE
+pycparser,2.22,BSD-3-Clause,permissive,License,,BSD-3-Clause,BSD License,1,pycparser-2.22.dist-info/LICENSE
+pydantic,2.13.4,MIT,permissive,License-Expression,MIT,,,1,pydantic-2.13.4.dist-info/licenses/LICENSE
+pydantic_core,2.46.4,MIT,permissive,License-Expression,MIT,,,1,pydantic_core-2.46.4.dist-info/licenses/LICENSE
+pydub,0.25.1,MIT,permissive,License,,MIT,MIT License,1,pydub-0.25.1.dist-info/LICENSE
+pyflakes,4.0.1,MIT,permissive,License,,MIT,MIT License,1,pyflakes-4.0.1.dist-info/licenses/LICENSE
+Pygments,2.20.0,BSD-2-Clause,permissive,License-Expression,BSD-2-Clause,,,1,pygments-2.20.0.dist-info/licenses/LICENSE
+pykakasi,2.3.0,GPL-3.0-or-later,strong copyleft,License,,GPL-3.0-or-later,GNU General Public License v3 or later (GPLv3+),1,pykakasi-2.3.0.dist-info/COPYING
+pyloudnorm,0.2.0,MIT,permissive,License-Expression,MIT,,,1,pyloudnorm-0.2.0.dist-info/licenses/LICENSE
+pyparsing,3.3.2,MIT,permissive,License-Expression,MIT,,,1,pyparsing-3.3.2.dist-info/licenses/LICENSE
+pyrubberband,0.4.0,ISC,permissive,License,,ISC,ISC License (ISCL),1,pyrubberband-0.4.0.dist-info/LICENSE
+PySide6,6.9.0,LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only,weak copyleft,override,,LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only,GNU Lesser General Public License v3 (LGPLv3); GNU General Public License v3 (GPLv3); GNU General Public License v2 (GPLv2); Other/Proprietary License,1,PySide6-6.9.0.dist-info/LicenseRef-Qt-Commercial.txt
+PySide6_Addons,6.9.0,LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only,weak copyleft,override,,LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only,GNU Lesser General Public License v3 (LGPLv3); GNU General Public License v3 (GPLv3); GNU General Public License v2 (GPLv2); Other/Proprietary License,1,PySide6_Addons-6.9.0.dist-info/LicenseRef-Qt-Commercial.txt
+PySide6_Essentials,6.9.0,LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only,weak copyleft,override,,LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only,GNU Lesser General Public License v3 (LGPLv3); GNU General Public License v3 (GPLv3); GNU General Public License v2 (GPLv2); Other/Proprietary License,1,PySide6_Essentials-6.9.0.dist-info/LicenseRef-Qt-Commercial.txt
+python-dateutil,2.9.0.post0,Apache-2.0,permissive,classifier,,Dual License,BSD License; Apache Software License,1,python_dateutil-2.9.0.post0.dist-info/LICENSE
+python-multipart,0.0.32,Apache-2.0,permissive,License-Expression,Apache-2.0,,Apache Software License,1,python_multipart-0.0.32.dist-info/licenses/LICENSE.txt
+pytz,2026.2,MIT,permissive,License,,MIT,MIT License,1,pytz-2026.2.dist-info/LICENSE.txt
+PyWavelets,1.9.0,MIT AND BSD-3-Clause,permissive,License-Expression,MIT AND BSD-3-Clause,,,3,pywavelets-1.9.0.dist-info/licenses/LICENSE; pywavelets-1.9.0.dist-info/licenses/licenses_bundled/LICENSE_numpy.txt; pywavelets-1.9.0.dist-info/licenses/licenses_bundled/LICENSE_scipy.txt
+PyYAML,6.0.2,MIT,permissive,License,,MIT,MIT License,1,PyYAML-6.0.2.dist-info/LICENSE
+regex,2024.11.6,Apache-2.0,permissive,License,,Apache Software License,Apache Software License,1,regex-2024.11.6.dist-info/LICENSE.txt
+requests,2.32.3,Apache-2.0,permissive,License,,Apache-2.0,Apache Software License,1,requests-2.32.3.dist-info/LICENSE
+resemble-perth,1.0.1,MIT,permissive,License,,MIT,MIT License,0,
+rich,15.0.0,MIT,permissive,License,,MIT,MIT License,1,rich-15.0.0.dist-info/licenses/LICENSE
+s3tokenizer,0.1.7,Apache-2.0,permissive,License,,Apache2.0,,1,s3tokenizer-0.1.7.dist-info/licenses/LICENSE
+safehttpx,0.1.7,MIT,permissive,classifier,,,MIT License,1,safehttpx-0.1.7.dist-info/licenses/LICENSE
+safetensors,0.5.3,Apache-2.0,permissive,classifier,,,Apache Software License,0,
+scikit-learn,1.6.1,BSD-3-Clause,permissive,License,,BSD 3-Clause License   Copyright (c) 2007-2024 The scikit-learn developers.  All rights reserved.   Redistribution an...,BSD License,1,scikit_learn-1.6.1.dist-info/COPYING
+scipy,1.13.1,BSD-3-Clause,permissive,License,,"Copyright (c) 2001-2002 Enthought, Inc. 2003-2024, SciPy Developers. All rights reserved.  Redistribution and use in ...",BSD License,5,scipy-1.13.1.dist-info/LICENSE.txt; scipy/_lib/_uarray/LICENSE; scipy/fft/_pocketfft/LICENSE.md
+semantic-version,2.10.0,BSD (variant unspecified),permissive,License,,BSD,BSD License,1,semantic_version-2.10.0.dist-info/LICENSE
+setuptools,80.9.0,MIT,permissive,License-Expression,MIT,,,24,setuptools-80.9.0.dist-info/licenses/LICENSE; setuptools/_vendor/autocommand-2.2.2.dist-info/LICENSE; setuptools/_vendor/backports.tarfile-1.2.0.dist-info/LICENSE
+shellingham,1.5.4,ISC,permissive,License,,ISC License,ISC License (ISCL),1,shellingham-1.5.4.dist-info/LICENSE
+shiboken6,6.9.0,LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only,weak copyleft,override,,LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only,GNU Lesser General Public License v3 (LGPLv3); GNU General Public License v3 (GPLv3); GNU General Public License v2 (GPLv2); Other/Proprietary License,1,shiboken6-6.9.0.dist-info/LicenseRef-Qt-Commercial.txt
+six,1.17.0,MIT,permissive,License,,MIT,MIT License,1,six-1.17.0.dist-info/LICENSE
+soundfile,0.13.1,BSD-3-Clause,permissive,License,,BSD 3-Clause License,BSD License,2,_soundfile_data/COPYING; soundfile-0.13.1.dist-info/LICENSE
+sox,1.5.0,BSD-3-Clause,permissive,License,,BSD-3-Clause,,1,sox-1.5.0.dist-info/licenses/LICENSE
+soxr,0.5.0.post1,LGPL-2.1-or-later,weak copyleft,classifier,,,GNU Lesser General Public License v2 or later (LGPLv2+),4,soxr-0.5.0.post1.dist-info/licenses/COPYING.LGPL; soxr-0.5.0.post1.dist-info/licenses/LICENSE-PFFFT.txt; soxr-0.5.0.post1.dist-info/licenses/LICENSE-libsoxr.txt
+spacy_pkuseg,1.0.1,MIT,permissive,License,,MIT,MIT License,1,spacy_pkuseg-1.0.1.dist-info/licenses/LICENSE
+srsly,2.5.3,MIT,permissive,License,,MIT,MIT License,1,srsly-2.5.3.dist-info/licenses/LICENSE
+starlette,0.52.1,BSD-3-Clause,permissive,License-Expression,BSD-3-Clause,,,1,starlette-0.52.1.dist-info/licenses/LICENSE.md
+sympy,1.13.1,BSD (variant unspecified),permissive,License,,BSD,BSD License,2,sympy-1.13.1.dist-info/LICENSE; sympy/parsing/latex/LICENSE.txt
+tabulate,0.10.0,MIT,permissive,License-Expression,MIT,,,1,tabulate-0.10.0.dist-info/licenses/LICENSE
+tensorboard,2.20.0,Apache-2.0,permissive,License,,Apache 2.0,Apache Software License,1,tensorboard-2.20.0.dist-info/licenses/LICENSE
+tensorboard-data-server,0.7.2,Apache-2.0,permissive,License,,Apache 2.0,Apache Software License,0,
+threadpoolctl,3.6.0,BSD-3-Clause,permissive,License,,BSD-3-Clause,BSD License,1,threadpoolctl-3.6.0.dist-info/licenses/LICENSE
+tibs,0.5.7,MIT,permissive,License,,"The MIT License  	Copyright (c) 2025 Scott Griffiths (dr.scottgriffiths@gmail.com)  	Permission is hereby granted, fr...",MIT License,1,tibs-0.5.7.dist-info/licenses/LICENSE
+tokenizers,0.22.2,Apache-2.0,permissive,classifier,,,Apache Software License,0,
+tomlkit,0.13.3,MIT,permissive,License,,MIT,MIT License,1,tomlkit-0.13.3.dist-info/LICENSE
+torch,2.8.0+cu128,BSD-3-Clause,permissive,License,,BSD-3-Clause,BSD License,2,torch-2.8.0+cu128.dist-info/LICENSE; torch-2.8.0+cu128.dist-info/NOTICE
+torchaudio,2.8.0+cu128,BSD (variant unspecified),permissive,classifier,,,BSD License,1,torchaudio-2.8.0+cu128.dist-info/licenses/LICENSE
+torchvision,0.23.0+cu128,BSD (variant unspecified),permissive,License,,BSD,,1,torchvision-0.23.0+cu128.dist-info\LICENSE
+tqdm,4.67.1,MPL-2.0 AND MIT,weak copyleft,License,,MPL-2.0 AND MIT,MIT License; Mozilla Public License 2.0 (MPL 2.0),1,tqdm-4.67.1.dist-info/LICENCE
+transformers,5.2.0,Apache-2.0,permissive,License,,Apache 2.0 License,,1,transformers-5.2.0.dist-info/licenses/LICENSE
+typer,0.25.1,MIT,permissive,License-Expression,MIT,,,1,typer-0.25.1.dist-info/licenses/LICENSE
+typer-slim,0.24.0,MIT,permissive,License-Expression,MIT,,,1,typer_slim-0.24.0.dist-info/licenses/LICENSE
+typing-inspection,0.4.2,MIT,permissive,License-Expression,MIT,,,1,typing_inspection-0.4.2.dist-info/licenses/LICENSE
+typing_extensions,4.15.0,PSF-2.0,permissive,License-Expression,PSF-2.0,,,1,typing_extensions-4.15.0.dist-info/licenses/LICENSE
+tzdata,2026.2,Apache-2.0,permissive,License,,Apache-2.0,,2,tzdata-2026.2.dist-info/licenses/LICENSE; tzdata-2026.2.dist-info/licenses/licenses/LICENSE_APACHE
+urllib3,2.4.0,MIT,permissive,License-Expression,MIT,,,1,urllib3-2.4.0.dist-info/licenses/LICENSE.txt
+uvicorn,0.49.0,BSD-3-Clause,permissive,License-Expression,BSD-3-Clause,,,1,uvicorn-0.49.0.dist-info/licenses/LICENSE.md
+virtualenv,20.31.2,MIT,permissive,License-Expression,MIT,,MIT License,1,virtualenv-20.31.2.dist-info/licenses/LICENSE
+Werkzeug,3.1.8,BSD-3-Clause,permissive,License-Expression,BSD-3-Clause,,,2,werkzeug-3.1.8.dist-info/licenses/LICENSE.txt; werkzeug/debug/shared/ICON_LICENSE.md
+wrapt,2.2.1,BSD-2-Clause,permissive,License-Expression,BSD-2-Clause,,,1,wrapt-2.2.1.dist-info/licenses/LICENSE
+zipp,3.22.0,MIT,permissive,License-Expression,MIT,,,1,zipp-3.22.0.dist-info/licenses/LICENSE
