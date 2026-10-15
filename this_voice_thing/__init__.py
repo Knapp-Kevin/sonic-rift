@@ -1,3 +1,3 @@
-"""This Voice Thing: a local, multi-engine voice workbench."""
+"""Sonic Rift: a local-first creative-audio workbench."""
 
-APP_NAME = "This Voice Thing"
+APP_NAME = "Sonic Rift"

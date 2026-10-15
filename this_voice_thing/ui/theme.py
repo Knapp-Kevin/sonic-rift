@@ -1,4 +1,4 @@
-"""This Voice Thing's light/dark theme, following the Windows app mode.
+"""Sonic Rift's light/dark theme, following the Windows app mode.
 
 Colours are semantic tokens: widgets ask for "accent", "warning_text" or
 "selected_bg", never for a hex value, so the brand can change without changing
@@ -21,8 +21,8 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPalette, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QFrame, QWidget
 
-APP_NAME = "This Voice Thing"
-TAGLINE = "Definitely not just Chatterbox UI."
+APP_NAME = "Sonic Rift"
+TAGLINE = "Make worlds you can hear."
 
 # Every theme defines exactly these roles (tests check both themes match).
 SEMANTIC_ROLES = (
@@ -122,8 +122,8 @@ LIGHT["chevron"] = _asset("chevron_down_light.svg")
 DARK["check"] = _asset("check_dark.svg")    # dark tick on the cyan fill
 LIGHT["check"] = _asset("check_light.svg")  # white tick on the deep-cyan fill
 
-# The app icon: the approved brand icon once it's in the repository; the old mark
-# until then, so the window always has an icon.
+# Keep the existing, shipped app icon until a replacement is reviewed and tested;
+# the new Sonic Rift symbol is a candidate, not an automatic runtime replacement.
 BRAND_ICON = _asset("branding/this-voice-thing-app-icon.png")
 FALLBACK_ICON = _asset("logo.svg")
 
