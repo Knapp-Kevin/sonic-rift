@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+from threading import Event
 
 import numpy as np
 import soundfile as sf
@@ -88,6 +89,32 @@ class ProjectExportTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 export_project(self.project, self.media, self.root / "failed")
         self.assertFalse((self.root / "failed").exists())
+        self.assertEqual(list(self.root.glob(".sonicrift-export-*")), [])
+
+    def test_export_cancellation_never_publishes_partial_folder(self):
+        from this_voice_thing.core.audio_project_export import ExportCancelled
+        cancelled = Event()
+        cancelled.set()
+        with self.assertRaises(ExportCancelled):
+            export_project(self.project, self.media, self.root / "cancelled",
+                           should_cancel=cancelled.is_set)
+        self.assertFalse((self.root / "cancelled").exists())
+
+    def test_cancel_after_first_format_discards_staging(self):
+        from this_voice_thing.core.audio_project_export import ExportCancelled
+        from this_voice_thing.core.soundscape import mastering
+        cancelled = Event()
+        original = mastering.write_audio
+        def write_and_cancel(*args, **kwargs):
+            result = original(*args, **kwargs)
+            cancelled.set()
+            return result
+        with patch("this_voice_thing.core.audio_project_export.mastering.write_audio",
+                   side_effect=write_and_cancel):
+            with self.assertRaises(ExportCancelled):
+                export_project(self.project, self.media, self.root / "cancelled",
+                               should_cancel=cancelled.is_set)
+        self.assertFalse((self.root / "cancelled").exists())
         self.assertEqual(list(self.root.glob(".sonicrift-export-*")), [])
 
     def test_short_project_manifest_has_valid_json_not_infinity(self):
