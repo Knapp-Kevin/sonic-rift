@@ -1,70 +1,58 @@
-# Contributing to This Voice Thing
+# Contributing to Sonic Rift
 
-First off, thank you for considering contributing to This Voice Thing! We appreciate any help, whether it's reporting a bug, suggesting a feature, or submitting code changes.
+Thanks for helping improve **Sonic Rift**, a local-first desktop studio for voice, soundscapes and audio production. Reports, documentation corrections, accessibility improvements and tested code are welcome.
 
-This document provides some guidelines to help make the contribution process smooth and effective for everyone.
+## Reporting a defect or suggesting a feature
 
-## How Can I Contribute?
+Use the [Sonic Rift issue tracker](https://github.com/Knapp-Kevin/sonic-rift/issues). Include a concise description, reproduction steps, expected and observed behavior, application commit/version, OS, Python/PySide6/PyTorch versions and selected engine. Logs and screenshots help, but **remove secrets, audio you cannot share, user names and private file paths**. For device problems include the relevant playback/recording format and whether the engine is installed.
 
-There are several ways you can contribute:
+For a significant change, check existing issues and open one before implementing. Please don't create a parallel PR for work already assigned or underway.
 
-*   **Reporting Bugs:** If you find a bug, please open an issue on GitHub. Try to include as much information as possible:
-    *   A clear and descriptive title.
-    *   Steps to reproduce the bug.
-    *   What you expected to happen.
-    *   What actually happened (including any error messages or console output).
-    *   Your operating system, Python version, and versions of key libraries (especially PyTorch, PySide6, and the affected speech engine).
-    *   Screenshots can also be very helpful!
+## Development workflow
 
-*   **Suggesting Enhancements or New Features:** If you have an idea for a new feature or an improvement to an existing one, please open an issue on GitHub. Describe your idea clearly and why you think it would be a valuable addition.
+1. Fork the [Sonic Rift repository](https://github.com/Knapp-Kevin/sonic-rift) into your own account and clone your fork:
 
-*   **Code Contributions (Pull Requests):** We welcome pull requests for bug fixes, new features, or improvements. Please follow these guidelines:
-    *   **Open an Issue First:** For anything more than a trivial fix (like a typo), please open an issue first to discuss your proposed changes. This helps ensure your work aligns with the project's goals and avoids duplicated effort.
-    *   **Fork the Repository:** Fork the main repository to your own GitHub account.
-    *   **Create a New Branch:** Create a new branch in your fork for your changes (e.g., `git checkout -b feature/my-new-feature` or `git checkout -b fix/bug-name`).
-    *   **Code Style:** Try to follow the existing code style. We aim for readable and maintainable Python code.
-    *   **Commit Messages:** Write clear and concise commit messages that explain the "what" and "why" of your changes.
-    *   **Testing:** Please test your changes thoroughly on your own system before submitting a pull request. If you're adding a new feature, consider how it might be tested.
-    *   **Documentation:** If your changes affect user-facing features or how the application is run, please update the `README.md` or other relevant documentation.
-    *   **Pull Request:** Open a pull request from your branch to the `main` branch of the original repository. Provide a clear description of your changes in the pull request.
+   ```bash
+   git clone https://github.com/YOUR-NAME/sonic-rift.git
+   cd sonic-rift
+   git remote add upstream https://github.com/Knapp-Kevin/sonic-rift.git
+   ```
 
-## Development Setup
+2. Install Python 3.11 and `uv`. On supported Windows development machines use `run.bat` for bootstrapping; `run.sh` exists for experimental macOS/Linux use. Model installations and weights may be large and have separate license conditions. Download only what your test requires.
+3. Make changes on a focused branch. Do not rename the `this_voice_thing` Python package, storage paths, or Windows AppUserModelID casually; those names still support existing installations and shortcuts.
+4. Run the applicable unit tests, then manually validate UI/audio changes on supported equipment. The full Python suite is:
 
-If you're looking to contribute code, here's a quick guide to setting up your development environment:
+   ```bash
+   python -m unittest discover -s tests -v
+   ```
 
-1.  **Prerequisites:** Ensure you have Python (3.11 recommended), `uv`, and FFmpeg installed as described in the main `README.md`.
-2.  **Fork & Clone:** Fork [Knapp-Kevin/this-voice-thing](https://github.com/Knapp-Kevin/this-voice-thing) on GitHub, then clone your fork (replace `YOUR-NAME`):
-    ```bash
-    git clone https://github.com/YOUR-NAME/this-voice-thing.git
-    cd this-voice-thing
-    ```
-3.  **Set up the Upstream Remote (optional but recommended):**
-    ```bash
-    git remote add upstream https://github.com/Knapp-Kevin/this-voice-thing.git
-    ```
-    This lets you pull changes from the main repository. (The repository used to be called
-    `Knapp-Kevin/Chatterbox-TTS-UI`; GitHub redirects the old URLs.) This Voice Thing began as a
-    fork of [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI); fixes that
-    belong in that original UI are best offered there too.
-4.  **Create Virtual Environment & Install Dependencies:**
-    It's highly recommended to use the `run.bat` (Windows) or `run.sh` (macOS/Linux) script for the initial setup as it handles `uv venv`, `uv pip sync requirements.lock.txt`, and `python scripts/install_torch.py`.
-    Alternatively, follow the manual installation steps in the `README.md`.
-5.  **Make Your Changes:** Create a new branch and start coding!
-6.  **Testing:** Run the application (`python main.py`) to test your changes, and run the tests:
-    `.venv\Scripts\python.exe -m unittest discover tests`. The theme tests check contrast, colour
-    meaning (amber = warning, red = error, green = success) and that widgets use theme tokens
-    rather than hard-coded colours.
-7.  **Where things live:** the app is the `this_voice_thing` package. The window, pages, dialogs and generation thread are in `ui/main_window.py`, the theme in `ui/theme.py`; engines in `engines/`; the model list, Hugging Face logic, documents, audio, subtitles, pronunciation and voice library in `core/`; the local API and Google Docs in `integrations/`. App data (settings, outputs, recordings) stays in the project folder; see `this_voice_thing/paths.py`. The README's Project Structure section shows the whole tree.
-8.  **Qwen engine:** Qwen3-TTS runs in its own environment, `engines/qwen/.venv`, through `engines/qwen/qwen_worker.py`. Never install `qwen-tts` into the main `.venv`: it needs `transformers` 4.57.x, while Chatterbox pins 5.2.0. To work on the worker, run Python from `engines/qwen/.venv`.
+   Use the project's `.venv` interpreter when dependencies are required. Document any blocked hardware/engine cases instead of claiming they passed.
+5. Submit a focused pull request against `main`. Link its issue, describe behavior, tests executed, screenshots or measurements where relevant, provenance/permission changes and exact limitations. Fix blocking review findings before asking for merge.
 
-## Code of Conduct
+**Important:** This repository conserves GitHub Actions usage. Avoid introducing or broadening hosted workflows and never trigger large model downloads in CI without maintainer approval. Prefer local deterministic tests where practical.
 
-While we don't have a formal Code of Conduct document yet, please be respectful and considerate in all your interactions within the project community (issues, pull requests, discussions). Let's keep it a friendly and welcoming environment for everyone.
+## Architecture and data safety
 
-## Questions?
+- `this_voice_thing/ui/` contains the desktop window, pages, dialogs, theme and Qt workers.
+- `this_voice_thing/core/` contains provider-independent audio, model selection, project data and utility contracts.
+- `this_voice_thing/engines/` contains adapters and isolated engine workers.
+- `this_voice_thing/integrations/` contains the local API and optional document integrations.
+- Saved recordings, model caches, settings, voices and sound assets belong to the user. Use scratch data, preserve compatibility and test rollback paths.
 
-If you have questions about contributing or need clarification, feel free to open an issue and tag it as a "question".
+Feature work must preserve optional-provider isolation. An absent Chatterbox TTS installation must not prevent unrelated engines from starting.
 
----
+## Source provenance and licensing
 
-Thank you for your interest in improving This Voice Thing!
+Sonic Rift has its own product identity but contains some adapted third-party source. The repository's [LICENSE](LICENSE), [third-party notice index](THIRD_PARTY_NOTICES.md), and [provenance audit](docs/upstream-provenance-audit.md) document current limitations and retained notices.
+
+- Only submit code or assets you have permission to contribute. Document imported code, external snippets, model weights and third-party assets, including their licenses and source.
+- Do not delete copyright headers or replace required notices as part of refactoring or rebranding.
+- Do not assume changing a file name, rewriting a function superficially, or detaching GitHub's fork network grants new copyright ownership.
+- Do not bundle models with noncommercial, research-only, conditional, or unclear terms into distributable packages without review.
+- The license for independently owned future work remains subject to an explicit owner decision. A pull request does not by itself settle any relicensing or contributor-license arrangement.
+
+## Community conduct
+
+Be respectful, constructive and specific about technical disagreements. Report security concerns responsibly without publishing credentials or sensitive data.
+
+Thank you for contributing to Sonic Rift.
