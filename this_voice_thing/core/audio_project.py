@@ -172,6 +172,12 @@ def save_project(path, project):
     """Validate, write to same-directory temp file, atomically replace target."""
     project.validate()
     path = Path(path)
+    if path.exists():
+        previous = read_project(path)
+        if previous.id != project.id:
+            raise ValueError("Refusing to overwrite another project")
+        if previous.revision > project.revision:
+            raise ValueError("Refusing to overwrite a newer project revision")
     path.parent.mkdir(parents=True, exist_ok=True)
     encoded = (json.dumps(asdict(project), ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     temp_name = None
