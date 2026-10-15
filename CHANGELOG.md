@@ -7,12 +7,25 @@ All notable changes to **This Voice Thing**, which began as a fork of [AcTePuKc/
 Changes since upstream commit `22460fd` ("Add best-effort macOS/Linux shell launcher flow").
 
 ### Added
+- **Navigation by task.** The sidebar is grouped by what you're doing: **Create** (was Generate), **Voices** (the library, with the Studio as its **New voice** tab), **Sounds** (was Soundscape), then **Tools** (Transcribe) and **Setup** (**Models**, and **Settings** for pronunciation, the local API and the log). Speed, pitch, MP3 and subtitle format moved from Advanced into **Finishing touches** on Create, next to what they change. Nothing else changed: voices, sounds, settings and outputs stay where they were.
+- **One Models page for every engine.** Sound models now have a **Sounds** tab on Models, next to Cloning, Presets, Design and Conversations, with the same tiles: status, license badge, GPU fit and typical speed. Click to install (after the license and size are shown) or to use it on the Sounds page; **All models** on Sounds jumps there.
+- **Soundscape page and Asset Library (Audio Studio, #53).**
+  - **Engines:** ambience loops and sound effects from two restriction-free engines:
+    - **Procedural:** no model; ocean, rain, thunderstorm, wind, drone, UI chimes.
+    - **MOSS-SoundEffect v2:** Apache-2.0.
+    - Stable Audio 3 Small SFX was built in, evaluated and removed: its ambience was rejected in listening tests, and its license carries conditions.
+  - **Install and consent:** each model gets its own environment, and the app shows the license and download size and asks before installing.
+  - **Takes:** several at once, with seeds for repeatability. Loops are seamless (folding for MOSS) and come out at the requested length.
+  - **Mastering:** LUFS loudness with true-peak headroom and a gentle limiter, a seam check, stereo widening for mono models, **Start soft** (loops begin at their quietest moment and build) and **Even out dynamics** (a slow leveler that roughly halves the swings); calm ambience defaults to -24 to -27 LUFS.
+  - **Export:** WAV, OGG or MP3.
+  - **Asset Library:** keeps each sound with its provenance (engine, model, license, prompt or preset, seed, settings, checksum).
 - **`scripts/restart_app.py`** (Windows) closes the app the way its close button does, so it saves its settings, then starts it again; it forces the app only if it hangs for 30 seconds. `--close` just closes it.
 - **Voice Studio.** A new **Studio** page to make voices in one place: **Clone** a recording or file (use it as is, or let a cloning model re-read a passage in that voice), **Design** from a description with several candidates at once (Qwen3, VoxCPM2, OmniVoice), or **Remix** a voice with words (VoxCPM2's styled cloning). Try any take on a test line, trim, clean up, shift pitch and speed, then **Save voice**: it's frozen as a clip and transcript, so it sounds the same in every render and batch.
 - **Voice-first Generate.** Pick a voice with **Change** (yours, or a model's built-in voices); the model list shows only the models that can speak it, and picking a clip voice loads a cloning model if needed. The Voice page is now **Voices**, a library; designing moved from Generate to the Studio (which replaces Keep this voice).
 - **Get a token.** The Model page's Hugging Face card links straight to Hugging Face's new-token page, with the Read type preselected.
 - **Transcription (speech to text).** A new **Transcribe** page turns audio into text locally with OpenAI's Whisper large-v3 turbo (MIT license, a one-time 1.6 GB download the app asks about first). Detects the language or takes one you pick, shows optional timestamps, saves text or SRT/WebVTT subtitles, and **Send to Generate** speaks the result with any voice. **Transcribe clip** in a library voice's menu fills in its transcript for cloning models, and the local API adds an OpenAI-compatible `POST /v1/audio/transcriptions`.
-- **App icon in the Windows taskbar.** The app now shows its own icon there instead of Python's, and `assets/branding/this-voice-thing.ico` is available for shortcuts.
+- **Sonic Rift app icon.** The rift ring and waveform now appear in the title bar, taskbar and Alt+Tab, with simplified versions drawn for 16–40 px so they stay legible. `assets/branding/sonic-rift.ico` (16–256 px) is available for shortcuts; existing pinned buttons keep working (unpin and pin again to show the new icon on them).
+- **App icon in the Windows taskbar.** The app shows its own icon there instead of Python's.
 - **Qwen3-TTS engine (optional).** Three new models alongside Chatterbox:
   - **Preset voices**, with nine speakers and plain-language style instructions.
   - **Voice design**, which creates a voice from a written description.
@@ -86,6 +99,13 @@ Changes since upstream commit `22460fd` ("Add best-effort macOS/Linux shell laun
 - **Model settings** (repetition, min-p, top-p) are now remembered between sessions.
 
 ### Fixed
+- **Kokoro works with Windows Smart App Control on.** Kokoro's text front end pulled in an unused spaCy transformer plugin whose unsigned tokenizer binary Smart App Control blocks, so English Kokoro failed to load. Installs now remove the plugin (`spacy-curated-transformers`, `curated-tokenizers`); English G2P and speech were verified without it.
+- **A missing Chatterbox library no longer blocks every engine.** If `chatterbox-tts` fails to import, only the Chatterbox engine is unavailable; Qwen, Kokoro, VoxCPM2, OmniVoice and VibeVoice still load. The load log no longer says "Chatterbox model" for every engine.
+- **VoxCPM2 installs without `funasr` and `kaldiio`.** `voxcpm` declares `funasr`, which pulls in `kaldiio`, licensed by NTT for evaluation only (no redistribution); every kaldiio release carries that license. VoxCPM's inference uses neither, so they're removed after install; VoxCPM2 was verified to load and speak without them. Existing installs drop them on the next reinstall.
+- **Outputs always go to the app's own `chatterbox_outputs` folder**, even when the app is started from another directory.
+- **Engine installs on Windows:**
+  - They work around a uv bug that broke Python 3.12 environments.
+  - They refuse up front, with a fix, when the app's folder path is too long for Windows' 260-character limit, instead of failing halfway.
 - **The window no longer widens with several finishing touches on.** The Finishing touches summary (e.g. speed, pitch, pauses, MP3) now shortens to fit, with the full text in its tooltip.
 - **Qwen cloned voices no longer "reset" at section seams.** A cloned or saved designed voice drifted from its reference over long sections and snapped back at the next one. Qwen cloning now uses 300-character sections (was 600) and, while Variation is on its default, a steadier 0.5; measured on a designed voice, the drift is gone and the seams match more closely.
 - **Long renders can't be cut short by a stray key.** Generate turns into Stop while rendering and kept keyboard focus, so Space or Enter could stop a render and drop its last sections. It no longer takes focus, a stop is logged again (a console redirect used to hide it), and the status says which sections weren't generated.

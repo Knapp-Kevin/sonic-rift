@@ -154,7 +154,7 @@ class VibeVoiceModel:
 
 def load_vibevoice_model(repo_id, log=print):
     if not is_installed():
-        raise RuntimeError("The VibeVoice engine isn't installed. Click its tile on the Model page to install it.")
+        raise RuntimeError("The VibeVoice engine isn't installed. Click its tile on the Models page to install it.")
     worker = engine_worker.WorkerProcess(
         PYTHON, WORKER, "vibevoice", log,
         skip=lambda line: "warn" in line.lower() or "it/s]" in line or "s/it]" in line)

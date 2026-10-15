@@ -46,7 +46,7 @@ class VoiceUse:
             engine = model_registry.ENGINES.get(voice.backend)
             QMessageBox.information(
                 self, "Voice", f"{voice.name} needs {engine.label if engine else voice.backend} "
-                f"({voice.repo_id}), which isn't in your model list. Add it on the Model page first.")
+                f"({voice.repo_id}), which isn't in your model list. Add it on the Models page first.")
             return
         if self.model_busy():
             self.set_status_message("Status: Wait for the current load or generation to finish.")
@@ -116,7 +116,7 @@ class VoiceUse:
     def on_voice_clip_made(self, voice, text, wav, sr, error):
         self.generate_button.setEnabled(self.model is not None)
         if error or wav is None:
-            self.set_status_message("Status: Could not make the clip. See the Log page.")
+            self.set_status_message("Status: Could not make the clip. See the log (Settings).")
             QMessageBox.warning(self, "Make Clip", f"Could not make the clip:\n{error}")
             return
         old = self.voice_library.clip_path(voice)

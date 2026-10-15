@@ -44,8 +44,16 @@ def is_installed():
     return os.path.exists(PYTHON) and os.path.exists(WORKER)
 
 
+# misaki[en] declares spacy-curated-transformers (for spaCy's transformer pipelines), which
+# needs curated-tokenizers. Kokoro uses en_core_web_sm, so neither is used, but spaCy loads
+# the plugin on startup, and Windows Smart App Control blocks curated-tokenizers' unsigned
+# _bbpe binary, which broke English Kokoro entirely. Verified: English G2P and speech work
+# without them.
+UNUSED_PACKAGES = ["spacy-curated-transformers", "curated-tokenizers"]
+
+
 def install(log=print):
-    engine_worker.install_env(NAME, PACKAGES, log)
+    engine_worker.install_env(NAME, PACKAGES, log, remove=UNUSED_PACKAGES)
 
 
 def voice_language(voice):
@@ -143,7 +151,7 @@ class KokoroModel:
 
 def load_kokoro_model(repo_id, log=print):
     if not is_installed():
-        raise RuntimeError("The Kokoro engine isn't installed. Click its tile on the Model page to install it.")
+        raise RuntimeError("The Kokoro engine isn't installed. Click its tile on the Models page to install it.")
     worker = engine_worker.WorkerProcess(PYTHON, WORKER, "kokoro", log,
                                          skip=lambda line: "words count mismatch" in line
                                          or "warn" in line.lower())

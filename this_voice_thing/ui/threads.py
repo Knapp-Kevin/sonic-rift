@@ -14,6 +14,10 @@ import torch
 from PySide6.QtCore import QThread, Signal
 
 from this_voice_thing.core import audio_effects, documents, subtitles
+from this_voice_thing.core.engine_loading import (
+    EngineProvider, EngineRequest, EngineUnavailableError, UnsupportedEngineError,
+    load_engine,
+)
 from this_voice_thing.engines import (
     kokoro as kokoro_engine,
     omnivoice as omnivoice_engine,
@@ -22,6 +26,7 @@ from this_voice_thing.engines import (
     voxcpm as voxcpm_engine,
 )
 from this_voice_thing.ui.common import (
+    BACKEND_LEGACY,
     BACKEND_MULTILINGUAL,
     CHATTERBOX_AVAILABLE,
     DEFAULT_MODEL_REPO,
@@ -74,45 +79,71 @@ class ModelLoaderThread(QThread):
 
     def run(self):
         try:
-            if not CHATTERBOX_AVAILABLE:
-                self.error_occurred.emit(
-                    "ChatterboxTTS library is not installed.")
-                return
             if self.cuda_probe_error:
                 print(
                     "CUDA was detected but is not usable with the current "
                     f"PyTorch build. Falling back to CPU. Reason: {self.cuda_probe_error}"
                 )
             print(
-                f"Attempting to load Chatterbox model from repo '{self.repo_id}' "
+                f"Attempting to load model from repo '{self.repo_id}' "
                 f"using backend '{self.backend}' on device: {self.device}..."
             )
-            if self.backend == QWEN_BACKEND:
-                if not qwen_engine.is_installed():
-                    raise RuntimeError(
-                        "The Qwen engine isn't installed. Use Load this model on the Model page "
-                        "to install it.")
-                model_instance = qwen_engine.load_qwen_model(self.repo_id, log=print)
-            elif self.backend == KOKORO_BACKEND:
-                model_instance = kokoro_engine.load_kokoro_model(self.repo_id, log=print)
-            elif self.backend == VOXCPM_BACKEND:
-                model_instance = voxcpm_engine.load_voxcpm_model(self.repo_id, self.mode, log=print)
-            elif self.backend == OMNIVOICE_BACKEND:
-                model_instance = omnivoice_engine.load_omnivoice_model(self.repo_id, self.mode, log=print)
-            elif self.backend == VIBEVOICE_BACKEND:
-                model_instance = vibevoice_engine.load_vibevoice_model(self.repo_id, log=print)
-            else:
-                model_instance = load_chatterbox_model(
-                    self.repo_id,
-                    self.backend,
-                    self.device,
+            # Provider factories own engine-specific signatures. The selection,
+            # availability gate and result validation are handled by the
+            # Qt-independent core rather than inherited Chatterbox UI branches.
+            chatterbox_provider = EngineProvider(
+                load=lambda req: load_chatterbox_model(
+                    req.repo_id, req.backend, req.device,
+                    multilingual_t3_model=req.multilingual_t3_model,
+                ),
+                available=lambda: CHATTERBOX_AVAILABLE,
+                unavailable_message=(
+                    "The Chatterbox engine isn't available (the chatterbox-tts "
+                    "library failed to import). Other engines still work."
+                ),
+            )
+            providers = {
+                BACKEND_LEGACY: chatterbox_provider,
+                BACKEND_MULTILINGUAL: chatterbox_provider,
+                QWEN_BACKEND: EngineProvider(
+                    load=lambda req: qwen_engine.load_qwen_model(req.repo_id, log=print),
+                    available=qwen_engine.is_installed,
+                    unavailable_message=(
+                        "The Qwen engine isn't installed. Use Load this model "
+                        "on the Models page to install it."
+                    ),
+                ),
+                KOKORO_BACKEND: EngineProvider(
+                    load=lambda req: kokoro_engine.load_kokoro_model(req.repo_id, log=print),
+                    available=lambda: True,
+                    unavailable_message="Kokoro is unavailable.",
+                ),
+                VOXCPM_BACKEND: EngineProvider(
+                    load=lambda req: voxcpm_engine.load_voxcpm_model(req.repo_id, req.mode, log=print),
+                    available=lambda: True,
+                    unavailable_message="VoxCPM is unavailable.",
+                ),
+                OMNIVOICE_BACKEND: EngineProvider(
+                    load=lambda req: omnivoice_engine.load_omnivoice_model(req.repo_id, req.mode, log=print),
+                    available=lambda: True,
+                    unavailable_message="OmniVoice is unavailable.",
+                ),
+                VIBEVOICE_BACKEND: EngineProvider(
+                    load=lambda req: vibevoice_engine.load_vibevoice_model(req.repo_id, log=print),
+                    available=lambda: True,
+                    unavailable_message="VibeVoice is unavailable.",
+                ),
+            }
+            model_instance = load_engine(
+                EngineRequest(
+                    backend=self.backend,
+                    repo_id=self.repo_id,
+                    device=self.device,
+                    mode=self.mode,
                     multilingual_t3_model=self.multilingual_t3_model,
-                )
-            if model_instance is None:
-                raise RuntimeError("Model backend loader returned no model instance.")
-            model_to = getattr(model_instance, "to", None)
-            if callable(model_to):
-                model_to(self.device)
+                ),
+                providers,
+            )
             model_device = getattr(model_instance, "device", "N/A")
             print(
                 f"Model loaded successfully from repo '{self.repo_id}' "
@@ -120,6 +151,8 @@ class ModelLoaderThread(QThread):
                 f"{model_device}"
             )
             self.model_loaded.emit(model_instance, self.device)
+        except (EngineUnavailableError, UnsupportedEngineError) as e:
+            self.error_occurred.emit(str(e))
         except UnsupportedChatterboxRepoError as e:
             print(
                 f"Unsupported model repo '{self.repo_id}': {e}"
@@ -468,3 +501,28 @@ class EngineInstallThread(QThread):
             self.finished_with.emit("")
         except Exception as exc:
             self.finished_with.emit(str(exc))
+
+
+class SoundRenderThread(QThread):
+    """Renders Soundscape candidates off the UI thread; Stop takes effect between takes."""
+
+    progressed = Signal(int, int)
+    done = Signal(object, str)      # [Candidate] or None, error
+
+    def __init__(self, request, model, parent=None):
+        super().__init__(parent)
+        self.request, self.model = request, model
+        self._stop = threading.Event()
+
+    def stop(self):
+        self._stop.set()
+
+    def run(self):
+        from this_voice_thing.core.soundscape import render
+        try:
+            results = render.render(self.request, self.model, cancelled=self._stop.is_set,
+                                    progress=lambda done, total: self.progressed.emit(done, total))
+            self.done.emit(results, "")
+        except Exception as exc:
+            traceback.print_exc()
+            self.done.emit(None, f"{type(exc).__name__}: {exc}")

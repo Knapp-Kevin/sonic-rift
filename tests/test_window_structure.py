@@ -12,7 +12,12 @@ class WindowStructureTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from this_voice_thing.ui import main_window
-        cls.window_class = main_window.ChatterboxApp
+        cls.window_class = main_window.SonicRiftApp
+        cls.legacy_window_class = main_window.ChatterboxApp
+
+    def test_new_window_name_is_canonical_and_old_import_still_works(self):
+        self.assertEqual(self.window_class.__name__, "SonicRiftApp")
+        self.assertIs(self.window_class, self.legacy_window_class)
 
     def own_members(self, klass):
         return {name for name, value in vars(klass).items()
@@ -29,8 +34,9 @@ class WindowStructureTests(unittest.TestCase):
                 seen[name] = klass.__name__
 
     def test_every_page_has_a_builder(self):
-        for name in ("_build_generate_page", "_build_voice_page", "_build_transcribe_page",
-                     "_build_model_page", "_build_advanced_page", "_build_log_page"):
+        for name in ("_build_generate_page", "_build_voices_section", "_build_voice_page",
+                     "_build_studio_page", "_build_soundscape_page", "_build_transcribe_page",
+                     "_build_model_page", "_build_advanced_page", "_build_log_card"):
             self.assertTrue(callable(getattr(self.window_class, name, None)), name)
 
     def test_mixins_stay_plain(self):

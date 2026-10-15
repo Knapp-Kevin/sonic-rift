@@ -142,18 +142,31 @@ class AppIcon(unittest.TestCase):
         self.assertEqual(ui_theme.app_icon_path(), expected)
         self.assertFalse(os.path.isabs(os.path.relpath(ui_theme.BRAND_ICON, ROOT)))  # inside the repo
 
+    def test_window_icon_has_every_size_and_small_sizes_are_redrawn(self):
+        from PySide6.QtCore import QSize
+        from PySide6.QtWidgets import QApplication
+        QApplication.instance() or QApplication([])
+        files = dict(ui_theme.app_icon_files())
+        self.assertEqual(sorted(files), sorted(ui_theme.APP_ICON_SIZES))
+        icon = ui_theme.app_icon()
+        for size in (16, 24, 32, 48, 256):
+            self.assertIn(QSize(size, size), icon.availableSizes())
+        self.assertIn("sonic-rift", os.path.basename(ui_theme.app_icon_path()))
+
     def test_branding_assets_decode(self):
         """Catch truncated or corrupt brand images before they ship."""
         from PySide6.QtGui import QImage
         folder = os.path.join(ROOT, "assets", "branding")
         if not os.path.isdir(folder):
             self.skipTest("no branding assets yet")
-        for name in sorted(os.listdir(folder)):
-            if name.lower().endswith((".png", ".jpg", ".jpeg")):
-                self.assertFalse(QImage(os.path.join(folder, name)).isNull(), f"{name} doesn't decode")
+        images = [os.path.join(here, name) for here, _dirs, names in os.walk(folder) for name in names
+                  if name.lower().endswith((".png", ".jpg", ".jpeg"))]
+        self.assertTrue(any("app-icon" in path for path in images))   # the generated icon set is walked too
+        for path in sorted(images):
+            self.assertFalse(QImage(path).isNull(), f"{os.path.relpath(path, folder)} doesn't decode")
 
     def test_product_name(self):
-        self.assertEqual(ui_theme.APP_NAME, "This Voice Thing")
+        self.assertEqual(ui_theme.APP_NAME, "Sonic Rift")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QMessageBox
 
 from this_voice_thing.core import model_registry
 from this_voice_thing.ui.common import BACKEND_MULTILINGUAL
-from this_voice_thing.ui.common import CHATTERBOX_AVAILABLE
+from this_voice_thing.ui.common import CHATTERBOX_AVAILABLE, needs_chatterbox
 from this_voice_thing.ui.common import DEFAULT_MODEL_REPO
 from this_voice_thing.ui.common import DEFAULT_MULTILINGUAL_T3_MODEL
 from this_voice_thing.ui.common import DUAL_MODE_BACKENDS
@@ -113,7 +113,7 @@ class ModelLoading:
         selected_entry = self.get_selected_model_entry()
         tooltip = (f"{selected_entry['repo_id']} \u00b7 "
                    f"{model_registry.engine_for(selected_entry).label}\n"
-                   "Switching loads the model. Manage models on the Model page.")
+                   "Switching loads the model. Manage models on the Models page.")
         if selected_entry.get("notes"):
             tooltip += f"\n\n{selected_entry['notes']}"
         self.model_repo_combo.setToolTip(tooltip)
@@ -150,16 +150,18 @@ class ModelLoading:
             self.update_engine_controls()
 
     def load_model(self, selected_entry=None):
+        if getattr(self, "model_is_loading", False):
+            return
         if getattr(self, "live_voice_busy", False):
             QMessageBox.information(self, "Live Voice", "Stop Live Voice before switching models.")
             return
-        if not CHATTERBOX_AVAILABLE:
-            QMessageBox.critical(
-                self, "Error", "ChatterboxTTS library not installed.")
-            return
-        if getattr(self, "model_is_loading", False):
-            return
         selected_entry = selected_entry or self.get_selected_model_entry()
+        if needs_chatterbox(selected_entry.get("backend", BACKEND_MULTILINGUAL)) and not CHATTERBOX_AVAILABLE:
+            QMessageBox.critical(
+                self, "Chatterbox unavailable",
+                "The Chatterbox engine isn't available: the chatterbox-tts library failed to import "
+                "(see the log in Settings). Other engines still work; pick one on the Models page.")
+            return
         selected_repo = selected_entry["repo_id"]
         selected_backend = selected_entry.get("backend", BACKEND_MULTILINGUAL)
         if (selected_backend in DUAL_MODE_BACKENDS and isinstance(self.model, DUAL_MODE_TYPES)
@@ -175,7 +177,7 @@ class ModelLoading:
         self.current_multilingual_t3_model = selected_multilingual_t3_model
         self.set_status_message(
             f"Status: Loading {selected_entry['label']}. A model that isn't downloaded yet "
-            "is fetched first; progress appears on the Log page."
+            "is fetched first; progress appears in the log (Settings)."
         )
         self.generate_button.setEnabled(False)
         self.preview_button.setEnabled(False)
@@ -218,6 +220,8 @@ class ModelLoading:
         self.refresh_model_repo_options()
         self.render_voice_tiles()
         self.run_pending_studio()
+        if hasattr(self, "live_model_label"):
+            self.refresh_live_voice_summary()
 
     def on_model_loaded(self, model_instance, device_used):
         self.model_is_warm = False
@@ -237,8 +241,6 @@ class ModelLoading:
         self.refresh_models_page()
         self.update_engine_controls()
         self.after_voice_model_ready()
-        if hasattr(self, "live_model_label"):
-            self.refresh_live_voice_summary()
         if self.system_has_nvidia_gpu and self.device_used == "cpu":
             details = self.cuda_runtime_issue or (
                 "This Python environment is using a CPU-only PyTorch build."

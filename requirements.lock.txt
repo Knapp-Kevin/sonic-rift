@@ -267,6 +267,7 @@ pykakasi==2.3.0
     # via chatterbox-tts
 pyloudnorm==0.2.0
     # via
+    #   -r requirements.in
     #   chatterbox-tts
     #   resemble-perth
 pyparsing==3.3.2

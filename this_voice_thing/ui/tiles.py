@@ -1,4 +1,4 @@
-"""Model tiles for the Model page: a card per model, laid out in a wrapping grid.
+"""Model tiles for the Models page: a card per model, laid out in a wrapping grid.
 
 Tiles are plain widgets styled by ui_theme (QFrame#Tile, QLabel#Badge). The
 Discover search runs in a background thread so the page never blocks on the

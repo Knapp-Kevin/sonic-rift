@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QLabel
 from PySide6.QtWidgets import QPushButton
 from PySide6.QtWidgets import QWidget
 
-from this_voice_thing.core import audio_effects
+from this_voice_thing.core import audio_effects, subtitles
 from this_voice_thing.ui.common import LOSSLESS_FORMATS
 from this_voice_thing.ui.widgets import ElidedLabel
 
@@ -49,10 +49,19 @@ class Finishing:
                       "Silence between paragraphs (headings get a little more). Pauses between "
                       "sentences and inside long sentences are kept short and even automatically.")
         self.output_format_combo = QComboBox()
-        self.output_format_combo.addItems(LOSSLESS_FORMATS)
+        self.output_format_combo.addItems([*LOSSLESS_FORMATS, "MP3"])
         add_finishing(0, 2, "Save as", self.output_format_combo,
-                      "WAV is uncompressed; FLAC is lossless and about half the size. "
-                      "MP3 is on the Advanced page.")
+                      "WAV is uncompressed; FLAC is lossless and about half the size; MP3 is smallest "
+                      "and plays everywhere, but lossy and can weaken the AI watermark.")
+        watermark = (" Changes the audio after it is generated and can weaken the inaudible watermark "
+                     "that marks it as AI-generated.")
+        self.speed_slider = self._create_slider(*audio_effects.SPEED_RANGE, 0.05, 1.0, "{:.2f}x")
+        add_finishing(1, 0, "Speed", self.speed_slider,
+                      "Speaking speed without changing the pitch. 1.00x is unchanged." + watermark)
+        self.pitch_slider = self._create_slider(*audio_effects.PITCH_RANGE, 0.5, 0.0, "{:+.1f} st")
+        add_finishing(1, 2, "Pitch", self.pitch_slider,
+                      "Raise or lower the voice in semitones while keeping its character; 1-2 st sounds "
+                      "most natural." + watermark)
         finishing_checks = QHBoxLayout()
         self.even_volume_checkbox = QCheckBox("Even out volume")
         self.even_volume_checkbox.setToolTip(
@@ -63,28 +72,36 @@ class Finishing:
         finishing_checks.setSpacing(18)
         self.subtitles_checkbox = QCheckBox("Save subtitles")
         self.subtitles_checkbox.setToolTip(
-            "Also save captions timed to the audio, next to it (.srt, or .vtt: the format is on the "
-            "Advanced page). Timing comes from the generated sections and the pauses in them.")
+            "Also save captions timed to the audio, next to it. Timing comes from the generated "
+            "sections and the pauses in them.")
+        self.subtitle_format_combo = QComboBox()
+        self.subtitle_format_combo.addItems(list(subtitles.FORMATS))
+        self.subtitle_format_combo.setToolTip(
+            "SRT works almost everywhere (video editors, YouTube, VLC). WebVTT is for web players; "
+            "in conversations it tags each caption with the speaker.")
         finishing_checks.addWidget(self.even_volume_checkbox)
         finishing_checks.addWidget(self.trim_silence_checkbox)
         finishing_checks.addWidget(self.subtitles_checkbox)
+        finishing_checks.addWidget(self.subtitle_format_combo)
         finishing_checks.addStretch(1)
         reset_finishing_button = QPushButton("Reset")
-        reset_finishing_button.setToolTip(
-            "Restore the default finishing settings (Advanced effects are kept).")
+        reset_finishing_button.setToolTip("Restore the default finishing settings.")
         reset_finishing_button.clicked.connect(self.reset_finishing)
         finishing_checks.addWidget(reset_finishing_button)
-        finishing_grid.addLayout(finishing_checks, 1, 0, 1, 4)
+        finishing_grid.addLayout(finishing_checks, 2, 0, 1, 4)
         delivery_layout.addWidget(self.finishing_panel)
-        self.finishing_toggle.setToolTip(
-            "Adjustments applied to the audio after it is generated. Speed, pitch and MP3 "
-            "are on the Advanced page.")
 
         self.pause_slider.slider.valueChanged.connect(self.update_finishing_summary)
         self.output_format_combo.currentTextChanged.connect(self.update_finishing_summary)
         self.even_volume_checkbox.toggled.connect(self.update_finishing_summary)
         self.trim_silence_checkbox.toggled.connect(self.update_finishing_summary)
         self.subtitles_checkbox.toggled.connect(self.update_finishing_summary)
+        self.subtitle_format_combo.currentTextChanged.connect(self.update_finishing_summary)
+        for slider in (self.speed_slider, self.pitch_slider):
+            slider.slider.valueChanged.connect(self.update_finishing_summary)
+        self.apply_finishing_settings(
+            audio_effects.FinishingSettings.from_dict(self.app_settings.get("finishing")))
+        self.set_finishing_expanded(bool(self.app_settings.get("finishing_expanded", False)))
 
     # --- Finishing touches ---
 
@@ -95,7 +112,7 @@ class Finishing:
             paragraph_pause=round(self.pause_slider.get_value(), 1),
             even_volume=self.even_volume_checkbox.isChecked(),
             trim_silence=self.trim_silence_checkbox.isChecked(),
-            output_format="MP3" if self.mp3_checkbox.isChecked() else self.output_format_combo.currentText(),
+            output_format=self.output_format_combo.currentText(),
             save_subtitles=self.subtitles_checkbox.isChecked(),
             subtitle_format=self.subtitle_format_combo.currentText(),
         )
@@ -106,16 +123,17 @@ class Finishing:
         self.pause_slider.set_value(settings.paragraph_pause)
         self.even_volume_checkbox.setChecked(settings.even_volume)
         self.trim_silence_checkbox.setChecked(settings.trim_silence)
-        self.mp3_checkbox.setChecked(settings.output_format == "MP3")
-        if settings.output_format in LOSSLESS_FORMATS:
+        if settings.output_format in (*LOSSLESS_FORMATS, "MP3"):
             self.output_format_combo.setCurrentText(settings.output_format)
         self.subtitles_checkbox.setChecked(settings.save_subtitles)
         self.subtitle_format_combo.setCurrentText(settings.subtitle_format)
         self.update_finishing_summary()
 
     def reset_finishing(self):
-        """Finishing touches only; Advanced effects are left as they are."""
         defaults = audio_effects.FinishingSettings()
+        self.speed_slider.set_value(defaults.speed)
+        self.pitch_slider.set_value(defaults.pitch_semitones)
+        self.subtitle_format_combo.setCurrentText(defaults.subtitle_format)
         self.pause_slider.set_value(defaults.paragraph_pause)
         self.even_volume_checkbox.setChecked(defaults.even_volume)
         self.trim_silence_checkbox.setChecked(defaults.trim_silence)
@@ -123,22 +141,10 @@ class Finishing:
         self.subtitles_checkbox.setChecked(defaults.save_subtitles)
         self.update_finishing_summary()
 
-    def on_mp3_toggled(self, checked):
-        self.output_format_combo.setEnabled(not checked)
-        self.output_format_combo.setToolTip(
-            "MP3 is selected on the Advanced page." if checked else
-            "WAV is uncompressed; FLAC is lossless and about half the size. "
-            "MP3 is on the Advanced page.")
-        self.update_finishing_summary()
-
     def update_finishing_summary(self, *_args):
         if not hasattr(self, "subtitle_format_combo"):
-            return  # Advanced page not built yet
-        settings = self.current_finishing_settings()
-        summary = settings.summary()
-        advanced = (abs(settings.speed - 1.0) > 1e-6 or abs(settings.pitch_semitones) > 1e-6
-                    or settings.output_format == "MP3")
-        self.finishing_summary_label.setText(summary + ("  (effects on Advanced page)" if advanced else ""))
+            return  # the panel is still being built
+        self.finishing_summary_label.setText(self.current_finishing_settings().summary())
 
     def set_finishing_expanded(self, expanded):
         self.finishing_panel.setVisible(expanded)

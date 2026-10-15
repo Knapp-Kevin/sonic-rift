@@ -9,7 +9,7 @@ from this_voice_thing.ui.common import DUAL_MODE_BACKENDS
 
 
 class Discover:
-    """Hugging Face discovery on the Model page. Mixed into ChatterboxApp."""
+    """Hugging Face discovery on the Models page. Mixed into ChatterboxApp."""
 
     # --- Discover ---
 
@@ -42,6 +42,8 @@ class Discover:
             return
         existing = {entry.get("repo_id") for entry in self.model_entries}
         capability = self.current_capability()
+        if capability not in model_registry.CAPABILITIES:
+            return  # the Sounds tab has no Hugging Face discovery
         title = model_registry.CAPABILITIES[capability][0].lower()
         matching = [r for r in results if capability in r.capabilities and r.repo_id not in existing]
         self.discover_tiles.set_tiles([self.discover_tile(result) for result in matching[:30]])

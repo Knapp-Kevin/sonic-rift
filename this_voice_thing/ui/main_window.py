@@ -5,7 +5,8 @@ import os
 import sys
 
 import torch
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
 from PySide6.QtWidgets import (
     QApplication,
@@ -20,6 +21,8 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QSizePolicy,
     QStackedWidget,
+    QStyledItemDelegate,
+    QTabBar,
     QVBoxLayout,
     QWidget,
 )
@@ -62,6 +65,7 @@ from this_voice_thing.ui.pages.models import ModelPage
 from this_voice_thing.ui.pages.player import Player
 from this_voice_thing.ui.pages.pronunciations import Pronunciations
 from this_voice_thing.ui.pages.recording import Recording
+from this_voice_thing.ui.pages.soundscape import SoundscapePage
 from this_voice_thing.ui.pages.studio import StudioPage
 from this_voice_thing.ui.pages.transcribe import TranscribePage
 from this_voice_thing.ui.pages.voice import VoicePage
@@ -69,9 +73,24 @@ from this_voice_thing.ui.pages.voice_picker import VoicePicker
 from this_voice_thing.ui.pages.voice_use import VoiceUse
 
 
-class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, EngineControls, Player,
-                    LiveVoicePage, StudioPage, VoicePage, VoicePicker, Library, VoiceUse, Recording, TranscribePage,
-                    ModelPage, Discover, ModelLoading, ModelSettings, AdvancedPage, ApiServer, Pronunciations, QMainWindow):
+class SidebarDelegate(QStyledItemDelegate):
+    """Paints sidebar group headings (TOOLS, SETUP) as small accent-coloured labels; the
+    stylesheet colours every item the same, so headings are drawn here instead."""
+
+    def paint(self, painter, option, index):
+        if index.data(Qt.ItemDataRole.UserRole) is not None:
+            return super().paint(painter, option, index)
+        painter.save()
+        painter.setFont(index.data(Qt.ItemDataRole.FontRole) or option.font)
+        painter.setPen(QColor(ui_theme.current()["accent"]))
+        rect = option.rect.adjusted(14, 0, -8, -6)
+        painter.drawText(rect, int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom), index.data())
+        painter.restore()
+
+
+class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, EngineControls, Player,
+                    LiveVoicePage, StudioPage, SoundscapePage, VoicePage, VoicePicker, Library, VoiceUse, Recording, TranscribePage, ModelPage, Discover, ModelLoading, ModelSettings,
+                    AdvancedPage, ApiServer, Pronunciations, QMainWindow):
     log_message_signal = Signal(str)
 
     def __init__(self):
@@ -94,7 +113,8 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         self.app_settings = self.load_app_settings()
         self.apply_hf_token_setting()
         self.current_audio_file = None
-        self.output_directory = os.path.join(os.getcwd(), "chatterbox_outputs")
+        # In the project folder like all other app data, wherever the app was started from.
+        self.output_directory = os.path.join(paths.ROOT, "chatterbox_outputs")
         if not os.path.exists(self.output_directory):
             os.makedirs(self.output_directory)
         self.last_reference_audio_dir = self.script_dir
@@ -173,11 +193,21 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
             )
             QTimer.singleShot(0, self.start_default_model_load)
         else:
-            self.set_status_message("Status: Chatterbox library not found.")
-            self.generate_button.setEnabled(False)
+            # The Chatterbox engine can't load, but every other engine runs in its own environment.
+            self.set_status_message(
+                "Status: The Chatterbox engine is unavailable (see the log in Settings); load another model on "
+                "the Models page.")
         QTimer.singleShot(0, self.restart_api_server)
 
-    PAGE_GENERATE, PAGE_LIVE_VOICE, PAGE_STUDIO, PAGE_VOICE, PAGE_TRANSCRIBE, PAGE_MODEL, PAGE_ADVANCED, PAGE_LOG = range(8)
+    # Pages in the stack, in sidebar order. The sidebar is grouped by what you're doing:
+    # make things (Create, Voices, Sounds), perform them (Live), tools, then setup.
+    PAGE_GENERATE, PAGE_VOICE, PAGE_SOUNDSCAPE, PAGE_LIVE_VOICE, PAGE_TRANSCRIBE, PAGE_MODEL, PAGE_ADVANCED = range(7)
+    PAGE_STUDIO = "studio"        # the New voice tab of Voices
+    PAGE_LOG = PAGE_ADVANCED      # the log is a card on Settings
+    SIDEBAR = (("Create", PAGE_GENERATE), ("Voices", PAGE_VOICE), ("Sounds", PAGE_SOUNDSCAPE),
+               ("Live", PAGE_LIVE_VOICE),
+               ("Tools", None), ("Transcribe", PAGE_TRANSCRIBE),
+               ("Setup", None), ("Models", PAGE_MODEL), ("Settings", PAGE_ADVANCED))
 
     def _make_card(self, title=None):
         card = ui_theme.CardFrame()
@@ -191,8 +221,13 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         return card, layout
 
     def _make_page(self, title, subtitle):
+        """A page with a title. With title None it's a section inside a page (no title, no margins)."""
         page = QWidget()
         layout = QVBoxLayout(page)
+        if title is None:
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(2)
+            return page, layout
         # Cards carry their own shadow margin, so page spacing is tighter.
         layout.setContentsMargins(17, 14, 17, 10)
         layout.setSpacing(2)
@@ -236,8 +271,20 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         self.sidebar.setObjectName("Sidebar")
         self.sidebar.setFixedWidth(180)
         self.sidebar.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        for label in ("Generate", "Live Voice", "Studio", "Voices", "Transcribe", "Model", "Advanced", "Log"):
-            self.sidebar.addItem(QListWidgetItem(label))
+        for label, page in self.SIDEBAR:
+            item = QListWidgetItem(label if page is not None else label.upper())
+            item.setData(Qt.ItemDataRole.UserRole, page)
+            if page is None:      # a group heading: not selectable, skipped by the arrow keys
+                item.setFlags(Qt.ItemFlag.NoItemFlags)
+                heading = QFont(self.sidebar.font())
+                heading.setPointSizeF(7.5)
+                heading.setBold(True)
+                heading.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 150)
+                item.setFont(heading)
+                # Taller row with the label at the bottom: space above separates the groups.
+                item.setSizeHint(QSize(0, 42))
+                item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
+            self.sidebar.addItem(item)
         title_row = QHBoxLayout()
         title_row.setContentsMargins(18, 16, 12, 10)
         title_row.setSpacing(9)
@@ -253,8 +300,13 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         sidebar_layout.addLayout(title_row)
         sidebar_layout.addWidget(self.sidebar)
         self.pages = QStackedWidget()
-        self.sidebar.currentRowChanged.connect(self.pages.setCurrentIndex)
-        self.sidebar.currentRowChanged.connect(self.on_page_changed)
+        self.sidebar.currentRowChanged.connect(self._on_sidebar_row)
+        self.sidebar.setItemDelegate(SidebarDelegate(self.sidebar))
+        try:   # follow light/dark switches, like the rest of the theme
+            QApplication.instance().styleHints().colorSchemeChanged.connect(
+                lambda *_args: QTimer.singleShot(0, self._color_sidebar_headings))
+        except AttributeError:
+            pass
         content_area = ui_theme.TexturedArea()
         content_layout = QVBoxLayout(content_area)
         content_layout.setContentsMargins(0, 0, 0, 0)
@@ -263,15 +315,14 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         root_layout.addWidget(content_area, 1)
 
         self._build_generate_page()
+        self._build_voices_section()
+        self._build_soundscape_page()
         self._build_live_voice_page()
-        self._build_studio_page()
-        self._build_voice_page()
         self._build_transcribe_page()
         self._build_model_page()
         self._build_advanced_page()
-        self._build_log_page()
 
-        self.sidebar.setCurrentRow(self.PAGE_GENERATE)
+        self.show_page(self.PAGE_GENERATE)
 
         qt_status_bar = self.statusBar()
         qt_status_bar.setSizeGripEnabled(False)
@@ -302,16 +353,75 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         self.refresh_recordings_list()
         self.set_reference_audio(None)
 
-    def _build_log_page(self):
-        log_page, log_layout = self._make_page(
-            "Log", "Technical output from model loading and generation.")
+    def _build_voices_section(self):
+        """Voices: the library and New voice (the Studio) as tabs of one page."""
+        page, layout = self._make_page(
+            "Voices", "Your saved voices, and new ones made from a recording, a description or another voice.")
+        self.voices_tabs = QTabBar()
+        self.voices_tabs.setObjectName("CapabilityTabs")
+        self.voices_tabs.setDrawBase(False)
+        self.voices_tabs.setExpanding(False)
+        self.voices_tabs.setUsesScrollButtons(False)
+        self.voices_tabs.setElideMode(Qt.TextElideMode.ElideNone)
+        self.voices_tabs.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.voices_tabs.addTab("Library")
+        self.voices_tabs.addTab("New voice")
+        tabs_row = QHBoxLayout()
+        tabs_row.setContentsMargins(ui_theme.SHADOW, 0, ui_theme.SHADOW, 4)
+        tabs_row.addWidget(self.voices_tabs)
+        tabs_row.addStretch(1)
+        layout.addLayout(tabs_row)
+        self.voices_stack = QStackedWidget()
+        layout.addWidget(self.voices_stack, 1)
+        self._build_voice_page()      # adds the library to voices_stack
+        self._build_studio_page()     # adds the Studio to voices_stack
+        self.voices_tabs.currentChanged.connect(self._on_voices_tab)
+        self.pages.addWidget(page)
+
+    def _on_voices_tab(self, index):
+        self.voices_stack.setCurrentIndex(index)
+        if index == 1:
+            self.on_page_changed(self.PAGE_STUDIO)
+
+    def _on_sidebar_row(self, row):
+        item = self.sidebar.item(row)
+        page = item.data(Qt.ItemDataRole.UserRole) if item is not None else None
+        if page is None:
+            return
+        self.pages.setCurrentIndex(page)
+        self.on_page_changed(page)
+        if page == self.PAGE_VOICE and self.voices_tabs.currentIndex() == 1:
+            self.on_page_changed(self.PAGE_STUDIO)
+
+    def _color_sidebar_headings(self):
+        """Repaint the group headings (their colour comes from the theme at paint time)."""
+        self.sidebar.viewport().update()
+
+    def show_page(self, page):
+        """Go to a page; PAGE_STUDIO opens Voices on its New voice tab."""
+        if page == self.PAGE_STUDIO:
+            self.voices_tabs.setCurrentIndex(1)
+            page = self.PAGE_VOICE
+        elif page == self.PAGE_VOICE:
+            self.voices_tabs.setCurrentIndex(0)
+        for row in range(self.sidebar.count()):
+            if self.sidebar.item(row).data(Qt.ItemDataRole.UserRole) == page:
+                self.sidebar.setCurrentRow(row)
+                return
+
+    def _build_log_card(self):
+        log_card, log_layout = self._make_card("Log")
+        hint = QLabel("Technical output from model loading and generation.")
+        hint.setObjectName("Muted")
+        log_layout.addWidget(hint)
         self.console_log_view = QPlainTextEdit()
         self.console_log_view.setReadOnly(True)
         self.console_log_view.setMaximumBlockCount(1000)
         self.console_log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.console_log_view.setObjectName("LogView")
+        self.console_log_view.setMinimumHeight(160)
         log_layout.addWidget(self.console_log_view, 1)
-        self.pages.addWidget(log_page)
+        return log_card
 
     def attach_log_sink(self):
         # the console tee in common forwards to this sink
@@ -419,8 +529,7 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         if page == self.PAGE_LIVE_VOICE:
             self.refresh_live_voice_summary()
             self.refresh_live_audio_devices()
-            if not getattr(self, "live_board_defaults_applied", False) \
-                    and self.soundboard_defaults_can_apply():
+            if not getattr(self, "live_board_defaults_applied", False)                     and self.soundboard_defaults_can_apply():
                 self.apply_soundboard_board_defaults(self.soundboard_store.active_board())
                 self.live_board_defaults_applied = True
         if page == self.PAGE_STUDIO and not self.studio_busy:
@@ -460,6 +569,10 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         if hasattr(self, 'audio_generator_thread') and self.audio_generator_thread.isRunning():
             self.audio_generator_thread.stop()  # Request stop
             self.audio_generator_thread.wait()  # Wait for it to finish
+        if self.sound_render_thread is not None and self.sound_render_thread.isRunning():
+            self.sound_render_thread.stop()
+            self.sound_render_thread.wait()
+        self.release_sound_model()
         if isinstance(self.model, WORKER_MODEL_TYPES):
             self.model.close()
         event.accept()
@@ -467,13 +580,17 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
 
 
 
+# Historical import remains available for downstream scripts during migration.
+# This is an alias, not a separate implementation or claim of new authorship.
+ChatterboxApp = SonicRiftApp
+
 if __name__ == "__main__":
     taskbar.set_process_app_id()
     app = QApplication(sys.argv)
     app.setApplicationName(ui_theme.APP_NAME)
     app.setApplicationDisplayName(ui_theme.APP_NAME)
     ui_theme.apply_theme(app)
-    window = ChatterboxApp()
+    window = SonicRiftApp()
     # Before show(): the taskbar button then never asks a busy window for its icon
     # (start-up work can block the UI thread, and Windows would cache the generic icon).
     taskbar.set_window_identity(window)

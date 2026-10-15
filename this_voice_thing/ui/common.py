@@ -118,6 +118,7 @@ except ImportError:
 
 from this_voice_thing.core import documents
 from this_voice_thing.core import model_registry
+from this_voice_thing.core.hardware import has_system_nvidia_gpu, probe_usable_torch_cuda
 from this_voice_thing.engines import qwen as qwen_engine
 from this_voice_thing.engines import kokoro as kokoro_engine
 from this_voice_thing.engines import voxcpm as voxcpm_engine
@@ -142,28 +143,23 @@ BACKEND_MULTILINGUAL = getattr(
 DEFAULT_MULTILINGUAL_T3_MODEL = getattr(
     chatterbox_backends, "DEFAULT_MULTILINGUAL_T3_MODEL", "v3"
 )
+class _ChatterboxUnavailableRepoError(RuntimeError):
+    """Stand-in when chatterbox-tts is missing. Never RuntimeError itself: callers catch this
+    to label Chatterbox repository problems, and other engines raise RuntimeError too."""
+
+
 UnsupportedChatterboxRepoError = getattr(
-    chatterbox_backends, "UnsupportedChatterboxRepoError", RuntimeError
+    chatterbox_backends, "UnsupportedChatterboxRepoError", _ChatterboxUnavailableRepoError
 )
 get_supported_languages_for_backend = getattr(
     chatterbox_backends,
     "get_supported_languages_for_backend",
     lambda _backend: {"en": "English"},
 )
-has_system_nvidia_gpu = getattr(
-    chatterbox_backends,
-    "has_system_nvidia_gpu",
-    lambda: False,
-)
 load_chatterbox_model = getattr(
     chatterbox_backends,
     "load_chatterbox_model",
     lambda repo_id, backend, device, multilingual_t3_model=None: None,
-)
-probe_usable_torch_cuda = getattr(
-    chatterbox_backends,
-    "probe_usable_torch_cuda",
-    lambda: (False, "torch.cuda probe unavailable."),
 )
 resolve_multilingual_t3_model = getattr(
     chatterbox_backends,
@@ -180,6 +176,13 @@ KOKORO_BACKEND = "kokoro"
 VOXCPM_BACKEND = "voxcpm"
 OMNIVOICE_BACKEND = "omnivoice"
 VIBEVOICE_BACKEND = "vibevoice"
+# Engines that run in their own environment and never need the chatterbox-tts library.
+WORKER_BACKENDS = frozenset({QWEN_BACKEND, KOKORO_BACKEND, VOXCPM_BACKEND, OMNIVOICE_BACKEND, VIBEVOICE_BACKEND})
+
+
+def needs_chatterbox(backend):
+    """Only the Chatterbox backends need the chatterbox-tts library in this environment."""
+    return backend not in WORKER_BACKENDS
 # Engines that run in their own environment (engines/<name>), installed on first use.
 ENGINE_MODULES = {QWEN_BACKEND: qwen_engine, KOKORO_BACKEND: kokoro_engine, VOXCPM_BACKEND: voxcpm_engine,
                   OMNIVOICE_BACKEND: omnivoice_engine, VIBEVOICE_BACKEND: vibevoice_engine}

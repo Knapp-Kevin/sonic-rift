@@ -36,7 +36,7 @@ class TranscribePage:
         self.transcribe_source_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         audio_row.addWidget(self.transcribe_source_label, 1)
         use_clip_button = self._link(QPushButton("Use current voice clip"))
-        use_clip_button.setToolTip("Transcribe the reference clip selected on the Voice page.")
+        use_clip_button.setToolTip("Transcribe the reference clip selected in Voices.")
         use_clip_button.clicked.connect(self.transcribe_use_voice_clip)
         audio_row.addWidget(use_clip_button)
         open_audio_button = QPushButton("Open audio...")
@@ -89,8 +89,8 @@ class TranscribePage:
         self.save_subtitles_button.clicked.connect(self.save_transcript_subtitles)
         result_row.addWidget(self.save_subtitles_button)
         result_row.addStretch(1)
-        send_button = self._link(QPushButton("Send to Generate"))
-        send_button.setToolTip("Put this text on the Generate page, to speak it with any voice.")
+        send_button = self._link(QPushButton("Send to Create"))
+        send_button.setToolTip("Put this text on Create, to speak it with any voice.")
         send_button.clicked.connect(self.send_transcript_to_generate)
         result_row.addWidget(send_button)
         text_layout_t.addLayout(result_row)
@@ -118,7 +118,7 @@ class TranscribePage:
     def transcribe_use_voice_clip(self):
         path = self.reference_path
         if not path:
-            QMessageBox.information(self, "Transcribe", "Pick a voice clip on the Voice page first.")
+            QMessageBox.information(self, "Transcribe", "Pick a voice clip in Voices first.")
             return
         self.set_transcribe_source(path)
 
@@ -155,7 +155,7 @@ class TranscribePage:
             if error:
                 self.transcribe_status.setText(f"Couldn't transcribe: {error}")
                 ui_theme.set_tone(self.transcribe_status, "error")
-                self.set_status_message("Status: Transcription failed. See the Log page.")
+                self.set_status_message("Status: Transcription failed. See the log (Settings).")
                 return
             self.transcript = transcript
             self.show_transcript()
@@ -214,8 +214,8 @@ class TranscribePage:
         self.text_input.setPlainText(text)
         self.current_document_name = None
         self.document_label.setText("From Transcribe")
-        self.sidebar.setCurrentRow(self.PAGE_GENERATE)
-        self.set_status_message("Status: Transcript sent to Generate.")
+        self.show_page(self.PAGE_GENERATE)
+        self.set_status_message("Status: Transcript sent to Create.")
 
     def transcribe_voice_clip(self, voice):
         """Fill in a library clip's transcript (cloning models such as OmniVoice need one)."""

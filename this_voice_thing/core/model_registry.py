@@ -17,7 +17,7 @@ from huggingface_hub.errors import (
 ENTRY_KEYS = (
     "repo_id", "label", "enabled", "experimental", "test_text", "test_texts",
     "notes", "backend", "language_id", "multilingual_t3_model", "qwen_variant",
-    "license", "download_bytes", "mode",
+    "license", "download_bytes", "mode", "live_audio",
 )
 
 # ---------- licenses ----------
@@ -213,12 +213,12 @@ def key_weight_file(entry):
 
 # What each model is for. The order is the order groups appear in the UI.
 CAPABILITIES = {
-    "clone": ("Voice cloning", "Speak in the voice of a reference clip from the Voice page."),
+    "clone": ("Voice cloning", "Speak in the voice of a reference clip from Voices."),
     "preset": ("Preset voices", "Pick a built-in speaker; some models also take a style."),
     "design": ("Voice design", "Describe a voice in words and the model creates it."),
     "conversation": ("Conversations", "Scripts with up to 4 speakers, each in their own voice."),
 }
-# Short labels for the Model page tabs, so four tabs fit the narrowest window.
+# Short labels for the Models page tabs, so four tabs fit the narrowest window.
 CAPABILITY_TABS = {"clone": "Cloning", "preset": "Presets", "design": "Design", "conversation": "Conversations"}
 QWEN_CAPABILITY = {"base": "clone", "custom_voice": "preset", "voice_design": "design"}
 
@@ -233,6 +233,7 @@ def capability_for(entry):
     if entry.get("backend") == "vibevoice":
         return "conversation"
     return "clone"  # Chatterbox clones, or uses its built-in voice with no clip
+
 
 
 def live_audio_capability(entry):
@@ -258,7 +259,6 @@ def live_audio_capability(entry):
         "response_format": value.get("response_format") or "pcm",
         "sample_rate": sample_rate,
     }
-
 
 def group_by_capability(entries):
     """[(capability, title, [entries])] in CAPABILITIES order, skipping empty groups."""

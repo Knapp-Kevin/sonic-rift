@@ -36,7 +36,7 @@ class GeneratePage:
 
     def _build_generate_page(self):
         generate_page, generate_layout = self._make_page(
-            "Generate", "Write your text, choose the delivery, then generate.")
+            "Create", "Write or open your text, pick a voice and delivery, then generate.")
 
         voice_row = QHBoxLayout()
         voice_row.setContentsMargins(ui_theme.SHADOW, 0, ui_theme.SHADOW, 2)

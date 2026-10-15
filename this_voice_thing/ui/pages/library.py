@@ -53,7 +53,7 @@ class Library:
         self.voice_search.textChanged.connect(lambda _text: self.render_voice_tiles())
         library_header.addWidget(self.voice_search)
         library_layout.addLayout(library_header)
-        library_hint = QLabel("Click a voice to use it on Generate. New voices start in the Studio: "
+        library_hint = QLabel("Click a voice to use it on Create. New voices start under New voice: "
                               "record, add a file, or design one.")
         library_hint.setObjectName("Muted")
         library_hint.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
@@ -75,7 +75,7 @@ class Library:
         self.media_devices.audioInputsChanged.connect(self.populate_microphones)
         self.populate_microphones()
         browse_ref_button = QPushButton("Add a file...")
-        browse_ref_button.setToolTip("Open a .wav, .mp3 or .flac clip in the Studio to clean it up and save it.")
+        browse_ref_button.setToolTip("Open a .wav, .mp3 or .flac clip in New voice to clean it up and save it.")
         browse_ref_button.clicked.connect(self.studio_open_source_file)
         library_actions.addWidget(browse_ref_button)
         open_recordings_button = self._link(QPushButton("Open folder"))
@@ -164,7 +164,7 @@ class Library:
             entries.append(("Make clip..." if not voice.has_clip else "Remake clip...",
                             lambda: self.make_voice_clip(voice), not self.model_busy()))
         if path and os.path.exists(path):
-            entries.append(("Open in Studio", lambda: self.open_voice_in_studio(voice), True))
+            entries.append(("Open in New voice", lambda: self.open_voice_in_studio(voice), True))
         entries += [None, ("Edit...", lambda: self.edit_voice(voice), True),
                     ("Show file in folder", lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path))),
                      bool(path) and os.path.exists(path)),

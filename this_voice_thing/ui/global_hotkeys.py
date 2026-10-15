@@ -172,7 +172,7 @@ class GlobalHotkeyManager(QAbstractNativeEventFilter):
         if not self._installed:
             return "Qt's native event filter is not available."
         if canonical in self._by_shortcut:
-            return f"{canonical} is already assigned inside This Voice Thing."
+            return f"{canonical} is already assigned inside Sonic Rift."
         if self._next_id > self.LAST_ID:
             return "Too many global hotkeys are registered."
 

@@ -55,7 +55,7 @@ def live_sink_kwargs(mode):
 
 
 class LiveVoicePage:
-    """Live Speak UI mixed into ChatterboxApp."""
+    """Live Speak UI mixed into SonicRiftApp."""
 
     def _build_live_voice_page(self):
         self.live_voice_queue = []
@@ -1111,7 +1111,7 @@ class LiveVoicePage:
         QMessageBox.information(
             self,
             setup["title"],
-            f"This Voice Thing output:\n{output_name}\n\n"
+            f"Sonic Rift output:\n{output_name}\n\n"
             f"Target app microphone/input:\n{mic_name}\n\n"
             f"{numbered}\n\n"
             "The microphone pairing is advisory because Windows audio devices do not expose "
@@ -1142,7 +1142,7 @@ class LiveVoicePage:
             else:
                 self.live_route_state.setText("DISARMED")
                 self.live_route_state.setToolTip(
-                    "External routes start disarmed each time This Voice Thing launches."
+                    "External routes start disarmed each time Sonic Rift launches."
                 )
         else:
             self.live_external_armed = False
@@ -1236,7 +1236,7 @@ class LiveVoicePage:
                 self, "Test route", "The model is busy. Try the route test when generation is idle."
             )
             return
-        if self._enqueue_live_item({"text": "This Voice Thing route test."}):
+        if self._enqueue_live_item({"text": "Sonic Rift route test."}):
             if self.live_speech_thread is None:
                 self._live_start_next()
 

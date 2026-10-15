@@ -1,20 +1,14 @@
-# This Voice Thing
+# Sonic Rift
 
-![This Voice Thing](assets/branding/this-voice-thing-banner.jpg)
+![Sonic Rift: Make worlds you can hear](assets/branding/sonic-rift-banner.svg)
 
-> **Definitely not just Chatterbox UI.**  
-> **All the good names were taken.**  
-> **A name was apparently required, so here we are.**
+> **Make worlds you can hear.** Local-first creative audio for voices, soundscapes, and the ideas that connect them.
 
-**This Voice Thing** is a Windows-first, local-first desktop app for working with voice AI models.
+**Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines multiple speech engines with voice design, cloning, narration, transcription, and soundscape generation. The long-term direction includes arranging environmental audio with spoken performances; these composition workflows are still evolving and should not be confused with independently validated release features.
 
-It started as a fork of [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI), which itself provides a UI around Resemble AI's open-source [Chatterbox TTS](https://github.com/resemble-ai/chatterbox). Then we kept building things into it. And building. And building. At some point it stopped being particularly reasonable to keep calling the whole application “Chatterbox UI.”
+The application started from [Chatterbox TTS UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI) and retains [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several providers. Historical provenance, retained third-party licenses, and acknowledgements are documented in [Acknowledgements](#acknowledgements), [LICENSE](LICENSE) and [the provenance audit](docs/upstream-provenance-audit.md).
 
-So this is **This Voice Thing**.
-
-You may also think of it as **Not Chatterbox**, **Name Required**, **Good Names Taken**, or **That Voice App We Apparently Had To Name**. Those are not separate editions. Naming software is simply a deeply unserious activity and we have chosen to stop pretending otherwise.
-
-Underneath the stupid name is a fairly serious voice workbench: six local speech engines, voice cloning and design, preset voices, multi-speaker conversations, document narration, model discovery and management, a reusable voice library, pronunciation controls, subtitles, speech-to-text transcription, audio finishing tools, and a local API.
+The current voice workbench supports six speech engines, model discovery and management, reusable voices, multi-speaker conversations, document narration, pronunciation tools, subtitles, Whisper transcription, and audio finishing. The **Sounds** workspace provides ambience, loops, effects, presets, and a reusable sound asset library. See [CHANGELOG.md](CHANGELOG.md) for release-by-release details, and [the branding guide](assets/branding/README.md) for visual assets and usage.
 
 | Engine | From | Does |
 | --- | --- | --- |
@@ -30,11 +24,37 @@ Transcription (audio to text) runs locally too, with OpenAI's open [Whisper larg
 Text, recordings, generated audio, saved voices and model configuration stay on your machine unless you explicitly use a feature that talks to an external service, such as Hugging Face discovery/downloads or Google Docs import.
 
 > [!NOTE]
-> The repository was renamed from `Knapp-Kevin/Chatterbox-TTS-UI` to `Knapp-Kevin/this-voice-thing`; GitHub redirects the old URLs, so existing clones keep working. Chatterbox is one of the supported engines and the project this fork grew from. Runtime folders such as `chatterbox_outputs/` keep their names so existing files and scripts aren't stranded.
+> **Compatibility note:** Existing runtime folders such as `chatterbox_outputs/` retain their historical names to avoid breaking saved files and scripts. They do not indicate that the app is limited to Chatterbox.
 
 See [CHANGELOG.md](CHANGELOG.md) for the long version of how this got out of hand.
 
+## System Requirements & Platform Compatibility
+
+**Before installing:** Sonic Rift runs AI speech models on your own computer. Being able to open the desktop app does not guarantee that a particular model will install, use hardware acceleration, or generate audio successfully.
+
+| Platform | Current project status | What to expect |
+| --- | --- | --- |
+| **Windows 10/11 (64-bit)** | **Primary maintained path** | `run.bat` automates setup; NVIDIA CUDA acceleration is supported by the installer, subject to compatible drivers and hardware. |
+| **macOS on Apple Silicon (M1–M4, including M4 MacBooks)** | **Experimental / unverified** | A `run.sh` launcher exists, but macOS has **not been tested by the maintainer**. Metal (MPS) acceleration is unverified; installation may fail or run on CPU. Community test reports are welcome. |
+| **Linux** | **Experimental / unverified** | A `run.sh` launcher exists; dependency and GPU support are not validated to the same standard as Windows. |
+
+**Local requirements and recommendations**
+
+- **Python:** The application environment is pinned to **Python 3.11**. On Windows, a working `python` command and `uv` are needed to bootstrap it. On macOS/Linux, install Python 3.11 and `uv` before running the shell launcher.
+- **Graphics:** An NVIDIA GPU is recommended for the maintained Windows path. Some engines may work on CPU, typically with much slower generation. Apple's M-series GPU is **not yet a verified acceleration target** for this application.
+- **GPU memory:** Requirements vary by engine. The current project guidance ranges from roughly **2 GB VRAM for Kokoro**, **4 GB minimum for Chatterbox**, and **6–10 GB or more** for larger engines. These are estimates, not confirmed compatibility guarantees. See [per-model guidance](#prerequisites).
+- **System RAM:** No tested minimum has been established. More memory may be necessary for larger models and CPU inference; do not treat GPU VRAM figures as RAM requirements.
+- **Storage:** Plan for **multiple gigabytes per model**, plus Python/PyTorch and separate optional-engine environments. Individual configured model downloads are approximately **0.4–5.4 GB** before installation overhead. Available disk space should exceed the chosen model's download size substantially.
+- **Network:** Internet access is needed for initial dependencies and model downloads; downloaded models can generate locally afterward. No cloud API key is required for normal local use.
+- **Optional:** FFmpeg enables additional audio formats and improved pitch/speed processing; a microphone is needed only for recording.
+
+**Have an Apple Silicon Mac (including an M4 MacBook)?** You're welcome to try it and share results, but **macOS has not been tested by the maintainer** and is **not a supported or guaranteed setup**. Potential issues include unavailable or incompatible Python dependencies, failure of the installer to select a working PyTorch build, CPU-only inference instead of Metal/MPS acceleration, model-specific operators that do not run on MPS, slow performance, or failures during model loading and audio generation. A successful app launch alone does not establish engine compatibility.
+
+**Community testing is welcome.** If you try it on macOS, please [open a GitHub issue](https://github.com/Knapp-Kevin/sonic-rift/issues/new) with your Mac model and chip, macOS version, RAM, Python version, the engine/model tested, installation steps, whether inference used MPS or CPU, whether audio was generated, and relevant error logs (with tokens and private paths removed). Reports of both success and failure are useful. No Mac hardware or maintainer-led Apple testing is currently available; community reports will help establish what actually works.
+
 ## Table of Contents
+
+- [System Requirements & Platform Compatibility](#system-requirements--platform-compatibility)
 
 - [Quick Start](#quick-start)
 - [Screenshots](#screenshots)
@@ -98,7 +118,7 @@ Choose **one** method.
 **Or, if you use Git:**
 
 ```bat
-git clone https://github.com/Knapp-Kevin/this-voice-thing
+git clone https://github.com/Knapp-Kevin/sonic-rift
 cd this-voice-thing
 ```
 
@@ -124,7 +144,7 @@ If setup fails, the launcher tells you where the installer log was written. Look
 
 When the app opens:
 
-1. Go to **Generate**.
+1. Go to **Create**.
 2. Type or paste a short sentence into the text box.
 3. Keep the default model and voice for the first test.
 4. Click **Preview** to make a short sample.
@@ -133,8 +153,8 @@ When the app opens:
 
 Once that works, the rest of the app is safe to explore:
 
-- **Live Voice** speaks typed text directly through a selected audio output, with queue and stop controls.
 - **Studio** creates, clones, remixes and refines voices.
+- **Live** speaks typed lines and soundboard pads straight to an audio output, with a queue and stop controls.
 - **Voices** stores the voices you save.
 - **Transcribe** turns recordings into text.
 - **Model** switches engines, installs optional models and discovers compatible Hugging Face models.
@@ -154,24 +174,6 @@ You normally should **not**:
 - copy optional-engine packages into the main environment.
 
 Those are troubleshooting or development tasks, not normal use.
-
-### Live Voice route probe
-
-Before involving a TTS model, you can validate Windows/Qt audio routing with a known low-volume PCM tone:
-
-```bat
-.venv\Scripts\python.exe scripts\live_voice_route_probe.py
-```
-
-That lists playback and recording endpoints. To test a route:
-
-```bat
-.venv\Scripts\python.exe scripts\live_voice_route_probe.py --output "CABLE Input" --monitor "YOUR HEADPHONES"
-```
-
-The probe reports the negotiated sink format, bytes written, underruns, configured-to-start time, and a conservative paired-microphone hint when one can be identified. Use it to separate Windows/virtual-cable problems from TTS-model problems.
-
-See [Live Voice QA and performance runbook](docs/live-voice-qa.md) for the full acceptance sequence.
 
 ### Launchers
 
@@ -235,7 +237,7 @@ Windows remains the primary maintained path. Installer decisions are written to 
 
 ## How This Got Out of Hand
 
-The original Chatterbox UI remains the project's foundation and deserves explicit credit. This fork has simply grown far beyond being a UI for one model.
+This Voice Thing has evolved into a multi-engine local voice workbench with its own application architecture and workflows. Its earlier Chatterbox UI origins are credited in [Acknowledgements](#acknowledgements).
 
 Current additions include:
 
@@ -249,16 +251,17 @@ Current additions include:
 - **Transcription.** Turn audio into text with Whisper, save it as text or subtitles, fill in a voice clip's transcript, or send it back to Generate.
 - **Pronunciation controls and subtitles.** Maintain a pronunciation dictionary and generate SRT or WebVTT from the known generation timeline.
 - **Audio finishing.** Adjust paragraph pauses, even out volume, trim silence, change speed or pitch, and export WAV, FLAC or MP3.
-- **Live Voice and a cached TTS soundboard.** Type a line and send the selected voice directly to speakers, headphones or another Windows audio output without first rendering a file. Save useful phrases as persistent soundboard pads; after the first successful render, static pads play from a local WAV cache without waking the model or GPU.
 - **A local HTTP API.** Use the same engines and voice library from other software through OpenAI-compatible or native endpoints.
-- **A redesigned desktop interface.** Generate, Live Voice, Studio, Voices, Transcribe, Model, Advanced and Log pages with light and dark themes.
+- **A redesigned desktop interface.** Generate, Studio, Voices, Transcribe, Model, Advanced and Log pages with light and dark themes.
 
 In other words, calling the whole thing “Chatterbox UI” eventually became less a name and more a historical anecdote.
 
 ## Features
 
+The sidebar is organized by what you're doing: **Create** (write or open text and generate speech), **Voices** (your library, and **New voice** to make one), **Sounds** (ambience and effects), **Live** (speak to a device in real time), then **Tools** (Transcribe) and **Setup** (Models, Settings).
+
 <details>
-<summary><strong>Generate</strong></summary>
+<summary><strong>Create</strong></summary>
 
 - **Voice first:** pick a voice with **Change** (one of yours, or a model's built-in voices), and the model list shows only the models that can speak it. A clip or Studio voice works with every cloning model; picking one while a non-cloning model is loaded loads a cloning model for you.
 - Per-model time estimates for the current text (click the estimate to compare and switch).
@@ -270,74 +273,25 @@ In other words, calling the whole thing “Chatterbox UI” eventually became le
 </details>
 
 <details>
-<summary><strong>Live Voice</strong></summary>
+<summary><strong>Live</strong></summary>
 
-**Live Voice** is the direct-to-device speech surface. It uses the same loaded voice, model, language and pronunciation settings as Generate, but sends PCM to a selected audio output instead of waiting for a completed file.
+**Live** speaks with the loaded model and voice straight to an audio device, without rendering a file first. It uses the same voice, language and pronunciation settings as Create.
 
-- Type a line and click **Speak**, or press **Ctrl+Enter**.
-- **Mic Effects:** choose a physical microphone and route it directly through the same Local/Discord/Zoom/OBS/virtual-mic outputs without transcribing it. Effects currently include gain, warm/bright tone shaping, and optional compression/limiting; disabling effects is true PCM pass-through.
-- Microphone capture is processed locally in memory and is **not recorded to disk**. External routes still require explicit arming, and local speaker output warns before starting because an open microphone can create feedback.
-- Mic Effects uses a bounded capture buffer and a lower-latency sink policy than TTS. Pitch/formant shifting is intentionally not claimed yet; it needs a realtime-safe implementation rather than reusing the app's offline finishing path.
-- Submit more lines while speech is active; they are queued in order.
-- **Stop current** silences the current utterance immediately and keeps later queued items.
-- **Stop all** discards audible buffered audio and clears the queue.
-- **Repeat last** resubmits the most recent completed line.
-- **Soundboard:** save the composer (or last spoken line) as a named TTS pad. Double-click or Trigger a pad to play it.
-- **Multiple boards:** create, rename, switch and delete soundboard boards without mixing unrelated phrase sets together.
-- **Board defaults:** each board can prefer a saved voice, route, and default trigger policy. External routes remain disarmed when a board is selected, so a saved board cannot silently begin transmitting.
-- **Quick voices:** favorite saved voices for one-click switching from Live Voice without digging through the full voice library.
-- **Audio clip pads:** import local WAV/FLAC/OGG/MP3/AIFF files into the soundboard's owned `soundboard/audio/` storage. Clips use the same routing, monitoring, Stop, hotkey, and queue paths as generated speech and do not require a TTS model.
-- **Pad organization:** favorite pads, add tags, search by name/text/tag, filter to favorites, and move pads up/down without changing their saved identity.
-- **Explicit trigger behavior:** pads can inherit the board default or choose **Queue**, **Interrupt current**, or **Ignore if busy**. Every behavior still respects Live Voice's bounded queue and fail-closed route checks.
-- **Opt-in Windows global hotkeys:** assign modifier-based system-wide shortcuts to pads and Stop All. A visible switch disables all global pad triggers instantly without deleting assignments, while a configured emergency Stop All stays registered; conflicts are reported rather than silently stealing keys.
-- **Page-scoped shortcuts:** while the Live Voice page has focus, **Alt+1…9** triggers the first nine pads, **Ctrl+Alt+1…9** switches among the first nine boards, **Ctrl+.** is emergency Stop All, **Ctrl+Shift+Enter** repeats the last line, and **Ctrl+Shift+Up / Ctrl+Shift+Down** reorders the selected pad. These remain available independently of optional system-wide hotkeys.
-- **Bounded queue:** Live Voice caps outstanding work at 25 items and about 10 minutes of estimated speech so repeated pad presses or automation cannot grow memory without bound.
-- **Editable queue:** select a queued line to remove it or move it up/down before playback. **Delete** removes the selected queued item and **Alt+Up / Alt+Down** reorder it while Live Voice has focus.
-- The active model label exposes a plain-language readiness tooltip: getting ready, ready, or load one to speak.
-- **Session privacy controls:** Live Speak history is session-only, capped, and can be cleared immediately. **Clear cache** removes all locally cached soundboard WAVs while keeping the pads themselves.
-- **Visible provenance:** the Live Voice header shows the selected voice origin and the current audio provenance/watermark policy. Cached pads preserve the provenance of the audio they were originally built from instead of merely saying “cached.”
-- **Copy diagnostics:** copies a privacy-conscious JSON snapshot with model/voice type, TTFA/RTF, route state, source/target sample rates, sink-start latency, bytes written, underruns and queue pressure. Spoken text is intentionally omitted.
-- **Monitoring feedback warning:** when an external route is armed and the monitor device does not look like headphones/headset/earbuds, Live Voice warns that a physical microphone may hear the monitoring output.
-- Static TTS pads are cached locally after their first successful generation. A valid cached pad uses no model/GPU and follows the same device, buffering, Stop and resampling path as live speech.
-- Pad caches are content-addressed against the phrase, saved voice identity/clip revision, model/mode, language, style, synthesis controls and pronunciation rules. If those change, the UI marks the pad **rebuild needed** instead of silently playing stale audio.
-- Deleting a pad garbage-collects cache files that are no longer referenced.
-- Choose a **Route**: **Local output**, **External / virtual microphone**, **Discord**, **Zoom**, **OBS**, or **Other app**. Each profile remembers its own primary output and optional monitor device.
-- External routes start **DISARMED** every time the app launches and must be armed explicitly before Speak or a soundboard pad can transmit to them.
-- Pick any audio output exposed by Windows/Qt, including speakers, headphones and compatible virtual audio-cable playback devices. Common virtual-device names are labeled as likely virtual, but the app does not require a specific vendor.
-- Enable **Also let me hear it through** to monitor the same PCM through a second device such as headphones. The monitor has an independent audio sink: if it fails or disappears, the primary external route continues.
-- **Use as microphone** shows a conservative best-effort match for the recording side of a recognized virtual cable. When a match exists, **Copy microphone name** puts the exact endpoint name on the clipboard.
-- **Setup…** shows app-specific instructions for Discord, Zoom, OBS, or a generic target application.
-- For Discord/Zoom/OBS/Other app profiles, Live Voice inspects the Windows recording endpoints and shows a conservative **Use as microphone** hint when it can identify the paired side of a known virtual cable. The hint can be copied directly.
-- **Setup…** shows app-specific instructions using the currently selected device names. It does not automate or modify third-party application settings.
-- **Test route** speaks a short phrase through the active route using the current voice.
-- A previously saved primary device that disappears is shown as unavailable. Live Voice does **not** silently fall back to the system speakers.
-- The page reports whether the selected item is using **Native streaming**, **Segmented streaming**, **Buffered fallback**, or **Cached** playback.
-- **VoxCPM2 live** quality: **Low latency · 6 steps** (default), **Balanced · 8**, or **Full quality · 10**. This setting applies to Live Voice only; Generate always uses 10 steps. On an RTX 5070 Ti, 10 steps generates slightly slower than real time and leaves gaps, while 6 steps keeps ahead of playback. The status line warns when generation falls behind. Occasional gaps can still happen when the machine is busy enough that the model generates slower than real time; on slower hardware, expect more of them.
-- VoxCPM2 uses native model streaming. Kokoro uses short segmented generation. Other compatible loaded engines can still speak here after completing the utterance.
-- Live playback has its own bounded audio buffer and converts the model's native sample rate when the selected device requires a different supported rate.
+- **Speak:** type a line and click **Speak** (or **Ctrl+Enter**). New lines queue in order; **Stop current** cuts the current line and keeps the queue, **Stop all** clears everything, **Repeat last** says the last line again. The queue is capped (25 items, about 10 minutes).
+- **Streaming:** VoxCPM2 streams natively (live quality **Low latency · 6 steps** by default, or 8 or 10 steps; Create always uses 10). Kokoro streams in short sections. Other engines speak after finishing the line. The status line says which mode is in use and warns when generation falls behind playback.
+- **Soundboard:** save lines as pads on one or more boards, or import WAV/FLAC/OGG/MP3/AIFF clips. A spoken pad is cached after its first render, so it plays again without the model or GPU, and is marked **rebuild needed** if its voice or settings change. Pads can queue, interrupt, or be ignored while busy; favourites, tags, search and reordering are built in.
+- **Shortcuts:** on the Live page, **Alt+1…9** triggers pads, **Ctrl+.** is Stop all. Optional Windows-wide hotkeys can be assigned to pads and Stop all, with a switch that turns pad hotkeys off at once.
+- **Mic effects:** pass a microphone through gain, tone and compression (or untouched) to the same outputs. The microphone is processed in memory and never recorded to disk.
+- **Routes:** **Local output**, or an external route (**virtual microphone**, **Discord**, **Zoom**, **OBS**, **Other app**) that starts disarmed every launch and must be armed before anything is sent. An optional monitor plays the same audio on a second device. A missing saved device is shown as unavailable; Live never falls back to the speakers silently. With a virtual audio cable you already have, send to its playback side (often "CABLE Input") and pick its recording side ("CABLE Output") as the microphone in the other app; **Setup…** shows the steps. Sonic Rift doesn't install a virtual microphone driver.
+- **Privacy and provenance:** the Live history is session-only and can be cleared; **Clear cache** removes cached pad audio. The header shows the voice's origin and the watermark policy; **Copy diagnostics** copies timing, route and buffer figures without the spoken text.
 
-This implementation can now route to a normal local device or an **external/virtual-microphone profile**, with optional independent monitoring. It does not install a virtual microphone driver itself. If you already have a virtual audio cable, choose its **playback/input** side under **Send voice to**, arm the external route, and choose the cable's paired **recording/output** side as the microphone in Discord, Zoom, OBS or another application.
+Live Voice is validated on local speakers and headphones. Virtual-cable, Discord, Zoom and OBS routes are implemented but not yet validated end to end. To check a Windows route without a model, play a quiet test tone:
 
-For example, with a typical virtual cable:
+```bat
+.venv\Scripts\python.exe scripts\live_voice_route_probe.py --output "CABLE Input" --monitor "YOUR HEADPHONES"
+```
 
-1. In **Live Voice → Route**, choose **Discord**, **Zoom**, **OBS**, or **External / virtual microphone**.
-2. Under **Send voice to**, choose the cable's playback endpoint, often named something like **CABLE Input**.
-3. Optionally enable monitoring and choose your headphones.
-4. Click **Arm external route**, then **Test route**.
-5. In Discord/Zoom/etc., choose the paired recording endpoint, often named something like **CABLE Output**, as the microphone.
-
-Exact names depend on the virtual-audio software. This Voice Thing stores the actual Windows/Qt device ID rather than assuming a vendor naming convention. The app-specific profiles include guided Discord/Zoom/OBS/Other App setup and conservative virtual-cable microphone pairing hints. Audio-clip pads, multiple boards, focused shortcuts and opt-in Windows global hotkeys are implemented on the same Live Voice surface.
-
-The desktop Live Voice path does **not** call the local HTTP API. Both surfaces consume the same underlying model streaming capabilities.
-
-Architecture and implementation planning live in:
-
-- [Live Voice architecture](docs/live-voice-architecture.md)
-- [Live Voice product specification](docs/live-voice-product-spec.md)
-- [Live Voice adversarial review](docs/live-voice-adversarial-review.md)
-- [Live Voice app routing guide](docs/live-voice-app-routing.md)
-- [Live Voice QA and performance runbook](docs/live-voice-qa.md)
-- [Live Voice app routing guide](docs/live-voice-app-routing.md)
+See the [Live Voice QA runbook](docs/live-voice-qa.md) and [app routing guide](docs/live-voice-app-routing.md).
 
 </details>
 
@@ -353,7 +307,38 @@ Architecture and implementation planning live in:
 </details>
 
 <details>
-<summary><strong>Studio</strong></summary>
+<summary><strong>Sounds (ambience and sound effects)</strong></summary>
+
+Sound beyond speech: ambience loops, rain and waves, tonal beds and UI chimes, kept with a record of how each was made.
+
+- **Two engines, both free of license restrictions:**
+
+  | Engine | License | Speed (RTX 5070 Ti) | GPU memory |
+  | --- | --- | --- | --- |
+  | **Procedural** | your own work | 30 s loop in ~2 s on the CPU | none |
+  | **MOSS-SoundEffect v2** | Apache-2.0, no restrictions; training data not disclosed | ~23 s per take; long clips are stitched | ~15 GB (the app offers to unload the voice model) |
+
+  - **Procedural** needs no model or download. Presets: ocean, rain, thunderstorm, wind, drone and three UI chimes.
+  - **MOSS** runs in its own environment, and is listed with the voice models on **Models → Sounds**. Before installing, the app shows the license and download size and asks. In listening tests it suited ocean, rain and richer tonal beds; the procedural engine suits simpler, exactly repeating beds.
+  - Stable Audio 3 Small SFX was evaluated and dropped: its ambience was rejected in listening tests, and its license has conditions.
+- **Takes:** make 1 to 6 at once with consecutive seeds. The same engine, settings and seed give the same sound again.
+- **Seamless loops:**
+  - Procedural loops repeat exactly by construction.
+  - MOSS folds the tail over the head, and generates a little extra so loops still come out at the length you asked for.
+  - Each take shows a seam check, which flags a join only if it's more abrupt than anything inside the sound. "No seam detected" isn't a listening test.
+- **Mastering:**
+  - Every take is mastered to a loudness target (LUFS), with true peaks under -1 dB.
+  - A gentle limiter stops one loud moment from making the whole take quiet.
+  - **Start soft** begins a loop at its quietest moment, so it opens softly and builds; nothing is faded, so it stays seamless.
+  - **Even out dynamics** slowly levels loud and quiet stretches so swells don't jump out at high volume; each take shows how much its level swings.
+  - Calm ambience defaults to about -24 to -27 LUFS (adjustable per take).
+  - Mono models are spread into stereo without changing their mono mix.
+- **Asset Library:** keep a take with its name, engine, model, license, preset or prompt, seed and settings. Rename, delete, or export as a WAV master, OGG or MP3.
+
+</details>
+
+<details>
+<summary><strong>Voices: New voice</strong> (the Studio)</summary>
 
 One place to make a voice, so generating is just a matter of picking it. Every voice the Studio saves is frozen: a clip plus the words it says. Any cloning model can speak it, and it sounds the same in every render and batch.
 
@@ -369,7 +354,7 @@ One place to make a voice, so generating is just a matter of picking it. Every v
 <details>
 <summary><strong>Voice library</strong></summary>
 
-The **Voices** page holds your saved voices: search, tag, rename, preview, and click one to use it on Generate. New voices start in the Studio.
+The **Voices** page holds your saved voices: search, tag, rename, preview, and click one to use it on Create. New voices start under **New voice**.
 
 - **Clip voices:** recordings or imported audio plus transcript. They work with every cloning model.
 - **Preset voices:** built-in voices from engines such as Kokoro or Qwen.
@@ -425,20 +410,20 @@ Optional engines install themselves into their own `engines/<name>/.venv` the fi
 </details>
 
 <details>
-<summary><strong>Finishing touches and Advanced</strong></summary>
+<summary><strong>Finishing touches and Settings</strong></summary>
 
 - Paragraph pause control, volume levelling and start/end silence trimming.
-- WAV, FLAC and optional MP3 output.
-- Speed and pitch adjustment (formant-preserving with FFmpeg's Rubber Band).
+- WAV, FLAC or MP3 output, chosen in **Finishing touches** on Create.
+- Speed and pitch adjustment (formant-preserving with FFmpeg's Rubber Band), also in Finishing touches.
 - SRT and WebVTT subtitles, timed from the generation itself.
-- A pronunciation dictionary with import/export and auditioning.
+- A pronunciation dictionary with import/export and auditioning (**Settings**).
 - An optional inaudible AI watermark on engines that don't add one themselves.
 
 </details>
 
 ## Local API
 
-Other programs on the same PC can use the app's models and voices. Enable it under **Advanced → Local API**. The server listens only on `127.0.0.1` (port `8765` by default) and can require a bearer token. Speech requests use the same pipeline as the desktop UI: model selection, sectioning, batching, voice handling, pronunciation and finishing. It can also transcribe audio.
+Other programs on the same PC can use the app's models and voices. Enable it under **Settings → Local API**. The server listens only on `127.0.0.1` (port `8765` by default) and can require a bearer token. Speech requests use the same pipeline as the desktop UI: model selection, sectioning, batching, voice handling, pronunciation and finishing. It can also transcribe audio.
 
 <details>
 <summary><strong>Examples</strong></summary>
@@ -473,35 +458,13 @@ Discovery endpoints: `GET /v1/health`, `GET /v1/models`, `GET /v1/voices`.
 
 ### Experimental live PCM streaming
 
-The local API and the desktop Live Voice page share the same live model capabilities.
-
-- **VoxCPM2 · native:** returns acoustic PCM chunks while one utterance is still being generated.
-- **Kokoro · segmented:** generates short speech sections and returns each completed section while later sections continue.
-
-The API remains useful for other programs; the desktop Live Voice page consumes the model stream directly and does not loop back through HTTP.
-
-For VoxCPM2 voice cloning:
+Add `"stream": true, "stream_format": "audio", "response_format": "pcm"` to a speech request to receive audio while it's being generated: natively from VoxCPM2 (48 kHz), in short sections from Kokoro (24 kHz).
 
 ```bash
-curl http://127.0.0.1:8765/v1/audio/speech \
-  -H "Content-Type: application/json" \
-  -d '{"model":"VoxCPM2 voice cloning","input":"Hello while I am still being generated.","voice":"YOUR CLIP VOICE","stream":true,"stream_format":"audio","response_format":"pcm"}' \
-  --no-buffer > speech.pcm
+curl http://127.0.0.1:8765/v1/audio/speech   -H "Content-Type: application/json"   -d '{"model":"VoxCPM2 voice cloning","input":"Hello while I am still being generated.","voice":"YOUR CLIP VOICE","stream":true,"stream_format":"audio","response_format":"pcm"}'   --no-buffer > speech.pcm
 ```
 
-The stream is mono signed 16-bit little-endian PCM at the model's native sample rate (48 kHz for VoxCPM2, 24 kHz for Kokoro). Response headers include `X-Audio-Sample-Rate`, `X-Audio-Sample-Format`, `X-Streaming-Mode` (`native` or `segmented`) and `X-Audio-Watermark`.
-
-Live output intentionally does **not** run whole-waveform finishing such as speed/pitch processing, final global volume levelling or subtitle alignment. VoxCPM2's raw native path also does not currently apply the normal Perth watermark. Kokoro's segmented path retains its existing per-section watermark and the app's clause/sentence/paragraph seam pauses. Streaming currently requires `speed=1.0` and raw PCM output; the API rejects incompatible options rather than silently changing their meaning.
-
-To measure actual latency and sustained throughput on the current machine:
-
-```bash
-python scripts/benchmark_live_api.py --model "VoxCPM2 voice cloning" --voice "YOUR CLIP VOICE"
-```
-
-The benchmark reports time to first audio (TTFA), real-time factor (RTF), and on the cancellation branch how quickly a disconnected stream releases the generation slot. RTF below 1.0 means synthesis stays ahead of playback; lower is better.
-
-The architecture, live-mode definitions, provenance policy, validation gates and planned merge order are documented in [docs/live-tts-architecture.md](docs/live-tts-architecture.md).
+The stream is mono 16-bit little-endian PCM; headers give `X-Audio-Sample-Rate`, `X-Audio-Sample-Format`, `X-Streaming-Mode` and `X-Audio-Watermark`. Streaming requires `speed=1.0` and skips whole-file finishing (speed/pitch, final levelling, subtitles). VoxCPM2's native stream doesn't currently carry the Perth watermark; Kokoro's sections do. `scripts/benchmark_live_api.py` measures time to first audio and real-time factor. Design notes: [docs/live-tts-architecture.md](docs/live-tts-architecture.md). The desktop Live page uses the models directly, not this API.
 
 </details>
 
@@ -614,12 +577,11 @@ this-voice-thing/
 │  ├─ ui/
 │  │  ├─ main_window.py         the window: sidebar, page layout, settings (run as __main__)
 │  │  ├─ pages/                 one module per page, mixed into the window:
-│  │  │                         generate, generation, live_voice, documents, estimates, finishing, engine_controls, player,
-│  │  │                         studio, voice, voice_picker, library, voice_use, recording, transcribe, models, discover, model_loading,
+│  │  │                         generate, generation, documents, estimates, finishing, engine_controls, player,
+│  │  │                         studio, soundscape, voice, voice_picker, library, voice_use, recording, transcribe, models, discover, model_loading,
 │  │  │                         model_settings, advanced, api_server, pronunciations
 │  │  ├─ dialogs/               recording, find/add models, voices and cast, pronunciation, Google Docs
 │  │  ├─ threads.py             model loading, generation, installs, speech and transcription threads
-│  │  ├─ live_audio.py          QAudioSink streaming playback, buffering and sample-rate conversion
 │  │  ├─ api_bridge.py          hands local API requests to the window
 │  │  ├─ common.py              start-up setup, model config and shared constants
 │  │  ├─ widgets.py             small reusable widgets
@@ -628,11 +590,9 @@ this-voice-thing/
 │  ├─ engines/
 │  │  ├─ chatterbox_backend.py  Chatterbox, loaded in-process
 │  │  ├─ worker.py              shared worker/environment support for the other engines
-│  │  └─ qwen.py, kokoro.py, voxcpm.py, omnivoice.py, vibevoice.py
+│  │  ├─ qwen.py, kokoro.py, voxcpm.py, omnivoice.py, vibevoice.py
+│  │  └─ sound_models.py        the MOSS-SoundEffect worker for the Soundscape page
 │  ├─ core/
-│  │  ├─ live_voice.py          shared live/cached speech sessions and typed PCM AudioFrame
-│  │  ├─ live_routes.py         persistent route profiles and virtual-device hints
-│  │  ├─ soundboard.py          persistent boards/pads and content-addressed local WAV cache
 │  │  ├─ model_registry.py      engines, capabilities, licenses, hardware needs, Hugging Face discovery
 │  │  ├─ documents.py           document loading, sectioning, conversation scripts
 │  │  ├─ audio_effects.py       joining, finishing, speed/pitch, export
@@ -640,6 +600,8 @@ this-voice-thing/
 │  │  ├─ pronunciation.py       pronunciation dictionary
 │  │  ├─ transcription.py       speech to text with Whisper
 │  │  ├─ voice_studio.py        designing, cloning, remixing and refining voices for the Studio
+│  │  ├─ soundscape/            procedural sounds, mastering (loudness, seams, export), the sound
+│  │  │                         engine catalogue and the Asset Library
 │  │  └─ voice_library.py       saved clip, preset and designed voices
 │  └─ integrations/
 │     ├─ local_api.py           local OpenAI-compatible and native HTTP API
@@ -654,7 +616,7 @@ this-voice-thing/
 └─ requirements.in, requirements.lock.txt, uv.toml
 ```
 
-Your data stays in the project folder, where it has always been: `app_settings.json`, `models.json`, `chatterbox_outputs/`, `reference_recordings/`, `voice_library/`, `pronunciations.json`, `google_auth.json`, `logs/`, `.venv/` and each engine's `engines/<name>/.venv/`. Those names are kept for compatibility even though the app is now This Voice Thing.
+Your data stays in the project folder, where it has always been: `app_settings.json`, `models.json`, `chatterbox_outputs/`, `reference_recordings/`, `voice_library/`, `sound_library/`, `pronunciations.json`, `google_auth.json`, `logs/`, `.venv/` and each engine's `engines/<name>/.venv/`. Those names are kept for compatibility even though the app is now This Voice Thing.
 
 </details>
 
@@ -690,12 +652,13 @@ Optional engines use isolated environments where their dependencies conflict wit
 
 ## Live Voice architecture and research
 
-Live Voice is under active development. The design work is kept in-repo so future implementation does not require archaeological excavation through old chat logs.
+Live Voice ships on the **Live** page (see Features). The design work is kept in-repo so future implementation does not require archaeological excavation through old chat logs.
 
 - [Live Voice architecture](docs/live-voice-architecture.md)
 - [Live Voice product specification](docs/live-voice-product-spec.md)
 - [Live Voice adversarial review](docs/live-voice-adversarial-review.md)
 - [Advanced integration decisions](docs/live-voice-advanced-integrations.md)
+- [Microphone transformation roadmap](docs/live-voice-microphone-transformation-roadmap.md)
 
 The advanced-integration decision record covers a future branded Windows virtual microphone, Zoom SDK PCM publishing, Discord Social SDK, and true realtime microphone voice conversion. Those are research/roadmap decisions, not claims that those integrations ship in the current main branch.
 
@@ -707,7 +670,7 @@ Please keep model licensing, attribution, local/private behavior and compatibili
 
 ## Acknowledgements
 
-**This Voice Thing is based on Chatterbox-TTS-UI.** The rename does not erase the project's lineage, upstream work or licenses.
+**Origins and license notices.** This Voice Thing began from Chatterbox-TTS-UI. The present application is substantially expanded and reorganized; preserved MIT notices acknowledge the upstream code lineage without implying the current product remains a single-engine UI.
 
 - **AcTePuKc** for the original [Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI) this fork builds on (MIT), and [lowkeytea](https://github.com/lowkeytea) for [their contributions](https://github.com/AcTePuKc/Chatterbox-TTS-UI/commits?author=lowkeytea) to it.
 - **Resemble AI** for [Chatterbox TTS](https://github.com/resemble-ai/chatterbox) (MIT).
@@ -728,7 +691,7 @@ Thanks goes to these wonderful people:
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Knapp-Kevin"><img src="https://avatars.githubusercontent.com/u/205245245?v=4?s=100" width="100px;" alt="Kevin Knapp"/><br /><sub><b>Kevin Knapp</b></sub></a><br /><a href="https://github.com/Knapp-Kevin/this-voice-thing/commits?author=Knapp-Kevin" title="Code">💻</a> <a href="#ideas-Knapp-Kevin" title="Ideas, Planning, & Feedback">🤔</a> <a href="#design-Knapp-Kevin" title="Design">🎨</a> <a href="https://github.com/Knapp-Kevin/this-voice-thing/commits?author=Knapp-Kevin" title="Documentation">📖</a> <a href="#projectManagement-Knapp-Kevin" title="Project Management">📆</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Knapp-Kevin"><img src="https://avatars.githubusercontent.com/u/205245245?v=4?s=100" width="100px;" alt="Kevin Knapp"/><br /><sub><b>Kevin Knapp</b></sub></a><br /><a href="https://github.com/Knapp-Kevin/sonic-rift/commits?author=Knapp-Kevin" title="Code">💻</a> <a href="#ideas-Knapp-Kevin" title="Ideas, Planning, & Feedback">🤔</a> <a href="#design-Knapp-Kevin" title="Design">🎨</a> <a href="https://github.com/Knapp-Kevin/sonic-rift/commits?author=Knapp-Kevin" title="Documentation">📖</a> <a href="#projectManagement-Knapp-Kevin" title="Project Management">📆</a></td>
     </tr>
   </tbody>
 </table>
