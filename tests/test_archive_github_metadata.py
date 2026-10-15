@@ -77,6 +77,11 @@ class ArchiveContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 archiver.collect("foo/../evil", Path(folder) / "new", FakeReader())
 
+    def test_refuses_archive_inside_checkout(self):
+        checkout = SCRIPT.resolve().parents[1]
+        with self.assertRaisesRegex(ValueError, "inside this repository"):
+            archiver.collect("Knapp-Kevin/sonic-rift", checkout / "private-export", FakeReader())
+
     def test_pagination_header_parser(self):
         header = '<https://api.github.com/repos/a/b/issues?page=2>; rel="next", <x>; rel="last"'
         self.assertEqual(archiver.parse_next(header), "https://api.github.com/repos/a/b/issues?page=2")
