@@ -4,7 +4,7 @@ Run from Python, the window would otherwise be grouped under python.exe (Python'
 icon), or under a taskbar ID whose icon Windows has cached as the generic one. So
 the process gets its own ID, and the window carries that ID plus an explicit icon
 file and relaunch command; Windows then shows the brand icon, and pinning the app
-pins This Voice Thing rather than Python. Everything here is a no-op off Windows.
+pins Sonic Rift rather than Python. Everything here is a no-op off Windows.
 """
 
 import ctypes
@@ -16,7 +16,14 @@ from this_voice_thing import paths
 
 APP_ID = "KnappKevin.ThisVoiceThing"
 APP_NAME = "Sonic Rift"           # the AppUserModelID above stays, so existing pinned buttons keep working
-ICON_FILE = os.path.join(paths.ASSETS_DIR, "branding", "this-voice-thing.ico")
+ICON_FILE = os.path.join(paths.ASSETS_DIR, "branding", "sonic-rift.ico")   # built by scripts/build_icons.py
+LEGACY_ICON_FILE = os.path.join(paths.ASSETS_DIR, "branding", "this-voice-thing.ico")
+
+
+def icon_file():
+    """The .ico Windows shows for the app; the old one if the new set is missing, so the
+    window still gets its own taskbar group rather than Python's."""
+    return ICON_FILE if os.path.exists(ICON_FILE) else LEGACY_ICON_FILE
 
 VT_LPWSTR = 31
 # PKEY_AppUserModel_*: {9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}
@@ -62,7 +69,8 @@ def relaunch_command():
 def set_window_identity(window):
     """Attach the app ID, icon file and relaunch command to a top-level window
     (winId() creates its native window, so this works before show())."""
-    if sys.platform != "win32" or not os.path.exists(ICON_FILE):
+    icon = icon_file()
+    if sys.platform != "win32" or not os.path.exists(icon):
         return False
     try:
         store = ctypes.c_void_p()
@@ -79,7 +87,7 @@ def set_window_identity(window):
         keep = []  # the strings must outlive the calls
         try:
             # The relaunch values first; the ID last (Windows reads them when the ID is set).
-            for pid, text in ((RELAUNCH_COMMAND, relaunch_command()), (RELAUNCH_ICON, ICON_FILE),
+            for pid, text in ((RELAUNCH_COMMAND, relaunch_command()), (RELAUNCH_ICON, icon),
                               (RELAUNCH_NAME, APP_NAME), (ID, APP_ID)):
                 buffer = ctypes.create_unicode_buffer(text)
                 keep.append(buffer)

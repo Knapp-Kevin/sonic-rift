@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Sonic Rift app icon, 16 px master: ring and three bars on the pixel grid. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16244A"/><stop offset="1" stop-color="#0B1020"/></linearGradient>
+    <linearGradient id="rift" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#22D3EE"/><stop offset=".5" stop-color="#4F7BFF"/><stop offset="1" stop-color="#A78BFA"/></linearGradient>
+  </defs>
+  <rect width="16" height="16" rx="3.5" fill="url(#bg)"/>
+  <circle cx="8" cy="8" r="5.6" fill="none" stroke="url(#rift)" stroke-width="1.6"
+          stroke-dasharray="14.3 3.3 14.3 3.3" stroke-dashoffset="-1.5" transform="rotate(-35 8 8)"/>
+  <g fill="#8FDFFF">
+    <rect x="5" y="7" width="1" height="2"/>
+    <rect x="7.5" y="5" width="1" height="6" fill="#B7C4FF"/>
+    <rect x="10" y="7" width="1" height="2"/>
+  </g>
+</svg>
