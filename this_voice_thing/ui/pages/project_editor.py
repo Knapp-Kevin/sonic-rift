@@ -4,6 +4,7 @@ First usable list-based track editor, not yet a graphical drag-and-drop timeline
 Qt widgets only hold inputs; versioned project state lives in ProjectSession.
 """
 from copy import deepcopy
+from threading import Event
 import math
 import os
 from pathlib import Path
@@ -36,6 +37,7 @@ class ProjectEditorDialog(QDialog):
         self.session = ProjectSession(AudioProject(new_id(), "Untitled project"))
         self.saved_revision = None
         self.worker = None
+        self.export_cancel = None
         self.media = ProjectMedia(owner.script_dir, owner.sound_library)
         layout = QVBoxLayout(self)
         self.heading = QLabel()
@@ -74,6 +76,8 @@ class ProjectEditorDialog(QDialog):
         layout.addWidget(self.note)
         actions = QHBoxLayout()
         self.export_button = self._button(actions, "Export mastered mix + stems…", self.export)
+        self.cancel_button = self._button(actions, "Cancel export", self.cancel_export)
+        self.cancel_button.setEnabled(False)
         actions.addStretch()
         self.close_button = self._button(actions, "Close", self.reject)
         layout.addLayout(actions)
@@ -364,12 +368,20 @@ class ProjectEditorDialog(QDialog):
         snapshot = deepcopy(self.session.project)
         media = self.media
         self.export_button.setEnabled(False)
+        self.export_cancel = Event()
+        self.cancel_button.setEnabled(True)
+        should_cancel = self.export_cancel.is_set
         self.worker = TaskThread(lambda: export_project(snapshot, media, destination, formats=formats,
-                                                        include_stems=True), self)
+                                                        include_stems=True, should_cancel=should_cancel), self)
         self.worker.done.connect(self._export_done)
         self.worker.finished.connect(self._export_finished)
         self.note.setText("Exporting project. Keep this editor open until completion.")
         self.worker.start()
+
+    def cancel_export(self):
+        if self.worker is not None and self.export_cancel is not None:
+            self.export_cancel.set()
+            self.note.setText("Cancellation requested. Cleaning up after the current rendering stage.")
 
     def _export_done(self, result, error):
         if error:
@@ -382,6 +394,8 @@ class ProjectEditorDialog(QDialog):
 
     def _export_finished(self):
         self.worker = None
+        self.export_cancel = None
+        self.cancel_button.setEnabled(False)
         self.export_button.setEnabled(True)
 
     def reject(self):
