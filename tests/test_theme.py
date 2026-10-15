@@ -159,9 +159,11 @@ class AppIcon(unittest.TestCase):
         folder = os.path.join(ROOT, "assets", "branding")
         if not os.path.isdir(folder):
             self.skipTest("no branding assets yet")
-        for name in sorted(os.listdir(folder)):
-            if name.lower().endswith((".png", ".jpg", ".jpeg")):
-                self.assertFalse(QImage(os.path.join(folder, name)).isNull(), f"{name} doesn't decode")
+        images = [os.path.join(here, name) for here, _dirs, names in os.walk(folder) for name in names
+                  if name.lower().endswith((".png", ".jpg", ".jpeg"))]
+        self.assertTrue(any("app-icon" in path for path in images))   # the generated icon set is walked too
+        for path in sorted(images):
+            self.assertFalse(QImage(path).isNull(), f"{os.path.relpath(path, folder)} doesn't decode")
 
     def test_product_name(self):
         self.assertEqual(ui_theme.APP_NAME, "Sonic Rift")
