@@ -1,9 +1,11 @@
 # Accent Design Studio: reproducible benchmark protocol (NOT YET RUN)
 
+> **Research snapshot:** Findings and model-license claims reflect the original October 10, 2026 assessment. Links were reconciled to the Sonic Rift repository on October 15. No inference, accent authenticity, updated dependency licensing, or hardware performance is newly certified by merging this document. The owner GO/NO-GO gate remains #44.
+
 **Status:** benchmark plan and result schema only; **zero audio samples generated or evaluated in this research pass**.  
 **Date:** 2026-10-10  
-**Owner issue:** [#43](https://github.com/Knapp-Kevin/this-voice-thing/issues/43); inputs: [engine research #41](https://github.com/Knapp-Kevin/this-voice-thing/issues/41) and [taxonomy #42](https://github.com/Knapp-Kevin/this-voice-thing/issues/42).  
-**Implementation authorization:** only after [#44 ADR](https://github.com/Knapp-Kevin/this-voice-thing/issues/44) approval.
+**Owner issue:** [#43](https://github.com/Knapp-Kevin/sonic-rift/issues/43); inputs: [engine research #41](https://github.com/Knapp-Kevin/sonic-rift/issues/41) and [taxonomy #42](https://github.com/Knapp-Kevin/sonic-rift/issues/42).  
+**Implementation authorization:** only after [#44 ADR](https://github.com/Knapp-Kevin/sonic-rift/issues/44) approval.
 
 Reference documents:
 - [Engine API, adapter, license audit](accent-design-engine-research.md)
