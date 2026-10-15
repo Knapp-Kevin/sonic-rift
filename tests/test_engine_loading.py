@@ -69,7 +69,7 @@ class EngineLoadingTests(unittest.TestCase):
     def test_unknown_backend_fails_closed(self):
         with self.assertRaisesRegex(UnsupportedEngineError, "unknown"):
             load_engine(self.request("unknown"), {})
-        
+
     def test_backend_returning_none_is_not_success(self):
         providers = {
             "kokoro": EngineProvider(
