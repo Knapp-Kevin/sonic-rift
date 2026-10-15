@@ -293,8 +293,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         title_row.addWidget(logo)
         app_title = QLabel(ui_theme.APP_NAME)
         app_title.setObjectName("AppTitle")
-        app_title.setToolTip(f"{ui_theme.TAGLINE}\nBegan as a fork of AcTePuKc/Chatterbox-TTS-UI; "
-                             "Resemble AI's Chatterbox is one of its engines.")
+        app_title.setToolTip(f"{ui_theme.TAGLINE}\nCreative audio, made locally.")
         title_row.addWidget(app_title)
         title_row.addStretch(1)
         sidebar_layout.addLayout(title_row)

@@ -4,7 +4,6 @@ NLTK, the Chatterbox backend, model config and engine tables."""
 
 import sys
 import os
-import json
 import torch
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -28,49 +27,20 @@ torch.load = patched_torch_load
 import torchaudio  # noqa: F401  (imported at start-up, as before the split)
 
 
-def configure_console_stream(stream):
-    if stream is None or not hasattr(stream, "reconfigure"):
-        return
-    try:
-        stream.reconfigure(encoding="utf-8", errors="backslashreplace")
-    except Exception:
-        pass
-
-
-def safe_console_text(value):
-    return str(value).encode("ascii", "backslashreplace").decode("ascii")
-
+# Preserve the historical `common.TeeStream` interface and mutable sink for
+# callers while moving generic stream behavior into a UI-independent core.
+from this_voice_thing.core.console_io import (
+    ForwardingStream,
+    configure_console_stream,
+    safe_console_text,
+)
 
 APP_LOG_SINK = None
 
 
-class TeeStream:
+class TeeStream(ForwardingStream):
     def __init__(self, wrapped_stream):
-        self.wrapped_stream = wrapped_stream
-        self.encoding = getattr(wrapped_stream, "encoding", "utf-8")
-
-    def write(self, value):
-        text = str(value)
-        written = self.wrapped_stream.write(text)
-        sink = APP_LOG_SINK
-        if sink is not None and text:
-            try:
-                sink(text)
-            except Exception:
-                pass
-        return written
-
-    def flush(self):
-        return self.wrapped_stream.flush()
-
-    def isatty(self):
-        return bool(getattr(self.wrapped_stream, "isatty", lambda: False)())
-
-    def reconfigure(self, *args, **kwargs):
-        reconfigure_fn = getattr(self.wrapped_stream, "reconfigure", None)
-        if callable(reconfigure_fn):
-            return reconfigure_fn(*args, **kwargs)
-        return None
+        super().__init__(wrapped_stream, sink_supplier=lambda: APP_LOG_SINK)
 
 
 configure_console_stream(sys.stdout)
@@ -118,6 +88,7 @@ except ImportError:
 
 from this_voice_thing.core import documents
 from this_voice_thing.core import model_registry
+from this_voice_thing.core import config_io
 from this_voice_thing.core.hardware import has_system_nvidia_gpu, probe_usable_torch_cuda
 from this_voice_thing.engines import qwen as qwen_engine
 from this_voice_thing.engines import kokoro as kokoro_engine
@@ -341,13 +312,11 @@ DEFAULT_MODELS_CONFIG = {
 
 
 def read_models_config_payload(config_path):
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f), None
-    except FileNotFoundError:
-        return None, f"Model config '{config_path}' not found."
-    except Exception as exc:
-        return None, f"Failed to read model config '{config_path}': {exc}"
+    return config_io.read_json(
+        config_path,
+        missing_error=f"Model config '{config_path}' not found.",
+        error_label=f"model config '{config_path}'",
+    )
 
 
 def load_models_config(config_path):
@@ -440,15 +409,8 @@ def load_models_config(config_path):
 
 
 def read_json_payload(config_path):
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f), None
-    except FileNotFoundError:
-        return None, None
-    except Exception as exc:
-        return None, f"Failed to read '{config_path}': {exc}"
+    return config_io.read_json(config_path)
 
 
 def write_json_payload(config_path, payload):
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
+    config_io.write_json(config_path, payload)

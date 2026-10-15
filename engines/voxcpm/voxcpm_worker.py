@@ -43,7 +43,11 @@ def numba_free_load(path, sr=22050, mono=True, **_ignored):
     audio, rate = sf.read(path, dtype="float32", always_2d=True)
     audio = audio.mean(axis=1) if mono else audio
     if sr is not None and rate != sr:
+        length = int(np.ceil(len(audio) * sr / rate))   # librosa's output length
         audio = soxr.resample(audio, rate, sr, quality="HQ")
+        if len(audio) < length:
+            audio = np.pad(audio, [(0, length - len(audio))] + [(0, 0)] * (audio.ndim - 1))
+        audio = audio[:length]
         rate = sr
     audio = audio if mono else audio.T
     return np.ascontiguousarray(audio, dtype=np.float32), rate
