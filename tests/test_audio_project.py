@@ -110,6 +110,36 @@ class AudioProjectTests(unittest.TestCase):
             self.assertEqual(path.read_bytes(), previous)
             self.assertEqual(list(Path(folder).glob("*.tmp")), [])
 
+    def test_existing_future_or_corrupt_project_is_never_overwritten(self):
+        p = new_voice_project("Base", "Hello")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "project.json"
+            path.write_text('{"schema_version":999}')
+            original = path.read_bytes()
+            with self.assertRaisesRegex(ValueError, "Unsupported project schema"):
+                save_project(path, p)
+            self.assertEqual(path.read_bytes(), original)
+            path.write_text("corrupted data")
+            with self.assertRaises(json.JSONDecodeError):
+                save_project(path, p)
+            self.assertEqual(path.read_text(), "corrupted data")
+
+    def test_other_project_or_stale_revision_is_not_overwritten(self):
+        p = new_voice_project("Base", "Hello")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "project.json"
+            save_project(path, p)
+            original = path.read_bytes()
+            other = new_voice_project("Other", "Different")
+            with self.assertRaisesRegex(ValueError, "another project"):
+                save_project(path, other)
+            self.assertEqual(path.read_bytes(), original)
+            updated = read_project(path)
+            updated.revision = 2
+            save_project(path, updated)
+            with self.assertRaisesRegex(ValueError, "newer project revision"):
+                save_project(path, p)
+
     def test_does_not_mutate_caller_when_parsing(self):
         original = asdict(new_voice_project("Base", "Bonjour"))
         from_dict(original)
