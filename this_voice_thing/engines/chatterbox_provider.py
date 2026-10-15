@@ -13,7 +13,7 @@ import subprocess
 
 import torch
 from huggingface_hub import snapshot_download
-from huggingface_hub.errors import EntryNotFoundError
+from huggingface_hub.errors import EntryNotFoundError, RepositoryNotFoundError
 from chatterbox.tts import ChatterboxTTS
 from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 
@@ -41,6 +41,13 @@ _T3_NAMES = {
     "v3": "t3_mtl23ls_v3.safetensors",
     "t3_mtl23ls_v3": "t3_mtl23ls_v3.safetensors",
 }
+
+# What the loaders actually read. snapshot_download skips patterns a repository lacks
+# without raising, so these are checked after downloading: a repository missing them
+# gets a clear error instead of a FileNotFoundError deep inside the speech engine.
+_ENGLISH_REQUIRED = ("ve.safetensors", "t3_cfg.safetensors", "s3gen.safetensors", "tokenizer.json")
+_MULTILINGUAL_REQUIRED = ("ve.pt", "s3gen.pt", "grapheme_mtl_merged_expanded_v1.json")
+_MULTILINGUAL_OPTIONAL = ("conds.pt", "Cangjie5_TC.json")   # built-in voice; Chinese tokenizer
 
 # Non-code model identifiers retained for configuration compatibility.
 LEGACY_MODEL_FILES = list(_ENGLISH_ASSETS)
@@ -71,12 +78,19 @@ def _has_parameter(method, name):
         return False
 
 
-def _fetch_assets(repo_id, names):
-    location = snapshot_download(
+def _fetch_assets(repo_id, names, required=()):
+    location = Path(snapshot_download(
         repo_id=repo_id, repo_type="model", revision="main",
         allow_patterns=list(names), token=os.getenv("HF_TOKEN"),
-    )
-    return Path(location)
+    ))
+    missing = [name for name in required if not (location / name).exists()]
+    if missing:
+        error = UnsupportedChatterboxRepoError(
+            f"Model repository '{repo_id}' doesn't have the checkpoint files this loader needs "
+            f"(missing: {', '.join(missing)}). Select a compatible repository or model version.")
+        error.missing = missing
+        raise error
+    return location
 
 
 @dataclass
@@ -131,12 +145,18 @@ def _create_multilingual(repo_id, device, t3_choice):
     official_factory = getattr(ChatterboxMultilingualTTS, "from_pretrained", None)
     if (repo_id == DEFAULT_MODEL_REPO and callable(official_factory)
             and _has_parameter(official_factory, "t3_model")):
+        print(f"Loading the official multilingual model with from_pretrained (t3_model='{requested}').")
         return official_factory(device=device, t3_model=requested)
 
-    checkpoint_dir = _fetch_assets(repo_id, _MULTILINGUAL_ASSETS)
     local_factory = ChatterboxMultilingualTTS.from_local
     if _has_parameter(local_factory, "t3_model"):
+        # Only what from_local reads: other T3 variants and s3gen formats can add ~6 GB.
+        checkpoint_dir = _fetch_assets(
+            repo_id, (*_MULTILINGUAL_REQUIRED, requested, *_MULTILINGUAL_OPTIONAL),
+            required=(*_MULTILINGUAL_REQUIRED, requested))
+        print(f"Loading multilingual checkpoint from '{repo_id}' with from_local (t3_model='{requested}').")
         return local_factory(checkpoint_dir, device, t3_model=requested)
+    checkpoint_dir = _fetch_assets(repo_id, _MULTILINGUAL_ASSETS, required=_MULTILINGUAL_REQUIRED)
     if requested != _T3_NAMES["v2"]:
         print("Installed multilingual engine does not support explicit T3 selection; "
               "using its built-in default.")
@@ -152,14 +172,28 @@ def load_chatterbox_model(repo_id, backend, device, multilingual_t3_model=None):
             languages = ChatterboxMultilingualTTS.get_supported_languages()
         else:
             engine = ChatterboxTTS.from_local(
-                _fetch_assets(repo_id, _ENGLISH_ASSETS), device
+                _fetch_assets(repo_id, _ENGLISH_ASSETS, required=_ENGLISH_REQUIRED), device
             )
             languages = {"en": "English"}
+    except UnsupportedChatterboxRepoError as exc:
+        missing = getattr(exc, "missing", [])
+        if backend == BACKEND_MULTILINGUAL and missing and all(n.startswith("t3_mtl23ls") for n in missing):
+            # Only the selected T3 weights are absent: likely an older multilingual repository.
+            raise UnsupportedChatterboxRepoError(
+                f"{exc} If this is an older repository, set its multilingual_t3_model to v2 "
+                "in models.json.") from exc.__cause__
+        raise
     except EntryNotFoundError as exc:
         layout = "multilingual" if backend == BACKEND_MULTILINGUAL else "English"
         raise UnsupportedChatterboxRepoError(
             f"Model repository '{repo_id}' does not contain the required {layout} "
             "checkpoint assets; select a compatible repository or model version."
+        ) from exc
+    except RepositoryNotFoundError as exc:   # also covers gated repositories
+        raise UnsupportedChatterboxRepoError(
+            f"Model repository '{repo_id}' wasn't found on Hugging Face, or it is private or "
+            "gated. Check the name; for a gated repository accept its terms on huggingface.co "
+            "and add a token on the Models page."
         ) from exc
     return ChatterboxSession(engine, backend, repo_id, languages)
 

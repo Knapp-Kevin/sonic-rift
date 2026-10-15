@@ -66,7 +66,11 @@ class ChatterboxProviderContractTests(unittest.TestCase):
         errors = module("huggingface_hub.errors")
         class EntryNotFoundError(Exception):
             pass
+
+        class RepositoryNotFoundError(Exception):
+            pass
         errors.EntryNotFoundError = EntryNotFoundError
+        errors.RepositoryNotFoundError = RepositoryNotFoundError
         hf.snapshot_download = lambda **_kwargs: "/tmp/fake-checkpoint"
         chatterbox = module("chatterbox")
         chatterbox.__path__ = []
@@ -142,6 +146,64 @@ class ChatterboxProviderContractTests(unittest.TestCase):
             with self.assertRaises(m.UnsupportedChatterboxRepoError) as raised:
                 m.load_chatterbox_model("absent/model", m.BACKEND_LEGACY, "cpu")
         self.assertIs(raised.exception.__cause__, from_error)
+
+    def _snapshot_with(self, files):
+        """A fake snapshot folder holding `files`; records the patterns requested."""
+        import tempfile
+        folder = Path(tempfile.mkdtemp())
+        for name in files:
+            (folder / name).write_bytes(b"x")
+        requested = []
+
+        def snapshot_download(**kwargs):
+            requested.append(kwargs["allow_patterns"])
+            return str(folder)
+        return folder, requested, snapshot_download
+
+    def test_custom_multilingual_downloads_only_what_the_loader_reads(self):
+        m = self.adapter
+        needed = ["ve.pt", "s3gen.pt", "grapheme_mtl_merged_expanded_v1.json", "t3_mtl23ls_v3.safetensors"]
+        folder, requested, fake = self._snapshot_with(needed)
+        with patch.object(m, "snapshot_download", fake):
+            m.load_chatterbox_model("custom/audio", m.BACKEND_MULTILINGUAL, "cpu", "v3")
+        self.assertEqual(FakeMultilingual.local_calls, [(folder, "cpu", "t3_mtl23ls_v3.safetensors")])
+        patterns = set(requested[0])
+        self.assertIn("t3_mtl23ls_v3.safetensors", patterns)
+        for unused in ("t3_mtl23ls_v2.safetensors", "t3_23lang.safetensors", "s3gen_v3.pt", "s3gen_v3.safetensors"):
+            self.assertNotIn(unused, patterns)
+
+    def test_repository_missing_files_gets_a_clear_error(self):
+        m = self.adapter
+        _folder, _requested, fake = self._snapshot_with(["ve.pt"])   # e.g. some other model's repo
+        with patch.object(m, "snapshot_download", fake):
+            with self.assertRaises(m.UnsupportedChatterboxRepoError) as raised:
+                m.load_chatterbox_model("other/model", m.BACKEND_MULTILINGUAL, "cpu", "v3")
+        message = str(raised.exception)
+        self.assertIn("s3gen.pt", message)
+        self.assertIn("t3_mtl23ls_v3.safetensors", message)
+        self.assertNotIn("multilingual_t3_model", message)      # a different model entirely: no hint
+        self.assertEqual(FakeMultilingual.local_calls, [])
+
+        older = ["ve.pt", "s3gen.pt", "grapheme_mtl_merged_expanded_v1.json", "t3_mtl23ls_v2.safetensors"]
+        _folder, _requested, fake = self._snapshot_with(older)  # an older repository: no v3 weights
+        with patch.object(m, "snapshot_download", fake):
+            with self.assertRaisesRegex(m.UnsupportedChatterboxRepoError, "multilingual_t3_model to v2"):
+                m.load_chatterbox_model("older/model", m.BACKEND_MULTILINGUAL, "cpu", "v3")
+
+        _folder, _requested, fake = self._snapshot_with([])
+        with patch.object(m, "snapshot_download", fake):
+            with self.assertRaisesRegex(m.UnsupportedChatterboxRepoError, "t3_cfg.safetensors"):
+                m.load_chatterbox_model("other/model", m.BACKEND_LEGACY, "cpu")
+        self.assertEqual(FakeLegacy.calls, [])
+
+    def test_unknown_or_gated_repository_is_explained(self):
+        m = self.adapter
+        error = m.RepositoryNotFoundError("401 Client Error")
+        with patch.object(m, "snapshot_download", side_effect=error):
+            with self.assertRaises(m.UnsupportedChatterboxRepoError) as raised:
+                m.load_chatterbox_model("nobody/nothing", m.BACKEND_MULTILINGUAL, "cpu", "v3")
+        self.assertIn("wasn't found on Hugging Face", str(raised.exception))
+        self.assertIs(raised.exception.__cause__, error)
 
     def test_missing_cuda_cannot_report_usable_gpu(self):
         self.assertEqual(
