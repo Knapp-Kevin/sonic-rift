@@ -1,9 +1,11 @@
 # Accent Design Studio: taxonomy, corpus and evaluation policy
 
+> **Research snapshot:** Findings and model-license claims reflect the original October 10, 2026 assessment. Links were reconciled to the Sonic Rift repository on October 15. No inference, accent authenticity, updated dependency licensing, or hardware performance is newly certified by merging this document. The owner GO/NO-GO gate remains #44.
+
 **Status:** research specification for review, not a shipped feature.  
 **Checked:** 2026-10-10  
-**Tracker:** [#42](https://github.com/Knapp-Kevin/this-voice-thing/issues/42), [#40 epic](https://github.com/Knapp-Kevin/this-voice-thing/issues/40).  
-**Implementation gate:** [#44](https://github.com/Knapp-Kevin/this-voice-thing/issues/44).
+**Tracker:** [#42](https://github.com/Knapp-Kevin/sonic-rift/issues/42), [#40 epic](https://github.com/Knapp-Kevin/sonic-rift/issues/40).  
+**Implementation gate:** [#44](https://github.com/Knapp-Kevin/sonic-rift/issues/44).
 
 ## 1. What an accent setting means
 
