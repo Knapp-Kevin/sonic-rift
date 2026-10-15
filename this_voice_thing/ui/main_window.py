@@ -6,7 +6,7 @@ import sys
 
 import torch
 from PySide6.QtCore import QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
 from PySide6.QtWidgets import (
     QApplication,
@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QSizePolicy,
     QStackedWidget,
+    QStyledItemDelegate,
     QTabBar,
     QVBoxLayout,
     QWidget,
@@ -69,6 +70,21 @@ from this_voice_thing.ui.pages.transcribe import TranscribePage
 from this_voice_thing.ui.pages.voice import VoicePage
 from this_voice_thing.ui.pages.voice_picker import VoicePicker
 from this_voice_thing.ui.pages.voice_use import VoiceUse
+
+
+class SidebarDelegate(QStyledItemDelegate):
+    """Paints sidebar group headings (TOOLS, SETUP) as small accent-coloured labels; the
+    stylesheet colours every item the same, so headings are drawn here instead."""
+
+    def paint(self, painter, option, index):
+        if index.data(Qt.ItemDataRole.UserRole) is not None:
+            return super().paint(painter, option, index)
+        painter.save()
+        painter.setFont(index.data(Qt.ItemDataRole.FontRole) or option.font)
+        painter.setPen(QColor(ui_theme.current()["accent"]))
+        rect = option.rect.adjusted(14, 0, -8, -6)
+        painter.drawText(rect, int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom), index.data())
+        painter.restore()
 
 
 class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, EngineControls, Player,
@@ -259,11 +275,13 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
             if page is None:      # a group heading: not selectable, skipped by the arrow keys
                 item.setFlags(Qt.ItemFlag.NoItemFlags)
                 heading = QFont(self.sidebar.font())
-                heading.setPointSizeF(8.0)
+                heading.setPointSizeF(7.5)
                 heading.setBold(True)
-                heading.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 110)
+                heading.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 150)
                 item.setFont(heading)
-                item.setSizeHint(QSize(0, 34))
+                # Taller row with the label at the bottom: space above separates the groups.
+                item.setSizeHint(QSize(0, 42))
+                item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
             self.sidebar.addItem(item)
         title_row = QHBoxLayout()
         title_row.setContentsMargins(18, 16, 12, 10)
@@ -281,6 +299,12 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         sidebar_layout.addWidget(self.sidebar)
         self.pages = QStackedWidget()
         self.sidebar.currentRowChanged.connect(self._on_sidebar_row)
+        self.sidebar.setItemDelegate(SidebarDelegate(self.sidebar))
+        try:   # follow light/dark switches, like the rest of the theme
+            QApplication.instance().styleHints().colorSchemeChanged.connect(
+                lambda *_args: QTimer.singleShot(0, self._color_sidebar_headings))
+        except AttributeError:
+            pass
         content_area = ui_theme.TexturedArea()
         content_layout = QVBoxLayout(content_area)
         content_layout.setContentsMargins(0, 0, 0, 0)
@@ -365,6 +389,10 @@ class ChatterboxApp(GeneratePage, Generation, Documents, Estimates, Finishing, E
         self.on_page_changed(page)
         if page == self.PAGE_VOICE and self.voices_tabs.currentIndex() == 1:
             self.on_page_changed(self.PAGE_STUDIO)
+
+    def _color_sidebar_headings(self):
+        """Repaint the group headings (their colour comes from the theme at paint time)."""
+        self.sidebar.viewport().update()
 
     def show_page(self, page):
         """Go to a page; PAGE_STUDIO opens Voices on its New voice tab."""
