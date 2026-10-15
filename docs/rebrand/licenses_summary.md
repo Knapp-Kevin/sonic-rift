@@ -1,5 +1,7 @@
 # License / SPDX inventory: Python environments (issue #55)
 
+> **Historical license inventory (October 13, 2026).** This documents then-installed environments and cached model metadata, NOT the shipped dependency inventory. Reconcile the actual packaged builds and current source/weights terms before release. Some originally flagged VoxCPM optional dependencies were subsequently removed. See [current notices](../../THIRD_PARTY_NOTICES.md) and [release gate #61](https://github.com/Knapp-Kevin/sonic-rift/issues/61).
+
 Read-only inventory taken 2026-10-13 from the local checkout
 `C:\LocalAI\Voice\Chatterbox\Chatterbox-TTS-UI-main\Chatterbox-TTS-UI-main`. Nothing was installed or modified.
 This is an engineering inventory, **not legal advice**. Items marked **REVIEW** need owner or legal review.
