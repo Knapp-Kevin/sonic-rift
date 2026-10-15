@@ -57,7 +57,7 @@ def show_startup_error(log_path, exc_text):
         f"{exc_text}"
     )
     try:
-        ctypes.windll.user32.MessageBoxW(0, message, "This Voice Thing: Startup Error", 0x10)
+        ctypes.windll.user32.MessageBoxW(0, message, "Sonic Rift: Startup Error", 0x10)
     except Exception:
         pass
 
@@ -67,7 +67,7 @@ def main():
         sys.stdout = TeeFile(sys.__stdout__, log_handle)
         sys.stderr = TeeFile(sys.__stderr__, log_handle)
 
-        print(f"Launching This Voice Thing at {datetime.datetime.now().isoformat()}")
+        print(f"Launching Sonic Rift at {datetime.datetime.now().isoformat()}")
         print(f"Python executable: {sys.executable}")
         print(f"Working directory: {os.getcwd()}")
 
