@@ -4,7 +4,6 @@ NLTK, the Chatterbox backend, model config and engine tables."""
 
 import sys
 import os
-import json
 import torch
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -118,6 +117,7 @@ except ImportError:
 
 from this_voice_thing.core import documents
 from this_voice_thing.core import model_registry
+from this_voice_thing.core import config_io
 from this_voice_thing.core.hardware import has_system_nvidia_gpu, probe_usable_torch_cuda
 from this_voice_thing.engines import qwen as qwen_engine
 from this_voice_thing.engines import kokoro as kokoro_engine
@@ -341,13 +341,11 @@ DEFAULT_MODELS_CONFIG = {
 
 
 def read_models_config_payload(config_path):
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f), None
-    except FileNotFoundError:
-        return None, f"Model config '{config_path}' not found."
-    except Exception as exc:
-        return None, f"Failed to read model config '{config_path}': {exc}"
+    return config_io.read_json(
+        config_path,
+        missing_error=f"Model config '{config_path}' not found.",
+        error_label=f"model config '{config_path}'",
+    )
 
 
 def load_models_config(config_path):
@@ -440,15 +438,8 @@ def load_models_config(config_path):
 
 
 def read_json_payload(config_path):
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f), None
-    except FileNotFoundError:
-        return None, None
-    except Exception as exc:
-        return None, f"Failed to read '{config_path}': {exc}"
+    return config_io.read_json(config_path)
 
 
 def write_json_payload(config_path, payload):
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
+    config_io.write_json(config_path, payload)
