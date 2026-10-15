@@ -45,12 +45,26 @@ class StaleFrames(unittest.TestCase):
     def test_frame_from_a_stopped_thread_is_dropped(self):
         output = mock.Mock()
         stopped = mock.Mock(stop_requested=mock.Mock(return_value=True))
-        window = SimpleNamespace(live_speech_thread=stopped, live_voice_current=None, live_audio_output=output)
-        LiveVoicePage.on_live_frame(window, SimpleNamespace(pcm=b"\0\0", sample_rate=24000))
+        window = SimpleNamespace(live_speech_thread=stopped, live_voice_current=None, live_audio_output=output,
+                                 live_monitor_output=mock.Mock(route_description=mock.Mock(return_value="")))
+        window.on_live_frame = lambda frame: LiveVoicePage.on_live_frame(window, frame)
+        frame = SimpleNamespace(pcm=b"\0\0", sample_rate=24000)
+        LiveVoicePage.on_live_speech_frame(window, frame)
         output.push.assert_not_called()
         window.live_speech_thread = None
-        LiveVoicePage.on_live_frame(window, SimpleNamespace(pcm=b"\0\0", sample_rate=24000))
+        LiveVoicePage.on_live_speech_frame(window, frame)
         output.push.assert_not_called()
+
+    def test_microphone_frames_play_with_no_speech_thread(self):
+        """Regression: the stale-frame guard once dropped every Mic Effects frame."""
+        output = mock.Mock()
+        mic = mock.Mock(is_active=mock.Mock(return_value=True))
+        window = SimpleNamespace(live_speech_thread=None, live_voice_current=None, live_audio_output=output,
+                                 live_mic_input=mic,
+                                 live_monitor_output=mock.Mock(route_description=mock.Mock(return_value="")))
+        window.on_live_frame = lambda frame: LiveVoicePage.on_live_frame(window, frame)
+        LiveVoicePage.on_live_mic_frame(window, SimpleNamespace(pcm=b"\1\0", sample_rate=48000))
+        output.push.assert_called_once_with(b"\1\0")
 
 
 class CloseOrder(unittest.TestCase):

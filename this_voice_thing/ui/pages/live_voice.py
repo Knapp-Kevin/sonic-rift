@@ -1341,7 +1341,7 @@ class LiveVoicePage:
         self.live_status_label.setText(f"Starting · {session.delivery_mode}")
         thread = LiveSpeechThread(session, self)
         thread.stream_started.connect(self.on_live_stream_started)
-        thread.frame_ready.connect(self.on_live_frame)
+        thread.frame_ready.connect(self.on_live_speech_frame)
         thread.session_complete.connect(self.on_live_session_complete)
         thread.error_occurred.connect(self.on_live_speech_error)
         thread.finished.connect(self.on_live_thread_finished)
@@ -1456,13 +1456,17 @@ class LiveVoicePage:
         return bool(getattr(self, "model_is_loading", False) or self.is_generating or self.api_busy
                     or getattr(self, "studio_busy", False) or (speak is not None and speak.isRunning()))
 
-    def on_live_frame(self, frame):
+    def on_live_speech_frame(self, frame):
         # A frame already in flight when Stop was pressed belongs to a stopped thread: drop it.
         # Pushing it to the stopped sink would raise, and the audio-error path clears the queue
         # (which breaks "interrupt" pads that stop the current line to play the next).
+        # Speech threads only: Mic Effects frames arrive with no speech thread running.
         thread = self.live_speech_thread
         if thread is None or thread.stop_requested():
             return
+        self.on_live_frame(frame)
+
+    def on_live_frame(self, frame):
         if self.live_voice_current and self.live_voice_current.get("cache_key"):
             self.live_voice_current["_cache_pcm"].extend(frame.pcm)
             self.live_voice_current["_cache_sample_rate"] = int(frame.sample_rate)
