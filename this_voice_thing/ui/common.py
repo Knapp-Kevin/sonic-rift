@@ -8,22 +8,16 @@ import torch
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
-# Determine the best available device
-if torch.cuda.is_available():
-    map_location = 'cuda'
-elif getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available():
-    map_location = 'mps'
-else:
-    map_location = 'cpu'
-
-# Patch torch.load to default to the best device if map_location not explicitly set
-torch_load_original = torch.load
-def patched_torch_load(*args, **kwargs):
-    if 'map_location' not in kwargs:
-        kwargs['map_location'] = map_location
-    return torch_load_original(*args, **kwargs)
-
-torch.load = patched_torch_load
+# Centralized compatibility boundary for third-party torch.load consumers.
+# Public aliases remain available to callers until per-engine explicit device
+# selection removes the need for this process-wide compatibility hook.
+from this_voice_thing.core.torch_compat import (
+    preferred_load_device,
+    install_default_load_device,
+)
+map_location = preferred_load_device(torch)
+torch_load_original = install_default_load_device(torch, map_location)
+patched_torch_load = torch.load
 import torchaudio  # noqa: F401  (imported at start-up, as before the split)
 
 
