@@ -1,5 +1,7 @@
 # Rebrand audit: Chatterbox-origin code, licenses and risks (#55)
 
+> **Historical research snapshot, 2026-10-13.** Counts, source comparisons, package inventories, model licensing, and recommendations describe the audited revision, **not the current Sonic Rift `main`**. Subsequent implementation includes independent provider #77, core refactors #75/#78/#85/#86, and adopted MOSS soundscape implementation. Review current `docs/upstream-provenance-audit.md`, `THIRD_PARTY_NOTICES.md`, and release issue #61 before treating any result as a live production assertion. No new tests or downloads were performed during this archival integration.
+
 **Status:** audit complete, read-only; nothing was removed, renamed or installed. It extends [../upstream-provenance-audit.md](../upstream-provenance-audit.md) and doesn't replace it. **Not legal advice.**
 **Date:** 2026-10-13. **Upstream reference:** `AcTePuKc/Chatterbox-TTS-UI` @ `22460fd` (also present in this repo's history).
 
