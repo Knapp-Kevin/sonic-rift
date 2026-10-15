@@ -291,9 +291,6 @@ class ProjectEditorDialog(QDialog):
         kind, identifier = selection
         if kind == "track":
             track = next(t for t in self.session.project.tracks if t.id == identifier)
-            dialog = QDialog(self)
-            dialog.setWindowTitle("Track properties")
-            form = QFormLayout(dialog)
             name, ok = QInputDialog.getText(self, "Track name", "Name", text=track.name)
             if not ok or not name.strip():
                 return
