@@ -60,7 +60,8 @@ class ProjectEditorDialog(QDialog):
         edit_actions = QHBoxLayout()
         self._button(edit_actions, "+ Track", self.add_track)
         self._button(edit_actions, "+ Saved sound", self.add_sound)
-        self._button(edit_actions, "+ Rendered narration", self.add_voice_take)
+        self._button(edit_actions, "+ Create text", self.add_text_block)
+        self._button(edit_actions, "+ / Attach narration", self.add_voice_take)
         self._button(edit_actions, "Edit…", self.edit_selected)
         self._button(edit_actions, "Remove", self.remove_selected)
         self._button(edit_actions, "↑", lambda: self.move_track(-1))
@@ -68,7 +69,7 @@ class ProjectEditorDialog(QDialog):
         layout.addLayout(edit_actions)
 
         self.note = QLabel("Save a project, then export a mastered mix and post-duck premaster WAV stems. "
-                           "Create voice audio using the existing Generate controls first.")
+                           "Text blocks need rendered narration attached before export; use Create to generate it.")
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
         actions = QHBoxLayout()
@@ -219,6 +220,18 @@ class ProjectEditorDialog(QDialog):
         except Exception as exc:
             self._error(exc)
 
+    def add_text_block(self):
+        text = self.owner.text_input.toPlainText().strip()
+        if not text:
+            QMessageBox.information(self, "Narration", "Enter text on Create first.")
+            return
+        clip = Clip(new_id(), "voice", 0, 0, text=text,
+                    voice_id=self.owner.active_voice_id or "")
+        def change(project):
+            from this_voice_thing.core.audio_project import Track
+            project.tracks.append(Track(new_id(), "voice", "Narration", clips=[clip]))
+        self._mutate(lambda: self.session.apply(change))
+
     def add_voice_take(self):
         initial = self.owner.current_audio_file or self.owner.output_directory
         filename, _ = QFileDialog.getOpenFileName(self, "Import rendered narration", initial,
@@ -232,11 +245,18 @@ class ProjectEditorDialog(QDialog):
             pcm, sr = sf.read(filename, dtype="float32", always_2d=True)
             asset_id = self.media.import_voice_take(pcm, sr)
             frames = math.ceil(len(pcm) * self.session.project.sample_rate / sr)
-            clip = Clip(new_id(), "voice", 0, frames, asset_id=asset_id)
-            def change(project):
-                from this_voice_thing.core.audio_project import Track
-                project.tracks.append(Track(new_id(), "voice", Path(filename).stem, clips=[clip]))
-            self._mutate(lambda: self.session.apply(change))
+            selection = self._selected()
+            existing = next((clip for track in self.session.project.tracks for clip in track.clips
+                             if selection == ("clip", clip.id) and clip.kind == "voice"), None)
+            if existing is not None:
+                self._mutate(lambda: self.session.update_clip(
+                    existing.id, asset_id=asset_id, frame_count=frames), existing.id)
+            else:
+                clip = Clip(new_id(), "voice", 0, frames, asset_id=asset_id)
+                def change(project):
+                    from this_voice_thing.core.audio_project import Track
+                    project.tracks.append(Track(new_id(), "voice", Path(filename).stem, clips=[clip]))
+                self._mutate(lambda: self.session.apply(change))
         except Exception as exc:
             self._error(exc)
 
@@ -267,9 +287,18 @@ class ProjectEditorDialog(QDialog):
         kind, identifier = selection
         if kind == "track":
             track = next(t for t in self.session.project.tracks if t.id == identifier)
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Track properties")
+            form = QFormLayout(dialog)
             name, ok = QInputDialog.getText(self, "Track name", "Name", text=track.name)
-            if ok and name.strip():
-                self._mutate(lambda: self.session.update_track(identifier, name=name.strip()), identifier)
+            if not ok or not name.strip():
+                return
+            gain, ok = QInputDialog.getDouble(self, "Track gain", "Gain (dB)",
+                                               track.gain_db, -60, 24, 1)
+            if not ok:
+                return
+            self._mutate(lambda: self.session.update_track(
+                identifier, name=name.strip(), gain_db=gain), identifier)
             return
         clip = next(c for t in self.session.project.tracks for c in t.clips if c.id == identifier)
         rate = self.session.project.sample_rate
@@ -284,7 +313,8 @@ class ProjectEditorDialog(QDialog):
             form.addRow(label, control)
             return control
         start = spin("Start (seconds)", clip.start_frame / rate, 0, 36000)
-        duration = spin("Duration (seconds)", clip.frame_count / rate, 0.001, 36000)
+        duration = spin("Duration (seconds)", clip.frame_count / rate, 0, 36000)
+        duration.setEnabled(bool(clip.asset_id))
         gain = spin("Gain (dB)", clip.gain_db, -60, 24)
         fade_in = spin("Fade in (seconds)", clip.fade_in_frames / rate, 0, 36000)
         fade_out = spin("Fade out (seconds)", clip.fade_out_frames / rate, 0, 36000)
@@ -317,6 +347,12 @@ class ProjectEditorDialog(QDialog):
                                                   self.owner.output_directory)
         if not parent:
             return
+        profile, ok = QInputDialog.getItem(
+            self, "Export formats", "Master format",
+            ["WAV", "WAV + MP3", "WAV + OGG", "WAV + MP3 + OGG"], 0, False)
+        if not ok:
+            return
+        formats = tuple(fmt for fmt in ("wav", "mp3", "ogg") if fmt.upper() in profile)
         label, ok = QInputDialog.getText(self, "Export folder", "New folder name",
                                          text="SonicRift_Mix")
         if not ok:
@@ -328,7 +364,7 @@ class ProjectEditorDialog(QDialog):
         snapshot = deepcopy(self.session.project)
         media = self.media
         self.export_button.setEnabled(False)
-        self.worker = TaskThread(lambda: export_project(snapshot, media, destination, formats=("wav",),
+        self.worker = TaskThread(lambda: export_project(snapshot, media, destination, formats=formats,
                                                         include_stems=True), self)
         self.worker.done.connect(self._export_done)
         self.worker.finished.connect(self._export_finished)
