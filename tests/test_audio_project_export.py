@@ -36,7 +36,7 @@ class ProjectExportTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def test_reopened_project_produces_master_and_unducked_source_safe_stems(self):
+    def test_reopened_project_produces_master_and_premaster_stems(self):
         project = read_project(self.root / "project.sonicrift.json")
         manifest_path = export_project(project, ProjectMedia(self.root, AssetLibrary(str(self.root))), self.root / "render")
         manifest = json.loads(manifest_path.read_text())
@@ -48,6 +48,18 @@ class ProjectExportTests(unittest.TestCase):
         for path in manifest["stems"].values():
             self.assertTrue((self.root / "render" / path).is_file())
         self.assertEqual(len(manifest["stems"]), 2)
+        self.assertLessEqual(manifest["metrics"]["true_peak_db"], -1.0)
+        self.assertAlmostEqual(manifest["metrics"]["integrated_lufs"], -16.0, delta=0.4)
+
+    def test_optional_wav_ogg_mp3_encoders_produce_readable_audio(self):
+        path = export_project(self.project, self.media, self.root / "formats", formats=("wav", "ogg", "mp3"))
+        data = json.loads(path.read_text())
+        self.assertEqual(set(data["master_files"]), {"wav", "ogg", "mp3"})
+        for fmt in ("wav", "ogg", "mp3"):
+            info = sf.info(str(path.parent / f"master.{fmt}"))
+            self.assertEqual(info.samplerate, 48000)
+            self.assertEqual(info.channels, 2)
+            self.assertAlmostEqual(info.duration, 2.0, delta=0.02)
 
     def test_destination_never_overwrites_existing_files(self):
         root = self.root / "render"
