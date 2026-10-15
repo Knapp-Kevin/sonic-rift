@@ -50,6 +50,28 @@ class ChatterboxGateTests(unittest.TestCase):
         self.assertIn("Qwen engine isn't installed", errors[0])
         qwen_loader.assert_not_called()
 
+    def test_other_engine_errors_are_not_labelled_chatterbox_repo_problems(self):
+        """Without chatterbox-tts the fallback error class must not swallow every RuntimeError.
+        Run in a clean interpreter, with chatterbox imports blocked."""
+        import os
+        import subprocess
+        import sys
+        script = "\n".join((
+            "import importlib.abc, sys",
+            "class Block(importlib.abc.MetaPathFinder):",
+            "    def find_spec(self, name, path, target=None):",
+            "        if name == 'chatterbox' or name.startswith('chatterbox.'):",
+            "            raise ImportError(name)",
+            "sys.meta_path.insert(0, Block())",
+            "from this_voice_thing.ui import common",
+            "print(common.CHATTERBOX_AVAILABLE, issubclass(RuntimeError, common.UnsupportedChatterboxRepoError),"
+            " isinstance(RuntimeError('Kokoro failed'), common.UnsupportedChatterboxRepoError))",
+        ))
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        result = subprocess.run([sys.executable, "-c", script], cwd=root, capture_output=True, text=True,
+                                timeout=300)
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "False False False", result.stderr[-2000:])
+
     def test_needs_chatterbox(self):
         self.assertTrue(common.needs_chatterbox(common.BACKEND_MULTILINGUAL))
         self.assertTrue(common.needs_chatterbox(common.BACKEND_LEGACY))

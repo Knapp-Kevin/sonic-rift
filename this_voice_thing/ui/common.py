@@ -142,8 +142,13 @@ BACKEND_MULTILINGUAL = getattr(
 DEFAULT_MULTILINGUAL_T3_MODEL = getattr(
     chatterbox_backends, "DEFAULT_MULTILINGUAL_T3_MODEL", "v3"
 )
+class _ChatterboxUnavailableRepoError(RuntimeError):
+    """Stand-in when chatterbox-tts is missing. Never RuntimeError itself: callers catch this
+    to label Chatterbox repository problems, and other engines raise RuntimeError too."""
+
+
 UnsupportedChatterboxRepoError = getattr(
-    chatterbox_backends, "UnsupportedChatterboxRepoError", RuntimeError
+    chatterbox_backends, "UnsupportedChatterboxRepoError", _ChatterboxUnavailableRepoError
 )
 get_supported_languages_for_backend = getattr(
     chatterbox_backends,
