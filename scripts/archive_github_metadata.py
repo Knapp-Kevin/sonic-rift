@@ -93,7 +93,10 @@ def collect(repo, destination, reader):
     """Collect independent machine-readable snapshots without mutating GitHub."""
     if not REPO_PATTERN.fullmatch(repo):
         raise ValueError("Expected OWNER/REPOSITORY")
-    root = Path(destination)
+    root = Path(destination).resolve()
+    checkout = Path(__file__).resolve().parents[1]
+    if root == checkout or checkout in root.parents:
+        raise ValueError("Refusing to store potentially sensitive GitHub records inside this repository")
     if root.exists() and any(root.iterdir()):
         raise FileExistsError("Archive destination is not empty; choose a new directory")
     root.mkdir(parents=True, exist_ok=True)
