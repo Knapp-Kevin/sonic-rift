@@ -15,7 +15,7 @@ from ctypes import wintypes
 from this_voice_thing import paths
 
 APP_ID = "KnappKevin.ThisVoiceThing"
-APP_NAME = "This Voice Thing"
+APP_NAME = "Sonic Rift"           # the AppUserModelID above stays, so existing pinned buttons keep working
 ICON_FILE = os.path.join(paths.ASSETS_DIR, "branding", "this-voice-thing.ico")
 
 VT_LPWSTR = 31
