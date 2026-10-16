@@ -66,6 +66,7 @@ class ProjectEditorDialog(QDialog):
         self._button(edit_actions, "+ Create text", self.add_text_block)
         self._button(edit_actions, "+ / Attach narration", self.add_voice_take)
         self._button(edit_actions, "Edit…", self.edit_selected)
+        self._button(edit_actions, "Mute / Unmute", self.toggle_track_mute)
         self._button(edit_actions, "Edit narration", self.edit_narration)
         self._button(edit_actions, "Remove", self.remove_selected)
         self._button(edit_actions, "↑", lambda: self.move_track(-1))
@@ -208,6 +209,9 @@ class ProjectEditorDialog(QDialog):
             self._mutate(lambda: self.session.add_track(kind, name.strip()))
 
     def add_sound(self):
+        if self.import_worker is not None or self.worker is not None:
+            QMessageBox.information(self, "Project", "Finish the current media operation first.")
+            return
         assets = self.owner.sound_library.assets
         if not assets:
             QMessageBox.information(self, "Sounds", "Keep a sound on the Sounds page first.")
@@ -217,22 +221,44 @@ class ProjectEditorDialog(QDialog):
         if not ok:
             return
         asset = assets[labels.index(label)]
-        try:
-            pcm, source_rate = self.media.resolve("sound_" + asset.id)
-            frames = math.ceil(len(pcm) * self.session.project.sample_rate / source_rate)
-            clip = Clip(new_id(), "sound", 0, frames, asset_id="sound_" + asset.id, loop=asset.loop)
-            selection = self._selected()
-            selected_track_id = self._track_for_selection(selection, "sound")
-            def change(project):
-                from this_voice_thing.core.audio_project import Track
-                track = next((track for track in project.tracks if track.id == selected_track_id), None)
-                if track is None:
-                    project.tracks.append(Track(new_id(), "sound", asset.name, clips=[clip]))
-                else:
-                    track.clips.append(clip)
-            self._mutate(lambda: self.session.apply(change))
-        except Exception as exc:
-            self._error(exc)
+        selection = self._selected()
+        project_id = self.session.project.id
+        revision = self.session.project.revision
+        sample_rate = self.session.project.sample_rate
+        media = self.media
+        def resolve_sound():
+            pcm, source_rate = media.resolve("sound_" + asset.id)
+            frames = round(len(pcm) * sample_rate / source_rate)
+            return asset.id, asset.name, asset.loop, frames
+        self.import_worker = TaskThread(resolve_sound, self)
+        self.import_worker.done.connect(
+            lambda result, error: self._sound_import_done(result, error, selection, project_id, revision))
+        self.import_worker.finished.connect(self._voice_import_finished)
+        self.note.setText("Verifying saved sound in the background.")
+        self.import_worker.start()
+
+    def _sound_import_done(self, result, error, selection, project_id, revision):
+        if error:
+            self.note.setText("Sound import failed; no project edits were made.")
+            self._error(error)
+            return
+        if not may_attach_import_result(self.session.project, project_id, revision):
+            self.note.setText("Project changed while verifying sound. Re-select the sound to attach it.")
+            return
+        asset_id, name, loop, frames = result
+        clip = Clip(new_id(), "sound", 0, frames, asset_id="sound_" + asset_id, loop=loop)
+        selected_track_id = self._track_for_selection(selection, "sound")
+        def change(project):
+            from this_voice_thing.core.audio_project import Track
+            track = next((track for track in project.tracks if track.id == selected_track_id), None)
+            if track is None:
+                project.tracks.append(Track(new_id(), "sound", name, clips=[clip]))
+            else:
+                track.clips.append(clip)
+        if self._mutate(lambda: self.session.apply(change), clip.id):
+            self.note.setText("Saved sound attached. Save the project to keep the new clip.")
+        else:
+            self.note.setText("Sound verification passed, but the project edit was rejected.")
 
     def _track_for_selection(self, selection, kind):
         return compatible_track_id(self.session.project, selection, kind)
@@ -333,6 +359,20 @@ class ProjectEditorDialog(QDialog):
         function = (lambda: self.session.remove_track(identifier)) if kind == "track" else (
             lambda: self.session.remove_clip(identifier))
         self._mutate(function)
+
+    def toggle_track_mute(self):
+        selection = self._selected()
+        if not selection:
+            return
+        track_id = self._track_for_selection(selection, "voice")
+        if track_id is None:
+            track_id = self._track_for_selection(selection, "sound")
+        if track_id is None:
+            track_id = self._track_for_selection(selection, "effect")
+        if track_id is None:
+            return
+        track = next(t for t in self.session.project.tracks if t.id == track_id)
+        self._mutate(lambda: self.session.update_track(track_id, muted=not track.muted), track_id)
 
     def move_track(self, offset):
         selection = self._selected()
