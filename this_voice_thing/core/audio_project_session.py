@@ -200,6 +200,14 @@ class ProjectSession:
             project.tracks.insert(new_index, track)
         return self.apply(edit)
 
+    def ensure_current_file(self):
+        """Prevent exporting a stale in-memory view of a changed saved document."""
+        if self.path is None or self._fingerprint is None:
+            raise ValueError("Save this project before exporting")
+        if not self.path.is_file() or _sha(self.path) != self._fingerprint:
+            raise ValueError("Project changed on disk; reopen or save a new copy")
+        return self.path
+
     def save(self, path=None):
         """Refuse unnoticed outside edits and accidental overwrite of another file."""
         target = Path(path).resolve() if path is not None else self.path
