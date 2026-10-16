@@ -8,7 +8,6 @@ not fetch, install, mutate files, use a GPU, or call a network service.
 import argparse
 import json
 import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
 
 UPSTREAM_COMMIT = "22460fd99ceb78c309f879b93878240241a0dc9b"
