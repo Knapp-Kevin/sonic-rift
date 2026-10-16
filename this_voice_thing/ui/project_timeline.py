@@ -10,26 +10,8 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
+from this_voice_thing.core.timeline_visual_math import PEAKS_PER_SECOND, envelope, ruler_tick_step
 from this_voice_thing.ui import theme as ui_theme
-
-PEAKS_PER_SECOND = 50
-
-
-def envelope(pcm, sample_rate, per_second=PEAKS_PER_SECOND):
-    """Peak envelope (0..1) of mono or multichannel PCM, `per_second` values per second."""
-    audio = np.asarray(pcm, dtype=np.float32)
-    if audio.ndim > 1:
-        audio = np.max(np.abs(audio), axis=1)
-    else:
-        audio = np.abs(audio)
-    step = max(1, int(sample_rate // per_second))
-    usable = (len(audio) // step) * step
-    if usable == 0:
-        return np.zeros(1, dtype=np.float32)
-    peaks = audio[:usable].reshape(-1, step).max(axis=1)
-    top = float(peaks.max()) or 1.0
-    return np.clip(peaks / top, 0.0, 1.0).astype(np.float32)
-
 
 class TimelineView(QWidget):
     clipSelected = Signal(str)        # clip id
@@ -115,7 +97,7 @@ class TimelineView(QWidget):
         small.setPointSizeF(max(7.0, small.pointSizeF() - 1.5))
         painter.setFont(small)
         total = self.total_seconds()
-        step = next(s for s in (1, 2, 5, 10, 15, 30, 60, 120, 300) if total / s <= 16)
+        step = ruler_tick_step(total)
         for tick in range(0, int(total) + 1, step):
             x = self._x(tick)
             painter.drawLine(QPointF(x, self.RULER - 6), QPointF(x, self.RULER))
