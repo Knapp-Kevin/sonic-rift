@@ -338,8 +338,8 @@ class ProjectEditorDialog(QDialog):
         existing = next((clip for track in self.session.project.tracks for clip in track.clips
                          if selection == ("clip", clip.id) and clip.kind == "voice"), None)
         if existing is not None:
-            applied = self._mutate(lambda: self.session.update_clip(
-                existing.id, asset_id=asset_id, frame_count=frames), existing.id)
+            applied = self._mutate(lambda: self.session.attach_narration_take(
+                existing.id, asset_id, frames), existing.id)
         else:
             clip = Clip(new_id(), "voice", 0, frames, asset_id=asset_id)
             selected_track_id = self._track_for_selection(selection, "voice")
