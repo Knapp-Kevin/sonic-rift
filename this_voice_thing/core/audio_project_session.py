@@ -137,6 +137,26 @@ class ProjectSession:
                 setattr(clip, key, value)
         return self.apply(edit)
 
+    def attach_narration_take(self, clip_id, asset_id, frame_count):
+        """Replace a voice clip's rendered take atomically and preserve undo history.
+
+        Shorter takes must not inherit invalid or overlapping fade lengths from
+        the previous recording. The previous source remains in project media.
+        """
+        def edit(project):
+            clip = next((c for t in project.tracks for c in t.clips if c.id == clip_id), None)
+            if clip is None:
+                raise KeyError(f"Unknown clip: {clip_id}")
+            if clip.kind != "voice":
+                raise ValueError("Only voice clips can attach narration")
+            if type(frame_count) is not int or frame_count <= 0:
+                raise ValueError("Narration duration must be positive frames")
+            clip.asset_id = asset_id
+            clip.frame_count = frame_count
+            clip.fade_in_frames = min(clip.fade_in_frames, frame_count // 2)
+            clip.fade_out_frames = min(clip.fade_out_frames, frame_count // 2)
+        return self.apply(edit)
+
     def update_narration_text(self, clip_id, text):
         """Changing script invalidates its previous rendered take, never deletes media."""
         if not isinstance(text, str) or not text.strip():
