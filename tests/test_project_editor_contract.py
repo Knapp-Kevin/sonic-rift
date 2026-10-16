@@ -21,7 +21,8 @@ class ProjectEditorContractTests(unittest.TestCase):
         self.assertTrue({
             "new_project", "open_project", "save_project", "rename_project",
             "add_sound", "add_voice_take", "add_text_block", "edit_selected",
-            "remove_selected", "undo", "redo", "edit_narration", "export", "cancel_export",
+            "remove_selected", "undo", "redo", "edit_narration", "toggle_track_mute",
+            "_sound_import_done", "export", "cancel_export",
             "_export_done", "_export_finished",
         } <= members)
         self.assertIn("TaskThread(", source)
@@ -30,6 +31,9 @@ class ProjectEditorContractTests(unittest.TestCase):
         self.assertIn("getMultiLineText", source)
         self.assertIn("compatible_track_id(", source)
         self.assertIn("update_narration_text(", source)
+        self.assertIn("self.import_worker = TaskThread(resolve_sound, self)", source)
+        self.assertIn("self.session.update_track(track_id, muted=not track.muted)", source)
+        self.assertIn("may_attach_import_result(", source)
 
     def test_create_page_keeps_existing_text_generation_path(self):
         path = ROOT / "this_voice_thing/ui/pages/generate.py"
