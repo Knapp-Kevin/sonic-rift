@@ -148,6 +148,7 @@ class LiveAudioOutput(QObject):
         self._started = False
         # True while a reused, drained sink waits for the start buffer to refill.
         self._holding = False
+        self._rebuffering = False
         self._input_finished = False
         self._drained_emitted = False
         self._configured_at = None
@@ -322,6 +323,7 @@ class LiveAudioOutput(QObject):
         self._pending.clear()
         self._started = False
         self._holding = False
+        self._rebuffering = False
         self._input_finished = False
         self._drained_emitted = False
         self._timer.start()
@@ -351,8 +353,10 @@ class LiveAudioOutput(QObject):
             raise RuntimeError(
                 f"Live audio buffer exceeded {self.MAX_PENDING_SECONDS:.0f} seconds; "
                 "stopping instead of growing without bound.")
-        if len(self._pending) >= int(bps * self._start_buffer_seconds):
+        threshold = self._start_buffer_seconds * (2 if self._rebuffering else 1)
+        if len(self._pending) >= int(bps * threshold):
             self._holding = False
+            self._rebuffering = False
             if not self._started:
                 self._start_sink()
         self._flush()
@@ -365,6 +369,7 @@ class LiveAudioOutput(QObject):
                 self._pending.extend(self._to_sink(tail))
         self._input_finished = True
         self._holding = False
+        self._rebuffering = False
         if self._pending and not self._started:
             self._start_sink()
         self._flush()
@@ -392,6 +397,11 @@ class LiveAudioOutput(QObject):
             and self._bytes_written > 0
         ):
             self._underruns += 1
+            # Ran dry mid-utterance (generation fell behind). Restarting on every small chunk
+            # turned one slow patch into a burst of clicks (11 restarts in 1.8 s in the soak);
+            # hold until twice the start buffer has refilled: one short pause instead.
+            self._holding = True
+            self._rebuffering = True
         self._last_state = state
 
     def _tick(self):
@@ -492,6 +502,7 @@ class LiveAudioOutput(QObject):
         self._drained_emitted = False
         self._started = False
         self._holding = False
+        self._rebuffering = False
         self._io = None
         if self._sink is not None:
             try:
