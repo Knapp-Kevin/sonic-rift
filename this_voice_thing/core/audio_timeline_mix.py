@@ -72,13 +72,18 @@ def render_timeline(project, resolve_asset, max_mix_bytes=DEFAULT_MAX_MIX_BYTES)
                 except (OSError, KeyError, FileNotFoundError) as exc:
                     raise ValueError(f"Cannot resolve clip asset: {clip.asset_id}") from exc
                 n = clip.frame_count
-                if len(samples) < n and not clip.loop:
-                    raise ValueError(f"Source shorter than nonlooping clip: {clip.id}")
-                if len(samples) < n:
-                    times = (n + len(samples) - 1) // len(samples)
-                    segment = np.tile(samples, (times, 1))[:n].copy()
+                offset = clip.source_offset_frames
+                if clip.loop:
+                    # A looped source starts `offset` frames in and wraps round.
+                    if len(samples) == 0:
+                        raise ValueError(f"Source shorter than nonlooping clip: {clip.id}")
+                    start = offset % len(samples)
+                    times = (start + n + len(samples) - 1) // len(samples)
+                    segment = np.tile(samples, (times, 1))[start:start + n].copy()
                 else:
-                    segment = samples[:n].copy()
+                    if len(samples) - offset < n:
+                        raise ValueError(f"Source shorter than nonlooping clip: {clip.id}")
+                    segment = samples[offset:offset + n].copy()
                 if clip.fade_in_frames:
                     segment[:clip.fade_in_frames] *= np.linspace(
                         0, 1, clip.fade_in_frames, dtype=np.float32)[:, None]

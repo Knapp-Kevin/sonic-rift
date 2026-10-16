@@ -151,6 +151,7 @@ class ProjectEditorDialog(QDialog):
         self.timeline.clipActivated.connect(lambda clip_id: (self._select_clip_in_tree(clip_id),
                                                              self.edit_selected()))
         self.timeline.seekRequested.connect(self._seek_preview)
+        self.timeline.clipPlaced.connect(self._clip_placed)
 
         self.tree = QTreeWidget()
         set_empty_text(self.tree, "Add a saved sound or narration to start. Each kind gets its own track.")
@@ -281,6 +282,23 @@ class ProjectEditorDialog(QDialog):
                     self.tree.setCurrentItem(item)
                     return
 
+    def _clip_placed(self, clip_id, start, count, offset):
+        """A drag on the timeline finished: one undoable edit (scripts can only move)."""
+        clip = next((c for t in self.session.project.tracks for c in t.clips if c.id == clip_id), None)
+        if clip is None:
+            return
+        if clip.asset_id:
+            change = lambda: self.session.place_clip(clip_id, start, count, offset)
+        else:
+            change = lambda: self.session.update_clip(clip_id, start_frame=start)
+        if self._mutate(change, clip_id):
+            rate = self.session.project.sample_rate
+            if clip.asset_id:
+                self.note.setText(f"Clip now starts at {start / rate:.2f} s and runs {count / rate:.2f} s. "
+                                  "Undo puts it back; the source audio is unchanged.")
+            else:
+                self.note.setText(f"Script moved to {start / rate:.2f} s. Undo puts it back.")
+
     def _tree_selection_changed(self, current, _previous):
         data = current.data(0, Qt.ItemDataRole.UserRole) if current else None
         self.timeline.set_selected(data[1] if data and data[0] == "clip" else None)
@@ -300,7 +318,7 @@ class ProjectEditorDialog(QDialog):
             for asset_id in wanted:
                 try:
                     pcm, rate = media.resolve(asset_id)
-                    found[asset_id] = envelope(pcm, rate)
+                    found[asset_id] = (envelope(pcm, rate), (len(pcm), rate))   # length: the trim limit
                 except Exception:
                     found[asset_id] = None          # missing media: the block stays plain
             return found
@@ -312,9 +330,10 @@ class ProjectEditorDialog(QDialog):
 
     @Slot(object, str)
     def _peaks_done(self, result, _error):
-        for asset_id, peaks in (result or {}).items():
-            if peaks is not None:
-                self.timeline.set_peaks(asset_id, peaks)
+        for asset_id, found in (result or {}).items():
+            if found is not None:
+                peaks, length = found
+                self.timeline.set_peaks(asset_id, peaks, length)
 
     @Slot()
     def _peaks_finished(self):
@@ -756,7 +775,14 @@ class ProjectEditorDialog(QDialog):
         form.addRow(buttons)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
+        offset = clip.source_offset_frames
+        if clip.loop and not loop.isChecked() and offset:
+            # A looping clip's trimmed start may wrap past the end of its audio; without looping
+            # it must sit inside the audio, at the same point in the sound.
+            source = self.timeline.source_frames(clip.asset_id)
+            offset = offset % source if source else 0
         params = {
+            "source_offset_frames": offset,
             "start_frame": round(start.value() * rate),
             "frame_count": round(duration.value() * rate),
             "gain_db": gain.value(),

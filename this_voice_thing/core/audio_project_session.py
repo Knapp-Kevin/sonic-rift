@@ -131,7 +131,8 @@ class ProjectSession:
         return self.apply(edit)
 
     def update_clip(self, clip_id, **changes):
-        allowed = {"start_frame", "frame_count", "gain_db", "fade_in_frames", "fade_out_frames", "loop", "text", "voice_id", "asset_id"}
+        allowed = {"start_frame", "frame_count", "gain_db", "fade_in_frames", "fade_out_frames", "loop", "text",
+                   "voice_id", "asset_id", "source_offset_frames"}
         if not changes or set(changes) - allowed:
             raise ValueError("Unsupported clip edit")
         def edit(project):
@@ -140,6 +141,30 @@ class ProjectSession:
                 raise KeyError(f"Unknown clip: {clip_id}")
             for key, value in changes.items():
                 setattr(clip, key, value)
+        return self.apply(edit)
+
+    def place_clip(self, clip_id, start_frame, frame_count, source_offset_frames):
+        """Move and/or trim one clip as a single undoable edit (the timeline's drag).
+
+        The source audio is never changed: trimming the start only skips frames of it.
+        Fades shorter than the new length are kept; longer ones are shortened to fit.
+        """
+        for value in (start_frame, frame_count, source_offset_frames):
+            if type(value) is not int or value < 0:
+                raise ValueError("Clip placement must be whole, non-negative frames")
+        if frame_count == 0:
+            raise ValueError("A clip can't be trimmed to nothing")
+        def edit(project):
+            clip = next((c for t in project.tracks for c in t.clips if c.id == clip_id), None)
+            if clip is None:
+                raise KeyError(f"Unknown clip: {clip_id}")
+            if not clip.asset_id:
+                raise ValueError("Only clips with audio can be moved or trimmed on the timeline")
+            clip.start_frame = start_frame
+            clip.frame_count = frame_count
+            clip.source_offset_frames = source_offset_frames
+            clip.fade_in_frames = min(clip.fade_in_frames, frame_count)
+            clip.fade_out_frames = min(clip.fade_out_frames, frame_count)
         return self.apply(edit)
 
     def attach_narration_take(self, clip_id, asset_id, frame_count):
@@ -158,6 +183,7 @@ class ProjectSession:
                 raise ValueError("Narration duration must be positive frames")
             clip.asset_id = asset_id
             clip.frame_count = frame_count
+            clip.source_offset_frames = 0          # a trim belonged to the previous take
             clip.fade_in_frames = min(clip.fade_in_frames, frame_count // 2)
             clip.fade_out_frames = min(clip.fade_out_frames, frame_count // 2)
         return self.apply(edit)
@@ -175,6 +201,7 @@ class ProjectSession:
             clip.text = text.strip()
             clip.asset_id = ""
             clip.frame_count = 0
+            clip.source_offset_frames = 0
             clip.fade_in_frames = 0
             clip.fade_out_frames = 0
         return self.apply(edit)
