@@ -229,7 +229,7 @@ class ProjectEditorDialog(QDialog):
         media = self.media
         def resolve_sound():
             pcm, source_rate = media.resolve("sound_" + asset.id)
-            frames = round(len(pcm) * sample_rate / source_rate)
+            frames = math.ceil(len(pcm) * sample_rate / source_rate)
             return asset.id, asset.name, asset.loop, frames
         self._pending_import = ("sound", selection, project_id, revision)
         self.import_worker = TaskThread(resolve_sound, self)
@@ -317,7 +317,7 @@ class ProjectEditorDialog(QDialog):
                 raise ValueError("Narration must be mono/stereo and no longer than 15 minutes")
             pcm, sr = sf.read(filename, dtype="float32", always_2d=True)
             asset_id = media.import_voice_take(pcm, sr)
-            frames = round(len(pcm) * project_rate / sr)
+            frames = math.ceil(len(pcm) * project_rate / sr)
             return asset_id, frames, filename
         self._pending_import = ("voice", selection, project_id, revision)
         self.import_worker = TaskThread(import_file, self)
