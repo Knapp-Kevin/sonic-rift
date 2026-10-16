@@ -160,6 +160,11 @@ class LiveAudioOutput(QObject):
         self._last_stats = {}
         self._start_buffer_seconds = self.START_BUFFER_SECONDS
         self._sink_buffer_seconds = self.SINK_BUFFER_SECONDS
+        # A next item that needs another sink format while the previous one is still audible:
+        # (device, source_rate, configure kwargs), its PCM so far, and whether its input ended.
+        self._deferred = None
+        self._deferred_pcm = bytearray()
+        self._deferred_finished = False
         self._timer = QTimer(self)
         self._timer.setInterval(10)
         self._timer.timeout.connect(self._tick)
@@ -295,10 +300,18 @@ class LiveAudioOutput(QObject):
             return
 
         if self.is_playing():
-            raise RuntimeError(
-                "The next item needs a different output format while previous audio is still playing. "
-                "Wait for the current audio to finish before switching this route."
-            )
+            # The previous item is still audible in the old format (its generation finished, so
+            # the output controls were enabled again and the route changed). Let it finish, then
+            # switch; meanwhile keep the new item's PCM. This used to be an error that dropped
+            # the new line and cleared the queue.
+            if not self._input_finished:
+                self.finish_input()
+            self._deferred = (device, source_rate, {"start_buffer_seconds": start_buffer_seconds,
+                                                    "sink_buffer_seconds": sink_buffer_seconds})
+            self._deferred_pcm = bytearray()
+            self._deferred_finished = False
+            self._timer.start()
+            return
 
         self.stop()
         self._device_key = key
@@ -342,7 +355,36 @@ class LiveAudioOutput(QObject):
         self._sink_started_at = time.monotonic()
         self._started = True
 
+    def _deferred_seconds(self):
+        if self._deferred is None:
+            return 0.0
+        return len(self._deferred_pcm) / float(max(1, self._deferred[1]) * 2)
+
+    def _switch_if_drained(self):
+        """Start the deferred item on its own format once the previous one has played out."""
+        if self._deferred is None or self._pending:
+            return
+        if self._sink is not None and self._started and self._sink.state() == QAudio.State.ActiveState:
+            return
+        device, source_rate, kwargs = self._deferred
+        pcm, finished = bytes(self._deferred_pcm), self._deferred_finished
+        self._deferred, self._deferred_pcm, self._deferred_finished = None, bytearray(), False
+        self.stop()
+        self.configure(device, source_rate, **kwargs)
+        if pcm:
+            self.push(pcm)
+        if finished:
+            self.finish_input()
+
     def push(self, pcm):
+        if self._deferred is not None:
+            self._deferred_pcm.extend(pcm)
+            if self._deferred_seconds() > self.MAX_PENDING_SECONDS:
+                raise RuntimeError(
+                    f"Live audio buffer exceeded {self.MAX_PENDING_SECONDS:.0f} seconds; "
+                    "stopping instead of growing without bound.")
+            self.buffer_changed.emit(self.buffered_ms())
+            return
         if self._sink is None or self._converter is None:
             raise RuntimeError("Live audio output is not configured.")
         converted = self._converter.convert(pcm)
@@ -363,6 +405,9 @@ class LiveAudioOutput(QObject):
         self.buffer_changed.emit(self.buffered_ms())
 
     def finish_input(self):
+        if self._deferred is not None:
+            self._deferred_finished = True
+            return
         if self._converter is not None:
             tail = self._converter.convert(b"", final=True)
             if tail:
@@ -406,10 +451,12 @@ class LiveAudioOutput(QObject):
 
     def _tick(self):
         try:
+            self._switch_if_drained()
             self._flush()
             self.buffer_changed.emit(self.buffered_ms())
             if (
-                self._input_finished
+                self._deferred is None
+                and self._input_finished
                 and not self._pending
                 and self._sink is not None
                 and self._started
@@ -432,10 +479,11 @@ class LiveAudioOutput(QObject):
             size = max(0, int(self._sink.bufferSize()))
             free = max(0, int(self._sink.bytesFree()))
             queued += max(0, size - free)
-        return 1000.0 * queued / bps
+        # A deferred next item counts too, so generation backpressure still applies while it waits.
+        return 1000.0 * queued / bps + 1000.0 * self._deferred_seconds()
 
     def is_playing(self):
-        if self._pending:
+        if self._pending or self._deferred is not None:
             return True
         if self._sink is None or not self._started:
             return False
@@ -498,6 +546,9 @@ class LiveAudioOutput(QObject):
         self._last_stats = self.stats()
         self._timer.stop()
         self._pending.clear()
+        self._deferred = None
+        self._deferred_pcm = bytearray()
+        self._deferred_finished = False
         self._input_finished = False
         self._drained_emitted = False
         self._started = False

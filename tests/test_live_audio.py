@@ -403,3 +403,67 @@ class LiveAudioOutputReuseTests(unittest.TestCase):
         output.push(b"\x00\x00" * 4800)
         self.assertGreater(output._sink.io.written, written)
         output.stop()
+
+
+class _OtherDevice(_NegotiatingDevice):
+    """A second endpoint (e.g. an HDMI output) that only takes 44.1 kHz stereo."""
+
+    def id(self):
+        return b"other-device"
+
+    def description(self):
+        return "Other output"
+
+
+class LiveAudioOutputFormatSwitchTests(unittest.TestCase):
+    """#13: the next line needs another sink format while the previous line is still audible."""
+
+    def setUp(self):
+        from PySide6.QtMultimedia import QAudio
+        self.QAudio = QAudio
+        self.output = LiveAudioOutput()
+        self.patch = patch("this_voice_thing.ui.live_audio.QAudioSink", _StartableSink)
+        self.patch.start()
+        self.output.configure(_NegotiatingDevice({(48000, 2)}), 24000)
+        self.output.push(b"\x00\x01" * 24000)                 # 1 s of the first line: playing
+        self.old_sink = self.output._sink
+        self.old_sink._state = QAudio.State.ActiveState
+        self.output.finish_input()
+
+    def tearDown(self):
+        self.output.stop()
+        self.patch.stop()
+
+    def test_next_line_waits_instead_of_failing(self):
+        """Regression: this raised 'needs a different output format' and the line was dropped."""
+        other = _OtherDevice({(44100, 2)})
+        self.output.configure(other, 24000)                  # no exception
+        self.output.push(b"\x00\x02" * 12000)                 # the next line's audio arrives
+        self.output.finish_input()
+        self.assertTrue(self.output.is_playing())
+        self.assertEqual(self.output._format.sampleRate(), 48000)   # still the old line's format
+        self.output._pending.clear()                         # the old line plays out ...
+        self.old_sink._state = self.QAudio.State.IdleState
+        self.output._tick()                                  # ... then the switch happens
+        self.assertEqual(self.output._format.sampleRate(), 44100)
+        self.assertIsNot(self.output._sink, self.old_sink)
+        self.assertGreater(self.output._sink.io.written, 0)  # the next line reached the new sink
+
+    def test_waiting_line_counts_for_backpressure_and_stop_clears_it(self):
+        other = _OtherDevice({(44100, 2)})
+        self.output.configure(other, 24000)
+        before = self.output.buffered_ms()
+        self.output.push(b"\x00\x02" * 24000)                 # 1 s at 24 kHz
+        self.assertAlmostEqual(self.output.buffered_ms() - before, 1000.0, delta=1.0)
+        self.output.stop()
+        self.assertFalse(self.output.is_playing())
+        self.assertIsNone(self.output._deferred)
+
+    def test_no_drained_signal_between_the_two_lines(self):
+        fired = []
+        self.output.drained.connect(lambda: fired.append(True))
+        self.output.configure(_OtherDevice({(44100, 2)}), 24000)
+        self.output._pending.clear()
+        self.old_sink._state = self.QAudio.State.IdleState
+        self.output._tick()                                  # switches; the new line hasn't ended
+        self.assertEqual(fired, [])
