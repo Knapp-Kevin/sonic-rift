@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from this_voice_thing.core.audio_project import AudioProject, Clip, new_id
-from this_voice_thing.core.audio_project_session import ProjectSession
+from this_voice_thing.core.audio_project_session import ProjectSession, compatible_track_id
 from this_voice_thing.core.audio_project_media import ProjectMedia
 from this_voice_thing.core.audio_project_export import export_project
 from this_voice_thing.ui.threads import TaskThread
@@ -65,6 +65,7 @@ class ProjectEditorDialog(QDialog):
         self._button(edit_actions, "+ Create text", self.add_text_block)
         self._button(edit_actions, "+ / Attach narration", self.add_voice_take)
         self._button(edit_actions, "Edit…", self.edit_selected)
+        self._button(edit_actions, "Edit narration", self.edit_narration)
         self._button(edit_actions, "Remove", self.remove_selected)
         self._button(edit_actions, "↑", lambda: self.move_track(-1))
         self._button(edit_actions, "↓", lambda: self.move_track(1))
@@ -231,23 +232,17 @@ class ProjectEditorDialog(QDialog):
             self._error(exc)
 
     def _track_for_selection(self, selection, kind):
-        """Return a selected compatible track ID, never a project file path."""
-        if not selection:
-            return None
-        selected_kind, identifier = selection
-        for track in self.session.project.tracks:
-            if track.kind != kind:
-                continue
-            if selected_kind == "track" and track.id == identifier:
-                return track.id
-            if selected_kind == "clip" and any(clip.id == identifier for clip in track.clips):
-                return track.id
-        return None
+        return compatible_track_id(self.session.project, selection, kind)
 
     def add_text_block(self):
-        text = self.owner.text_input.toPlainText().strip()
+        text, ok = QInputDialog.getMultiLineText(
+            self, "New narration", "Narration text",
+            self.owner.text_input.toPlainText().strip())
+        if not ok:
+            return
+        text = text.strip()
         if not text:
-            QMessageBox.information(self, "Narration", "Enter text on Create first.")
+            QMessageBox.information(self, "Narration", "Enter narration text first.")
             return
         clip = Clip(new_id(), "voice", 0, 0, text=text,
                     voice_id=self.owner.active_voice_id or "")
@@ -313,6 +308,31 @@ class ProjectEditorDialog(QDialog):
         track_id = selection[1]
         index = next(i for i, t in enumerate(self.session.project.tracks) if t.id == track_id)
         self._mutate(lambda: self.session.move_track(track_id, index + offset), track_id)
+
+    def edit_narration(self):
+        selection = self._selected()
+        if not selection or selection[0] != "clip":
+            QMessageBox.information(self, "Narration", "Select a voice clip to edit its script.")
+            return
+        clip_id = selection[1]
+        clip = next((c for t in self.session.project.tracks for c in t.clips if c.id == clip_id), None)
+        if clip is None or clip.kind != "voice":
+            QMessageBox.information(self, "Narration", "Select a voice clip to edit its script.")
+            return
+        text, ok = QInputDialog.getMultiLineText(
+            self, "Edit narration", "Script", clip.text)
+        if not ok or text.strip() == clip.text:
+            return
+        if clip.asset_id:
+            answer = QMessageBox.question(
+                self, "Rendered audio",
+                "Changing the script will detach the previous rendered take from this clip. "
+                "The saved audio will not be deleted. Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No)
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        self._mutate(lambda: self.session.update_narration_text(clip.id, text), clip.id)
 
     def edit_selected(self):
         selection = self._selected()
