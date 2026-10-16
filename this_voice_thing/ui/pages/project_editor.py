@@ -239,6 +239,7 @@ class ProjectEditorDialog(QDialog):
         self.import_worker = TaskThread(resolve_sound, self)
         self.import_worker.done.connect(self._import_done)
         self.import_worker.finished.connect(self._voice_import_finished)
+        self.import_worker.finished.connect(self.import_worker.deleteLater)
         self.note.setText("Verifying saved sound in the background.")
         self.import_worker.start()
 
@@ -327,6 +328,7 @@ class ProjectEditorDialog(QDialog):
         self.import_worker = TaskThread(import_file, self)
         self.import_worker.done.connect(self._import_done)
         self.import_worker.finished.connect(self._voice_import_finished)
+        self.import_worker.finished.connect(self.import_worker.deleteLater)
         self.note.setText("Importing narration in the background. Source files are not modified.")
         self.import_worker.start()
 
@@ -519,6 +521,7 @@ class ProjectEditorDialog(QDialog):
                                                         include_stems=True, should_cancel=should_cancel), self)
         self.worker.done.connect(self._export_done)
         self.worker.finished.connect(self._export_finished)
+        self.worker.finished.connect(self.worker.deleteLater)
         self.note.setText("Exporting project. Keep this editor open until completion.")
         self.worker.start()
 
