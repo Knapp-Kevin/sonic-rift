@@ -39,6 +39,8 @@ class ProjectEditorContractTests(unittest.TestCase):
         self.assertIn("self.session.ensure_current_file()", source)
         self.assertIn("add_actions = QHBoxLayout()", source)
         self.assertIn("self.import_worker.done.connect(self._import_done)", source)
+        self.assertEqual(source.count("self.import_worker.finished.connect(self.import_worker.deleteLater)"), 2)
+        self.assertIn("self.worker.finished.connect(self.worker.deleteLater)", source)
         self.assertIn("@Slot(object, str)", source)
         self.assertIn("@Slot()", source)
         self.assertNotIn("lambda result, error: self._sound_import_done", source)
