@@ -160,9 +160,9 @@ class Pointer(unittest.TestCase):
         view = TimelineView(lambda clip: clip.id)
         view.resize(1200, 200)
         view.set_project(project())
-        view.set_peaks("voice_" + "a" * 64, np.ones(200, dtype=np.float32), 4 * RATE)   # 4 s source
-        view.set_peaks("voice_" + "b" * 64, np.ones(50, dtype=np.float32), RATE)
-        view.set_peaks("sound_abc", np.ones(500, dtype=np.float32), 10 * RATE)
+        view.set_peaks("voice_" + "a" * 64, np.ones(200, dtype=np.float32), (4 * RATE, RATE))   # 4 s source
+        view.set_peaks("voice_" + "b" * 64, np.ones(50, dtype=np.float32), (RATE, RATE))
+        view.set_peaks("sound_abc", np.ones(500, dtype=np.float32), (10 * RATE, RATE))
         view.grab()
         placed = []
         view.clipPlaced.connect(lambda *args: placed.append(args))
@@ -270,6 +270,45 @@ class Pointer(unittest.TestCase):
         (clip_id, start, count, offset), = placed
         self.assertEqual((clip_id, count, offset), ("s1", 0, 0))
         self.assertGreater(start, 9 * RATE)
+
+    def test_trim_limit_follows_the_project_rate(self):
+        """Review: a limit cached in one project's rate overshot after opening a 44.1 kHz project."""
+        view, placed = self.view()
+        p441 = project()
+        p441.sample_rate = 44100
+        view.set_project(p441)
+        self.assertEqual(view.source_frames("voice_" + "a" * 64), 4 * 44100)
+
+    def test_a_lost_release_ends_the_drag(self):
+        from PySide6.QtCore import QEvent, Qt
+        view, placed = self.view()
+        r = self.rect(view, "v1")
+        y = self.lane_y(view, 0)
+        self.drag(view, r.center().x(), y, r.center().x() + 120, finish=False)
+        total = view.total_seconds()
+        mouse(view, QEvent.Type.MouseMove, r.center().x() + 130, y, button=Qt.MouseButton.NoButton,
+              buttons=Qt.MouseButton.NoButton)              # no button held: the release went elsewhere
+        self.assertIsNone(view._drag)
+        self.assertEqual(placed, [])
+        self.drag(view, r.center().x(), y, r.center().x() + 120, finish=False)
+        view.set_project(view.project)                      # a refresh mid-drag ends it too
+        self.assertIsNone(view._drag)
+        self.assertGreaterEqual(total, 0)
+
+    def test_very_short_clip_trims_stay_legal(self):
+        from this_voice_thing.ui.project_timeline import TimelineView
+        p = project()
+        p.tracks[0].clips[0].frame_count = 100               # 2 ms, shorter than the 50 ms minimum
+        view = TimelineView()
+        view.resize(1200, 200)
+        view.set_project(p)
+        view.set_peaks("voice_" + "a" * 64, np.ones(10, dtype=np.float32), (4 * RATE, RATE))
+        view.grab()
+        view._drag = {"clip_id": "v1", "mode": "start", "press_x": 0.0, "now": None, "start": 2 * RATE,
+                      "count": 100, "offset": 0, "loop": False, "source": 4 * RATE, "total": view.total_seconds(),
+                      "frames_per_px": 1.0}
+        start, count, offset = view._drag_to(500.0)
+        self.assertTrue(start >= 0 and offset >= 0 and count >= 1, (start, count, offset))
 
     def test_overlapping_clips_pick_the_one_drawn_on_top(self):
         from this_voice_thing.ui.project_timeline import TimelineView

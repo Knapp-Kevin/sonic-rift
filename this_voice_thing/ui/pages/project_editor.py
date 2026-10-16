@@ -280,8 +280,11 @@ class ProjectEditorDialog(QDialog):
             change = lambda: self.session.update_clip(clip_id, start_frame=start)
         if self._mutate(change, clip_id):
             rate = self.session.project.sample_rate
-            self.note.setText(f"Clip now starts at {start / rate:.2f} s and runs {count / rate:.2f} s. "
-                              "Undo puts it back; the source audio is unchanged.")
+            if clip.asset_id:
+                self.note.setText(f"Clip now starts at {start / rate:.2f} s and runs {count / rate:.2f} s. "
+                                  "Undo puts it back; the source audio is unchanged.")
+            else:
+                self.note.setText(f"Script moved to {start / rate:.2f} s. Undo puts it back.")
 
     def _tree_selection_changed(self, current, _previous):
         data = current.data(0, Qt.ItemDataRole.UserRole) if current else None
@@ -296,16 +299,13 @@ class ProjectEditorDialog(QDialog):
         if not wanted:
             return
         media = self.media
-        project_rate = self.session.project.sample_rate
 
         def compute():
             found = {}
             for asset_id in wanted:
                 try:
                     pcm, rate = media.resolve(asset_id)
-                    # Source length at the project rate, as the mixer resamples it: the trim limit.
-                    frames = math.ceil(len(pcm) * project_rate / rate)
-                    found[asset_id] = (envelope(pcm, rate), frames)
+                    found[asset_id] = (envelope(pcm, rate), (len(pcm), rate))   # length: the trim limit
                 except Exception:
                     found[asset_id] = None          # missing media: the block stays plain
             return found
@@ -319,8 +319,8 @@ class ProjectEditorDialog(QDialog):
     def _peaks_done(self, result, _error):
         for asset_id, found in (result or {}).items():
             if found is not None:
-                peaks, frames = found
-                self.timeline.set_peaks(asset_id, peaks, frames)
+                peaks, length = found
+                self.timeline.set_peaks(asset_id, peaks, length)
 
     @Slot()
     def _peaks_finished(self):
@@ -762,7 +762,14 @@ class ProjectEditorDialog(QDialog):
         form.addRow(buttons)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
+        offset = clip.source_offset_frames
+        if clip.loop and not loop.isChecked() and offset:
+            # A looping clip's trimmed start may wrap past the end of its audio; without looping
+            # it must sit inside the audio, at the same point in the sound.
+            source = self.timeline.source_frames(clip.asset_id)
+            offset = offset % source if source else 0
         params = {
+            "source_offset_frames": offset,
             "start_frame": round(start.value() * rate),
             "frame_count": round(duration.value() * rate),
             "gain_db": gain.value(),

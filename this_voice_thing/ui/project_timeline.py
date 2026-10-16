@@ -7,7 +7,7 @@ import math
 from dataclasses import replace
 
 import numpy as np
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QEvent, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
@@ -36,7 +36,7 @@ class TimelineView(QWidget):
         self.playhead = None          # seconds, or None when stopped
         self.label_for_clip = label_for_clip or (lambda clip: "")
         self._hits = []               # (QRectF, clip_id)
-        self.source_frames = {}       # asset_id -> source length in project frames (trim limit)
+        self.source_lengths = {}      # asset_id -> (source samples, source rate): the trim limit
         self._drag = None             # the clip being moved or trimmed, while the button is down
         self.setMouseTracking(True)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -45,16 +45,26 @@ class TimelineView(QWidget):
 
     # ---- state ----
     def set_project(self, project):
+        self._drag = None             # the clip may have changed under the pointer
         self.project = project
         self.setMinimumHeight(self.RULER + max(1, len(project.tracks if project else [])) * self.LANE + 8)
         self.updateGeometry()
         self.update()
 
-    def set_peaks(self, asset_id, peaks, source_frames=None):
+    def set_peaks(self, asset_id, peaks, source_length=None):
+        """source_length: (samples, sample_rate) of the asset as stored."""
         self.peaks[asset_id] = peaks
-        if source_frames:
-            self.source_frames[asset_id] = int(source_frames)
+        if source_length:
+            self.source_lengths[asset_id] = (int(source_length[0]), int(source_length[1]))
         self.update()
+
+    def source_frames(self, asset_id):
+        """The asset's length at this project's rate, as the mixer resamples it (or None)."""
+        found = self.source_lengths.get(asset_id)
+        if not found or not self.project:
+            return None
+        samples, rate = found
+        return math.ceil(samples * self.project.sample_rate / rate)
 
     def set_selected(self, clip_id):
         self.selected = clip_id
@@ -243,6 +253,7 @@ class TimelineView(QWidget):
         delta = round((x - d["press_x"]) * d["frames_per_px"])
         start, count, offset = d["start"], d["count"], d["offset"]
         minimum = max(1, round(self.MIN_CLIP_SECONDS * rate))
+        minimum = max(1, min(minimum, count, d["source"] - offset))   # a clip already shorter stays legal
         if d["mode"] == "move":
             return max(0, start + delta), count, offset
         if d["mode"] == "start":
@@ -272,7 +283,7 @@ class TimelineView(QWidget):
         clip = self._clip(clip_id)
         if clip is None:
             return
-        source = self.source_frames.get(clip.asset_id)
+        source = self.source_frames(clip.asset_id)
         mode = self._zone(point, clip_id)
         if mode != "move" and not clip.loop and source is None:
             mode = "move"                 # the audio's length isn't known yet: no trimming
@@ -285,10 +296,12 @@ class TimelineView(QWidget):
 
     def mouseMoveEvent(self, event):
         point = event.position()
-        if self._drag is not None and event.buttons() & Qt.MouseButton.LeftButton:
-            self._drag["now"] = self._drag_to(point.x())
-            self.update()
-            return
+        if self._drag is not None:
+            if event.buttons() & Qt.MouseButton.LeftButton:
+                self._drag["now"] = self._drag_to(point.x())
+                self.update()
+                return
+            self.cancel_drag()        # the release was lost (another window took the pointer)
         clip_id = self._clip_at(point)
         if clip_id:
             zone = self._zone(point, clip_id)
@@ -313,6 +326,15 @@ class TimelineView(QWidget):
         if self._drag is not None:
             self._drag = None
             self.update()
+
+    def focusOutEvent(self, event):
+        self.cancel_drag()
+        super().focusOutEvent(event)
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.Type.ActivationChange and not self.isActiveWindow():
+            self.cancel_drag()
+        super().changeEvent(event)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape and self._drag is not None:
