@@ -1,6 +1,7 @@
 """Opt-in project editor for Create; legacy single-text generation stays intact.
 
-First usable list-based track editor, not yet a graphical drag-and-drop timeline.
+A visual timeline (lanes, clip blocks with waveforms, playhead, mix preview) above the
+track list; clips are still edited through the list and the properties dialog, not dragged.
 Qt widgets only hold inputs; versioned project state lives in ProjectSession.
 """
 from copy import deepcopy
@@ -9,13 +10,15 @@ import math
 import os
 from pathlib import Path
 import re
+import tempfile
 
 import soundfile as sf
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import QUrl, Qt, Slot
+from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import (
     QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout, QHBoxLayout,
-    QInputDialog, QLabel, QMessageBox, QPushButton, QTreeWidget,
+    QInputDialog, QLabel, QMessageBox, QPushButton, QSplitter, QTreeWidget,
     QTreeWidgetItem, QVBoxLayout, QDialogButtonBox,
 )
 
@@ -23,6 +26,7 @@ from this_voice_thing.core.audio_project import AudioProject, Clip, new_id
 from this_voice_thing.core.audio_project_session import ProjectSession, compatible_track_id, may_attach_import_result
 from this_voice_thing.core.audio_project_media import ProjectMedia
 from this_voice_thing.core.audio_project_export import export_project
+from this_voice_thing.ui.project_timeline import TimelineView, envelope, preview_mix, seconds_label
 from this_voice_thing.ui.threads import TaskThread
 from this_voice_thing.ui.widgets import MenuButton, set_empty_text, set_role
 
@@ -77,7 +81,7 @@ class ProjectEditorDialog(QDialog):
         super().__init__(owner)
         self.owner = owner
         self.setWindowTitle("Sonic Rift | Create project")
-        self.resize(900, 600)
+        self.resize(1000, 720)
         self.session = ProjectSession(AudioProject(new_id(), "Untitled project"))
         self.saved_revision = None
         self.baseline_revision = self.session.project.revision   # nothing to lose until edited
@@ -86,6 +90,10 @@ class ProjectEditorDialog(QDialog):
         self.import_worker = None
         self._pending_import = None
         self.export_cancel = None
+        self.peak_worker = None
+        self.preview_worker = None
+        self.preview_revision = None     # project revision the preview file was rendered from
+        self.preview_file = None
         self.media = ProjectMedia(owner.script_dir, owner.sound_library)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 14, 18, 14)
@@ -108,13 +116,43 @@ class ProjectEditorDialog(QDialog):
         self.heading.setObjectName("PageSubtitle")
         layout.addWidget(self.heading)
 
+        transport = QHBoxLayout()
+        self.play_button = self._button(transport, "Play mix", self.play_preview)
+        self.play_button.setToolTip("Listen to the arranged mix (with ducking; not mastered). "
+                                    "Click the ruler to jump.")
+        self.stop_button = self._button(transport, "Stop", self.stop_preview)
+        self.stop_button.setEnabled(False)
+        self.position_label = QLabel("0:00.0")
+        self.position_label.setObjectName("Muted")
+        transport.addWidget(self.position_label)
+        transport.addStretch()
+        layout.addLayout(transport)
+        self.player = QMediaPlayer(self)
+        self.audio_out = QAudioOutput(self)
+        self.player.setAudioOutput(self.audio_out)
+        self.player.positionChanged.connect(self._on_preview_position)
+        self.player.playbackStateChanged.connect(self._on_preview_state)
+
+        self.timeline = TimelineView(self._clip_label)
+        self.timeline.clipSelected.connect(self._select_clip_in_tree)
+        self.timeline.clipActivated.connect(lambda clip_id: (self._select_clip_in_tree(clip_id),
+                                                             self.edit_selected()))
+        self.timeline.seekRequested.connect(self._seek_preview)
+
         self.tree = QTreeWidget()
         set_empty_text(self.tree, "Add a saved sound or narration to start. Each kind gets its own track.")
         self.tree.setHeaderLabels(["Track / clip", "Starts", "Length", "Gain", "Source"])
         self.tree.setRootIsDecorated(True)
         self.tree.setAlternatingRowColors(True)
         self.tree.itemDoubleClicked.connect(lambda *_: self.edit_selected())
-        layout.addWidget(self.tree, 1)
+        self.tree.currentItemChanged.connect(self._tree_selection_changed)
+        split = QSplitter(Qt.Orientation.Vertical)
+        split.addWidget(self.timeline)
+        split.addWidget(self.tree)
+        split.setStretchFactor(0, 3)
+        split.setStretchFactor(1, 2)
+        split.setChildrenCollapsible(False)
+        layout.addWidget(split, 1)
 
         # One row: add things, change the selection, then the export the editor exists for.
         add_actions = QHBoxLayout()
@@ -195,6 +233,8 @@ class ProjectEditorDialog(QDialog):
         self.heading.setText(state)
         self.undo_button.setEnabled(self.session.can_undo)
         self.redo_button.setEnabled(self.session.can_redo)
+        self.timeline.set_project(project)
+        self._request_peaks()
         self.tree.clear()
         for track in project.tracks:
             row = QTreeWidgetItem([f"{track.name} ({track.kind})" + (" [muted]" if track.muted else ""),
@@ -217,6 +257,126 @@ class ProjectEditorDialog(QDialog):
             row.setExpanded(True)
             if selected == track.id:
                 self.tree.setCurrentItem(row)
+
+    # ---- timeline ----
+    def _select_clip_in_tree(self, clip_id):
+        for i in range(self.tree.topLevelItemCount()):
+            top = self.tree.topLevelItem(i)
+            for j in range(top.childCount()):
+                item = top.child(j)
+                if item.data(0, Qt.ItemDataRole.UserRole) == ("clip", clip_id):
+                    self.tree.setCurrentItem(item)
+                    return
+
+    def _tree_selection_changed(self, current, _previous):
+        data = current.data(0, Qt.ItemDataRole.UserRole) if current else None
+        self.timeline.set_selected(data[1] if data and data[0] == "clip" else None)
+
+    def _request_peaks(self):
+        """Waveforms for clips that have audio, computed off the UI thread, once per asset."""
+        if self.peak_worker is not None:
+            return
+        wanted = sorted({clip.asset_id for track in self.session.project.tracks for clip in track.clips
+                         if clip.asset_id and clip.asset_id not in self.timeline.peaks})
+        if not wanted:
+            return
+        media = self.media
+
+        def compute():
+            found = {}
+            for asset_id in wanted:
+                try:
+                    pcm, rate = media.resolve(asset_id)
+                    found[asset_id] = envelope(pcm, rate)
+                except Exception:
+                    found[asset_id] = None          # missing media: the block stays plain
+            return found
+        self.peak_worker = TaskThread(compute, self)
+        self.peak_worker.done.connect(self._peaks_done)
+        self.peak_worker.finished.connect(self._peaks_finished)
+        self.peak_worker.finished.connect(self.peak_worker.deleteLater)
+        self.peak_worker.start()
+
+    @Slot(object, str)
+    def _peaks_done(self, result, _error):
+        for asset_id, peaks in (result or {}).items():
+            if peaks is not None:
+                self.timeline.set_peaks(asset_id, peaks)
+
+    @Slot()
+    def _peaks_finished(self):
+        self.peak_worker = None
+        self._request_peaks()          # anything added meanwhile
+
+    def play_preview(self):
+        if self.preview_worker is not None:
+            return
+        if not any(clip.asset_id for track in self.session.project.tracks for clip in track.clips):
+            QMessageBox.information(self, "Play mix", "Add a sound or a narration take first.")
+            return
+        if self.preview_file and self.preview_revision == self.session.project.revision:
+            self.player.play()
+            return
+        snapshot = deepcopy(self.session.project)
+        media = self.media
+        folder = tempfile.mkdtemp(prefix="sonicrift_preview_")
+
+        def render():
+            audio, rate = preview_mix(snapshot, media)
+            path = os.path.join(folder, "preview.wav")
+            sf.write(path, audio, rate, subtype="PCM_16")
+            return path, snapshot.revision
+        self.play_button.setEnabled(False)
+        self.note.setText("Preparing the mix to play\u2026")
+        self.preview_worker = TaskThread(render, self)
+        self.preview_worker.done.connect(self._preview_ready)
+        self.preview_worker.finished.connect(self._preview_finished)
+        self.preview_worker.finished.connect(self.preview_worker.deleteLater)
+        self.preview_worker.start()
+
+    @Slot(object, str)
+    def _preview_ready(self, result, error):
+        if error:
+            self.note.setText("The mix couldn't be prepared for playback.")
+            self._error(error)
+            return
+        path, revision = result
+        self.player.stop()
+        self.preview_file, self.preview_revision = path, revision
+        self.player.setSource(QUrl.fromLocalFile(path))
+        self.player.play()
+        self.note.setText("Playing the arranged mix (not mastered). Export makes the final file.")
+
+    @Slot()
+    def _preview_finished(self):
+        self.preview_worker = None
+        self.play_button.setEnabled(True)
+
+    def stop_preview(self):
+        self.player.stop()
+
+    def _seek_preview(self, seconds):
+        if self.preview_file and self.preview_revision == self.session.project.revision:
+            self.player.setPosition(int(seconds * 1000))
+            if self.player.playbackState() != QMediaPlayer.PlaybackState.PlayingState:
+                self.player.play()
+        else:
+            self.timeline.set_playhead(seconds)
+            self.position_label.setText(seconds_label(seconds))
+
+    def _on_preview_position(self, milliseconds):
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
+            return
+        self.timeline.set_playhead(milliseconds / 1000)
+        self.position_label.setText(seconds_label(milliseconds / 1000))
+
+    def _on_preview_state(self, state):
+        playing = state == QMediaPlayer.PlaybackState.PlayingState
+        self.stop_button.setEnabled(playing)
+        self.play_button.setText("Playing\u2026" if playing else "Play mix")
+        if state == QMediaPlayer.PlaybackState.StoppedState:
+            self.timeline.set_playhead(None)
+            self.position_label.setText("0:00.0")
 
     def _selected(self):
         item = self.tree.currentItem()
@@ -668,11 +828,19 @@ class ProjectEditorDialog(QDialog):
         self.cancel_button.setVisible(False)
         self.export_button.setEnabled(True)
 
+    def _finish_quick_jobs(self):
+        """Peaks and the preview render only read media; let them finish before closing."""
+        self.player.stop()
+        for job in (self.peak_worker, self.preview_worker):
+            if job is not None:
+                job.wait(10000)
+
     def reject(self):
         if self.worker is not None or self.import_worker is not None:
             QMessageBox.information(self, "Project", "Finish the media operation before closing this editor.")
             return
         if self._confirm_discard():
+            self._finish_quick_jobs()
             super().reject()
 
     def closeEvent(self, event):
@@ -681,6 +849,7 @@ class ProjectEditorDialog(QDialog):
             event.ignore()
             return
         if self._confirm_discard():
+            self._finish_quick_jobs()
             QDialog.reject(self)   # finished(): the owner drops its reference (no second prompt)
             event.accept()
         else:
