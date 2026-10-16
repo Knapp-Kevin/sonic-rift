@@ -12,7 +12,7 @@ import re
 
 import soundfile as sf
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout, QHBoxLayout,
     QInputDialog, QLabel, QMessageBox, QPushButton, QTreeWidget,
@@ -38,6 +38,7 @@ class ProjectEditorDialog(QDialog):
         self.saved_revision = None
         self.worker = None
         self.import_worker = None
+        self._pending_import = None
         self.export_cancel = None
         self.media = ProjectMedia(owner.script_dir, owner.sound_library)
         layout = QVBoxLayout(self)
@@ -230,12 +231,23 @@ class ProjectEditorDialog(QDialog):
             pcm, source_rate = media.resolve("sound_" + asset.id)
             frames = round(len(pcm) * sample_rate / source_rate)
             return asset.id, asset.name, asset.loop, frames
+        self._pending_import = ("sound", selection, project_id, revision)
         self.import_worker = TaskThread(resolve_sound, self)
-        self.import_worker.done.connect(
-            lambda result, error: self._sound_import_done(result, error, selection, project_id, revision))
+        self.import_worker.done.connect(self._import_done)
         self.import_worker.finished.connect(self._voice_import_finished)
         self.note.setText("Verifying saved sound in the background.")
         self.import_worker.start()
+
+    @Slot(object, str)
+    def _import_done(self, result, error):
+        """Dispatch worker results to Qt's UI thread through a bound QObject slot."""
+        if self._pending_import is None:
+            return
+        kind, selection, project_id, revision = self._pending_import
+        if kind == "sound":
+            self._sound_import_done(result, error, selection, project_id, revision)
+        else:
+            self._voice_import_done(result, error, selection, project_id, revision)
 
     def _sound_import_done(self, result, error, selection, project_id, revision):
         if error:
@@ -307,10 +319,9 @@ class ProjectEditorDialog(QDialog):
             asset_id = media.import_voice_take(pcm, sr)
             frames = round(len(pcm) * project_rate / sr)
             return asset_id, frames, filename
+        self._pending_import = ("voice", selection, project_id, revision)
         self.import_worker = TaskThread(import_file, self)
-        self.import_worker.done.connect(
-            lambda result, error: self._voice_import_done(
-                result, error, selection, project_id, revision))
+        self.import_worker.done.connect(self._import_done)
         self.import_worker.finished.connect(self._voice_import_finished)
         self.note.setText("Importing narration in the background. Source files are not modified.")
         self.import_worker.start()
@@ -345,8 +356,10 @@ class ProjectEditorDialog(QDialog):
         else:
             self.note.setText("Narration was saved, but could not be attached to this clip.")
 
+    @Slot()
     def _voice_import_finished(self):
         self.import_worker = None
+        self._pending_import = None
 
     def remove_selected(self):
         selection = self._selected()
@@ -505,6 +518,7 @@ class ProjectEditorDialog(QDialog):
             self.export_cancel.set()
             self.note.setText("Cancellation requested. Cleaning up after the current rendering stage.")
 
+    @Slot(object, str)
     def _export_done(self, result, error):
         if error:
             self.note.setText("Export failed. Source files were not modified.")
@@ -514,6 +528,7 @@ class ProjectEditorDialog(QDialog):
             QMessageBox.information(self, "Project exported",
                                     f"Master WAV, premaster stems and manifest saved to:\n{Path(result).parent}")
 
+    @Slot()
     def _export_finished(self):
         self.worker = None
         self.export_cancel = None
