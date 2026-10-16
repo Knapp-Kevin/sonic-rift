@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 from this_voice_thing.core.audio_project import AudioProject, Clip, new_id
-from this_voice_thing.core.audio_project_session import ProjectSession, MAX_HISTORY, compatible_track_id
+from this_voice_thing.core.audio_project_session import ProjectSession, MAX_HISTORY, compatible_track_id, may_attach_import_result
 
 
 class ProjectEditSessionTests(unittest.TestCase):
@@ -145,6 +145,14 @@ class ProjectEditSessionTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.session.update_narration_text("missing", "Actual words")
         self.assertEqual(self.session.project, baseline)
+
+    def test_stale_async_result_is_rejected_after_edit_or_project_switch(self):
+        initial_id = self.session.project.id
+        initial_revision = self.session.project.revision
+        self.assertTrue(may_attach_import_result(self.session.project, initial_id, initial_revision))
+        self.session.update_track(self.track, name="Updated waves")
+        self.assertFalse(may_attach_import_result(self.session.project, initial_id, initial_revision))
+        self.assertFalse(may_attach_import_result(self.session.project, "other-project", self.session.project.revision))
 
     def test_history_is_bounded(self):
         for number in range(MAX_HISTORY + 15):
