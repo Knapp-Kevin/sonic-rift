@@ -64,9 +64,22 @@ def describe_error(message, project=None):
             "changes, or save it as a new file.",
         "Project changed on disk; reopen or save a new copy":
             "This project was changed outside the editor. Reopen it before exporting.",
+        "Project has no rendered audio":
+            "There's nothing to mix yet: add a sound or attach narration audio first.",
         "Refusing to overwrite an existing project export":
             "A folder with that name already exists there. Choose a new export name.",
     }
+    if text == "Project exceeds unmastered PCM memory budget" and project is not None and project.tracks:
+        from this_voice_thing.core.audio_timeline_mix import DEFAULT_MAX_MIX_BYTES
+        rate = project.sample_rate
+        ends = [c.start_frame + c.frame_count for t in project.tracks for c in t.clips] or [0]
+        tracks = len(project.tracks)
+        # The mixer holds the mix and one stem per track in memory (32-bit stereo).
+        limit_minutes = DEFAULT_MAX_MIX_BYTES / (8 * (tracks + 1) * rate) / 60
+        length_minutes = max(ends) / rate / 60
+        return (f"This project is too long to export yet: it runs {length_minutes:.1f} minutes, and with "
+                f"{tracks} track{'s' if tracks != 1 else ''} the current limit is about {limit_minutes:.1f} "
+                "minutes. Shorten it or use fewer tracks; longer exports are planned.")
     if text in messages:
         return messages[text]
     if text.startswith(("Expecting", "Extra data", "Unterminated", "Invalid control", "'utf-8' codec")):

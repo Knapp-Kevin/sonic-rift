@@ -30,6 +30,20 @@ class DescribeError(unittest.TestCase):
     def test_cancel_is_not_reported_as_a_failure(self):
         self.assertEqual(describe_error("Project export cancelled"), "Export cancelled. Nothing was written.")
 
+    def test_long_project_export_explains_the_limit(self):
+        """#61 acceptance: a 20-minute project failed with 'exceeds unmastered PCM memory budget'."""
+        rate = 48000
+        clip = Clip("c1", "sound", 0, 20 * 60 * rate, asset_id="sound_abc", loop=True)
+        project = AudioProject("p1", "Long", tracks=[Track("t1", "sound", "Ocean", clips=[clip])])
+        text = describe_error("Project exceeds unmastered PCM memory budget", project)
+        self.assertIn("20.0 minutes", text)
+        self.assertIn("about 11.7 minutes", text)          # 512 MiB / (8 bytes x 2 x 48 kHz)
+        self.assertNotIn("PCM", text)
+        source = (ROOT / "this_voice_thing/core/audio_timeline_mix.py").read_text(encoding="utf-8")
+        self.assertIn("Project exceeds unmastered PCM memory budget", source)
+        self.assertIn("Project has no rendered audio", source)
+        self.assertIn("add a sound", describe_error("Project has no rendered audio"))
+
     def test_unknown_errors_pass_through(self):
         self.assertEqual(describe_error("Disk full"), "Disk full")
         self.assertEqual(describe_error("'missing-track'"), "missing-track")   # KeyError quoting
