@@ -17,6 +17,11 @@ def _sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def may_attach_import_result(project, project_id, revision):
+    """Reject late worker results after any project switch or edit."""
+    return (project.id == project_id and project.revision == revision)
+
+
 def compatible_track_id(project, selection, kind):
     """Resolve a selected track or its clip to a compatible track, without paths."""
     if not selection or not isinstance(selection, tuple) or len(selection) != 2:
