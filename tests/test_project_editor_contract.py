@@ -28,6 +28,8 @@ class ProjectEditorContractTests(unittest.TestCase):
         self.assertIn("TaskThread(", source)
         self.assertIn("should_cancel=should_cancel", source)
         self.assertIn("setDecimals(6)", source)
+        self.assertIn("math.ceil(len(pcm) * sample_rate / source_rate)", source)
+        self.assertIn("math.ceil(len(pcm) * project_rate / sr)", source)
         self.assertIn("getMultiLineText", source)
         self.assertIn("compatible_track_id(", source)
         self.assertIn("update_narration_text(", source)
