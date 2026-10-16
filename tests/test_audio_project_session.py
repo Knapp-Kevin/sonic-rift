@@ -83,6 +83,20 @@ class ProjectEditSessionTests(unittest.TestCase):
                 opened.save()
             self.assertEqual(path.read_bytes(), changed)
 
+    def test_export_checks_saved_project_has_not_changed_on_disk(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "scene.sonicrift.json"
+            with self.assertRaisesRegex(ValueError, "Save this project"):
+                self.session.ensure_current_file()
+            self.session.save(path)
+            self.assertEqual(self.session.ensure_current_file(), path.resolve())
+            path.write_bytes(path.read_bytes() + b" ")
+            with self.assertRaisesRegex(ValueError, "changed on disk"):
+                self.session.ensure_current_file()
+            path.unlink()
+            with self.assertRaisesRegex(ValueError, "changed on disk"):
+                self.session.ensure_current_file()
+
     def test_refuse_external_file_changes_even_at_same_revision(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "scene.sonicrift.json"
