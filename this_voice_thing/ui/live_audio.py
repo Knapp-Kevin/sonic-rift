@@ -164,6 +164,9 @@ class LiveAudioOutput(QObject):
         # in order: {"device", "rate", "kwargs", "pcm", "finished"}. Anything that arrives while
         # one is waiting queues behind it, so no item's audio is replaced or reordered.
         self._deferred = []
+        # A monitor follows the primary output: it pauses while the primary re-buffers and
+        # never pauses on its own, so the two stay together after an underrun.
+        self._leader = None
         self._timer = QTimer(self)
         self._timer.setInterval(10)
         self._timer.timeout.connect(self._tick)
@@ -384,6 +387,14 @@ class LiveAudioOutput(QObject):
             if index == len(waiting) - 1 and item["finished"]:
                 self.finish_input()
 
+    def set_leader(self, leader):
+        """Make this output follow `leader`'s re-buffering pauses (None: independent)."""
+        self._leader = leader
+
+    def _leader_paused(self):
+        leader = self._leader
+        return bool(leader is not None and leader._started and leader._holding and leader._rebuffering)
+
     def push(self, pcm):
         if self._deferred:
             self._deferred[-1]["pcm"].extend(pcm)
@@ -430,6 +441,8 @@ class LiveAudioOutput(QObject):
     def _flush(self):
         if self._holding or not self._started or self._io is None or self._sink is None:
             return
+        if self._leader_paused():
+            return
         while self._pending:
             available = max(0, int(self._sink.bytesFree()))
             if available <= 0:
@@ -450,6 +463,11 @@ class LiveAudioOutput(QObject):
             and self._bytes_written > 0
         ):
             self._underruns += 1
+            if self._leader is not None:
+                # A follower doesn't pause on its own: an independent pause is what made the
+                # monitor drift up to 0.64 s from the primary. It pauses when the leader does.
+                self._last_state = state
+                return
             # Ran dry mid-utterance (generation fell behind). Restarting on every small chunk
             # turned one slow patch into a burst of clicks (11 restarts in 1.8 s in the soak);
             # hold until twice the start buffer has refilled: one short pause instead.

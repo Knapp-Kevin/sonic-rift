@@ -100,6 +100,65 @@ class LiveAudioOutputLatencyTests(unittest.TestCase):
         output.stop()
 
 
+class LiveAudioOutputMonitorFollowTests(unittest.TestCase):
+    """#13: after a one-sided underrun the monitor drifted up to 0.64 s from the primary."""
+
+    def setUp(self):
+        from PySide6.QtMultimedia import QAudio
+        self.QAudio = QAudio
+        self.patch = patch("this_voice_thing.ui.live_audio.QAudioSink", _StartableSink)
+        self.patch.start()
+        self.primary, self.monitor = LiveAudioOutput(), LiveAudioOutput()
+        self.monitor.set_leader(self.primary)
+        for output in (self.primary, self.monitor):
+            output.configure(_NegotiatingDevice({(48000, 2)}), 48000, start_buffer_seconds=0.15)
+            output.push(b"\x00\x01" * 24000)                      # 0.5 s each: both playing
+
+    def tearDown(self):
+        self.primary.stop()
+        self.monitor.stop()
+        self.patch.stop()
+
+    def underrun(self, output):
+        output._on_state_changed(self.QAudio.State.ActiveState)
+        output._on_state_changed(self.QAudio.State.IdleState)
+
+    def test_monitor_does_not_pause_on_its_own(self):
+        self.underrun(self.monitor)
+        self.assertEqual(self.monitor.stats()["underruns"], 1)    # still counted
+        self.assertFalse(self.monitor._holding)
+        written = self.monitor._sink.io.written
+        self.monitor.push(b"\x00\x01" * 2400)                      # keeps flowing at once
+        self.assertGreater(self.monitor._sink.io.written, written)
+
+    def test_monitor_pauses_and_resumes_with_the_primary(self):
+        self.underrun(self.primary)                                # primary starts re-buffering
+        written = self.monitor._sink.io.written
+        self.monitor.push(b"\x00\x01" * 4800)
+        self.assertEqual(self.monitor._sink.io.written, written)  # held while the primary is
+        self.primary.push(b"\x00\x01" * 14400)                     # primary refills (0.3 s): resumes
+        self.assertFalse(self.primary._holding)
+        self.monitor._tick()
+        self.assertGreater(self.monitor._sink.io.written, written)
+
+    def test_primary_is_independent_and_stop_releases_a_follower(self):
+        self.underrun(self.monitor)
+        self.assertFalse(self.primary._holding)                    # the leader ignores the follower
+        self.underrun(self.primary)
+        self.primary.stop()                                         # Stop all: nothing left to wait for
+        written = self.monitor._sink.io.written
+        self.monitor.push(b"\x00\x01" * 2400)
+        self.assertGreater(self.monitor._sink.io.written, written)
+
+
+class LiveMonitorWiring(unittest.TestCase):
+    def test_live_page_makes_the_monitor_follow_the_primary(self):
+        import os
+        source = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                   "this_voice_thing", "ui", "pages", "live_voice.py"), encoding="utf-8").read()
+        self.assertIn("self.live_monitor_output.set_leader(self.live_audio_output)", source)
+
+
 if __name__ == "__main__":
     unittest.main()
 
