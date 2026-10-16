@@ -17,6 +17,21 @@ def _sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def compatible_track_id(project, selection, kind):
+    """Resolve a selected track or its clip to a compatible track, without paths."""
+    if not selection or not isinstance(selection, tuple) or len(selection) != 2:
+        return None
+    selected_kind, identifier = selection
+    for track in project.tracks:
+        if track.kind != kind:
+            continue
+        if selected_kind == "track" and track.id == identifier:
+            return track.id
+        if selected_kind == "clip" and any(clip.id == identifier for clip in track.clips):
+            return track.id
+    return None
+
+
 class ProjectSession:
     def __init__(self, project, *, path=None, fingerprint=None):
         project.validate()
@@ -115,6 +130,23 @@ class ProjectSession:
                 raise KeyError(f"Unknown clip: {clip_id}")
             for key, value in changes.items():
                 setattr(clip, key, value)
+        return self.apply(edit)
+
+    def update_narration_text(self, clip_id, text):
+        """Changing script invalidates its previous rendered take, never deletes media."""
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError("Narration text cannot be empty")
+        def edit(project):
+            clip = next((c for t in project.tracks for c in t.clips if c.id == clip_id), None)
+            if clip is None:
+                raise KeyError(f"Unknown clip: {clip_id}")
+            if clip.kind != "voice":
+                raise ValueError("Only voice clips can contain narration text")
+            clip.text = text.strip()
+            clip.asset_id = ""
+            clip.frame_count = 0
+            clip.fade_in_frames = 0
+            clip.fade_out_frames = 0
         return self.apply(edit)
 
     def remove_clip(self, clip_id):
