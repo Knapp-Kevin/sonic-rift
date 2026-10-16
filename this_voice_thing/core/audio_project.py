@@ -55,6 +55,9 @@ class Clip:
     fade_in_frames: int = 0
     fade_out_frames: int = 0
     loop: bool = False
+    # Frames of the source skipped at the clip's start (a non-destructive trim). Written to
+    # project files only when non-zero, so untrimmed projects still open in earlier builds.
+    source_offset_frames: int = 0
 
     def validate(self):
         _text(self.id, "clip ID", 128)
@@ -64,6 +67,9 @@ class Clip:
         _integer(self.frame_count, "clip length")
         _integer(self.fade_in_frames, "fade in")
         _integer(self.fade_out_frames, "fade out")
+        _integer(self.source_offset_frames, "source offset")
+        if self.source_offset_frames and not self.asset_id:
+            raise ValueError("Only clips with audio can be trimmed")
         if self.fade_in_frames > self.frame_count or self.fade_out_frames > self.frame_count:
             raise ValueError("Fade exceeds clip duration")
         if not -60 <= _real(self.gain_db, "clip gain") <= 24:
@@ -162,6 +168,17 @@ def from_dict(data):
     return project
 
 
+def to_dict(project):
+    """The saved form: like asdict(), minus fields at their defaults that earlier builds
+    don't know (source_offset_frames), so files without trims stay readable by them."""
+    data = asdict(project)
+    for track in data["tracks"]:
+        for clip in track["clips"]:
+            if not clip.get("source_offset_frames"):
+                clip.pop("source_offset_frames", None)
+    return data
+
+
 def read_project(path):
     """Reject corrupt/future documents without writing any user data."""
     with open(path, encoding="utf-8") as handle:
@@ -179,7 +196,7 @@ def save_project(path, project):
         if previous.revision > project.revision:
             raise ValueError("Refusing to overwrite a newer project revision")
     path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = (json.dumps(asdict(project), ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    encoded = (json.dumps(to_dict(project), ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     temp_name = None
     try:
         with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".sonic-rift-", suffix=".tmp", delete=False) as handle:

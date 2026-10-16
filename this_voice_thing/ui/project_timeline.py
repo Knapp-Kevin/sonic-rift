@@ -4,6 +4,7 @@ Painted with QPainter from the theme tokens, so it follows light/dark like the r
 It only draws and reports clicks; the project and its edits stay in ProjectSession.
 """
 import math
+from dataclasses import replace
 
 import numpy as np
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
@@ -17,11 +18,15 @@ class TimelineView(QWidget):
     clipSelected = Signal(str)        # clip id
     clipActivated = Signal(str)       # double-click: edit
     seekRequested = Signal(float)     # seconds, from a click on the ruler
+    clipPlaced = Signal(str, int, int, int)   # drag finished: clip id, start, length, source offset (frames)
 
     RULER = 26
     LANE = 56
     HEADER = 148
     MIN_SECONDS = 10.0
+    EDGE = 7                          # px at each end of a clip that trims instead of moving
+    MIN_CLIP_SECONDS = 0.05           # trimming stops here: no near-zero clips
+    MAX_LOOP_SECONDS = 4 * 3600       # a looping sound can be stretched this far
 
     def __init__(self, label_for_clip=None, parent=None):
         super().__init__(parent)
@@ -31,6 +36,8 @@ class TimelineView(QWidget):
         self.playhead = None          # seconds, or None when stopped
         self.label_for_clip = label_for_clip or (lambda clip: "")
         self._hits = []               # (QRectF, clip_id)
+        self.source_frames = {}       # asset_id -> source length in project frames (trim limit)
+        self._drag = None             # the clip being moved or trimmed, while the button is down
         self.setMouseTracking(True)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.setMinimumHeight(self.RULER + self.LANE + 8)
@@ -43,8 +50,10 @@ class TimelineView(QWidget):
         self.updateGeometry()
         self.update()
 
-    def set_peaks(self, asset_id, peaks):
+    def set_peaks(self, asset_id, peaks, source_frames=None):
         self.peaks[asset_id] = peaks
+        if source_frames:
+            self.source_frames[asset_id] = int(source_frames)
         self.update()
 
     def set_selected(self, clip_id):
@@ -56,6 +65,8 @@ class TimelineView(QWidget):
         self.update()
 
     def total_seconds(self):
+        if self._drag is not None:
+            return self._drag["total"]    # the scale stays put while a clip is dragged
         if not self.project:
             return self.MIN_SECONDS
         rate = self.project.sample_rate
@@ -129,6 +140,7 @@ class TimelineView(QWidget):
         tint = QColor(c["accent"] if track.kind == "voice" else c["brand_secondary"] if track.kind == "sound"
                       else c["brand_blue"])
         for clip in track.clips:
+            clip = self._shown(clip)
             x1, x2 = self._x(clip.start_frame / rate), self._x((clip.start_frame + clip.frame_count) / rate)
             if clip.frame_count == 0:          # script without audio yet: a dashed marker
                 x2 = x1 + 70
@@ -159,8 +171,9 @@ class TimelineView(QWidget):
             seconds = clip.frame_count / self.project.sample_rate
             middle, half = rect.center().y(), rect.height() * 0.42
             columns = int(rect.width())
+            skipped = clip.source_offset_frames / self.project.sample_rate * PEAKS_PER_SECOND
             for column in range(0, columns, 2):
-                position = column / max(1, columns) * seconds * PEAKS_PER_SECOND
+                position = skipped + column / max(1, columns) * seconds * PEAKS_PER_SECOND
                 index = int(position) % len(peaks) if clip.loop else min(int(position), len(peaks) - 1)
                 level = float(peaks[index]) * self._fade_gain(clip, column / max(1, columns))
                 x = rect.left() + column
@@ -192,26 +205,127 @@ class TimelineView(QWidget):
                 return clip_id
         return None
 
+    def _shown(self, clip):
+        """The clip as drawn: with the in-progress drag applied, if this is the dragged clip."""
+        drag = self._drag
+        if drag is None or drag["clip_id"] != clip.id or drag["now"] is None:
+            return clip
+        start, count, offset = drag["now"]
+        return replace(clip, start_frame=start, frame_count=count, source_offset_frames=offset)
+
+    def _clip(self, clip_id):
+        for track in (self.project.tracks if self.project else []):
+            for clip in track.clips:
+                if clip.id == clip_id:
+                    return clip
+        return None
+
+    def _zone(self, point, clip_id):
+        """'start' / 'end' near a clip's edges (trim), 'move' elsewhere; scripts only move."""
+        clip = self._clip(clip_id)
+        rect = next(r for r, cid in self._hits if cid == clip_id)
+        if clip is None or not clip.asset_id or rect.width() < 3 * self.EDGE:
+            return "move"
+        if point.x() - rect.left() <= self.EDGE:
+            return "start"
+        if rect.right() - point.x() <= self.EDGE:
+            return "end"
+        return "move"
+
+    def _frames_per_pixel(self):
+        width = max(1.0, self.width() - self.HEADER - 12)
+        return self.total_seconds() * self.project.sample_rate / width
+
+    def _drag_to(self, x):
+        """Placement for a drag that reached x, inside every limit (whole frames)."""
+        d = self._drag
+        rate = self.project.sample_rate
+        delta = round((x - d["press_x"]) * d["frames_per_px"])
+        start, count, offset = d["start"], d["count"], d["offset"]
+        minimum = max(1, round(self.MIN_CLIP_SECONDS * rate))
+        if d["mode"] == "move":
+            return max(0, start + delta), count, offset
+        if d["mode"] == "start":
+            # Moving the start edge: start and offset move together, the end stays put.
+            delta = max(delta, -start, -offset)
+            delta = min(delta, count - minimum)
+            return start + delta, count - delta, offset + delta
+        # Moving the end edge: only the length changes; never past the end of the audio.
+        longest = round(self.MAX_LOOP_SECONDS * rate) if d["loop"] else d["source"] - offset
+        return start, max(minimum, min(count + delta, longest)), offset
+
     def mousePressEvent(self, event):
         point = event.position()
+        if event.button() == Qt.MouseButton.RightButton and self._drag is not None:
+            self.cancel_drag()
+            return
         if point.y() <= self.RULER and point.x() >= self.HEADER:
             self.seekRequested.emit(self._seconds_at(point.x()))
             return
         clip_id = self._clip_at(point)
+        if not clip_id:
+            return
+        self.set_selected(clip_id)
+        self.clipSelected.emit(clip_id)
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+        clip = self._clip(clip_id)
+        if clip is None:
+            return
+        source = self.source_frames.get(clip.asset_id)
+        mode = self._zone(point, clip_id)
+        if mode != "move" and not clip.loop and source is None:
+            mode = "move"                 # the audio's length isn't known yet: no trimming
+        self._drag = {"clip_id": clip_id, "mode": mode, "press_x": point.x(), "now": None,
+                      "start": clip.start_frame, "count": clip.frame_count, "offset": clip.source_offset_frames,
+                      "loop": clip.loop, "source": source or clip.source_offset_frames + clip.frame_count,
+                      "total": self.total_seconds()}
+        self._drag["frames_per_px"] = self._frames_per_pixel()
+        self.setFocus()
+
+    def mouseMoveEvent(self, event):
+        point = event.position()
+        if self._drag is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            self._drag["now"] = self._drag_to(point.x())
+            self.update()
+            return
+        clip_id = self._clip_at(point)
         if clip_id:
-            self.set_selected(clip_id)
-            self.clipSelected.emit(clip_id)
+            zone = self._zone(point, clip_id)
+            self.setCursor(Qt.CursorShape.SizeHorCursor if zone != "move" else Qt.CursorShape.OpenHandCursor)
+        elif point.y() <= self.RULER and point.x() >= self.HEADER:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+        else:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def mouseReleaseEvent(self, event):
+        drag, self._drag = self._drag, None
+        if drag is None or event.button() != Qt.MouseButton.LeftButton:
+            self._drag = drag if event.button() != Qt.MouseButton.LeftButton else None
+            return
+        now = drag["now"]
+        self.update()
+        if now is not None and now != (drag["start"], drag["count"], drag["offset"]):
+            self.clipPlaced.emit(drag["clip_id"], *now)
+
+    def cancel_drag(self):
+        """Esc or a right-click mid-drag puts the clip back where it was."""
+        if self._drag is not None:
+            self._drag = None
+            self.update()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape and self._drag is not None:
+            self.cancel_drag()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def mouseDoubleClickEvent(self, event):
+        self._drag = None
         clip_id = self._clip_at(event.position())
         if clip_id:
             self.clipActivated.emit(clip_id)
-
-    def mouseMoveEvent(self, event):
-        over = self._clip_at(event.position()) is not None or (
-            event.position().y() <= self.RULER and event.position().x() >= self.HEADER)
-        self.setCursor(Qt.CursorShape.PointingHandCursor if over else Qt.CursorShape.ArrowCursor)
-
 
 def preview_mix(project, media, duck=True):
     """Render the arranged mix for listening (not mastered); returns (audio, sample_rate)."""

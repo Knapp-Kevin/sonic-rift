@@ -24,6 +24,24 @@ def project():
                                                    Track("s", "sound", "Ocean", clips=[ocean])])
 
 
+def mouse(view, kind, x, y, button=None, buttons=None):
+    """Send a real QMouseEvent (press/move/release) to the view."""
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
+    from PySide6.QtWidgets import QApplication
+    left = Qt.MouseButton.LeftButton
+    event = QMouseEvent(kind, QPointF(x, y), view.mapToGlobal(QPointF(x, y)),
+                        left if button is None else button,
+                        left if buttons is None else buttons, Qt.KeyboardModifier.NoModifier)
+    QApplication.sendEvent(view, event)
+
+
+def press(view, x, y):
+    from PySide6.QtCore import QEvent
+    mouse(view, QEvent.Type.MouseButtonPress, x, y)
+    mouse(view, QEvent.Type.MouseButtonRelease, x, y)
+
+
 class Envelope(unittest.TestCase):
     def test_rate_and_normalisation(self):
         tone = 0.25 * np.sin(np.linspace(0, 2 * np.pi * 440, 2 * RATE)).astype(np.float32)
@@ -60,7 +78,7 @@ class View(unittest.TestCase):
         view.clipSelected.connect(picked.append)
         top_lane_middle = view.RULER + view.LANE / 2
         x = view._x(6.0)                  # inside the 4..8 s narration clip
-        view.mousePressEvent(type("E", (), {"position": lambda self: QPointF(x, top_lane_middle)})())
+        press(view, x, top_lane_middle)
         self.assertEqual(picked, ["line"])
         self.assertEqual(view.selected, "line")
 
@@ -69,7 +87,7 @@ class View(unittest.TestCase):
         view = self.view()
         sought = []
         view.seekRequested.connect(sought.append)
-        view.mousePressEvent(type("E", (), {"position": lambda self: QPointF(view._x(20.0), 5)})())
+        press(view, view._x(20.0), 5)
         self.assertAlmostEqual(sought[0], 20.0, places=1)
 
     def test_script_clip_without_audio_is_drawn_and_clickable(self):
