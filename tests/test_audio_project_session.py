@@ -57,6 +57,32 @@ class ProjectEditSessionTests(unittest.TestCase):
             self.session.save()
             self.assertEqual(ProjectSession.open(path).project.tracks[0].name, "Gentle Surf")
 
+    def test_project_open_fingerprint_matches_one_read_snapshot(self):
+        from unittest.mock import patch
+        from this_voice_thing.core.audio_project import from_dict
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "scene.sonicrift.json"
+            self.session.save(path)
+            original = path.read_bytes()
+            changed = original.replace(b'"Waves"', b'"Edited"')
+            self.assertNotEqual(changed, original)
+
+            def mutate_after_decode(payload):
+                result = from_dict(payload)
+                path.write_bytes(changed)
+                return result
+
+            with patch("this_voice_thing.core.audio_project_session.from_dict",
+                       side_effect=mutate_after_decode):
+                opened = ProjectSession.open(path)
+
+            # The loaded document is from the first read, not the changed disk.
+            self.assertEqual(opened.project.tracks[0].name, "Waves")
+            self.assertEqual(path.read_bytes(), changed)
+            with self.assertRaisesRegex(ValueError, "changed on disk"):
+                opened.save()
+            self.assertEqual(path.read_bytes(), changed)
+
     def test_refuse_external_file_changes_even_at_same_revision(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "scene.sonicrift.json"
