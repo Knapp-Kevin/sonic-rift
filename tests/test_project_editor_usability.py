@@ -25,13 +25,27 @@ class DescribeError(unittest.TestCase):
 
     def test_damaged_and_newer_files_are_explained(self):
         self.assertIn("isn't a readable Sonic Rift project", describe_error("Expecting value: line 1 column 34 (char 33)"))
-        self.assertIn("newer version", describe_error("Unsupported project schema version"))
+        self.assertIn("different version", describe_error("Unsupported project schema version"))
 
     def test_cancel_is_not_reported_as_a_failure(self):
         self.assertEqual(describe_error("Project export cancelled"), "Export cancelled. Nothing was written.")
 
     def test_unknown_errors_pass_through(self):
         self.assertEqual(describe_error("Disk full"), "Disk full")
+        self.assertEqual(describe_error("'missing-track'"), "missing-track")   # KeyError quoting
+
+    def test_review_findings_are_worded_plainly(self):
+        project = self.project()
+        self.assertIn("longer than its audio", describe_error("Source shorter than nonlooping clip: c1", project))
+        self.assertIn("Narrator", describe_error("Source shorter than nonlooping clip: c1", project))
+        self.assertIn("already exists", describe_error("Refusing to replace an untracked project file"))
+        self.assertIn("damaged", describe_error("Unsupported project schema version"))
+        for raw in ("Source shorter than nonlooping clip", "Refusing to replace an untracked project file",
+                    "Cannot resolve clip asset", "Project export cancelled"):
+            source = "".join((ROOT / "this_voice_thing/core" / name).read_text(encoding="utf-8")
+                             for name in ("audio_project.py", "audio_project_session.py",
+                                          "audio_project_export.py", "audio_timeline_mix.py"))
+            self.assertIn(raw, source, "describe_error matches a message the core no longer raises")
 
 
 class WindowBehaviour(unittest.TestCase):
@@ -43,6 +57,11 @@ class WindowBehaviour(unittest.TestCase):
         window = (ROOT / "this_voice_thing/ui/main_window.py").read_text(encoding="utf-8")
         close = window[window.index("def closeEvent"):]
         self.assertLess(close.index("close_project_editor()"), close.index("save_app_settings()"))
+
+    def test_imports_are_tied_to_the_session_they_started_in(self):
+        editor = (ROOT / "this_voice_thing/ui/pages/project_editor.py").read_text(encoding="utf-8")
+        self.assertEqual(editor.count("self.session_serial += 1"), 2)          # New and Open
+        self.assertIn("if serial != self.session_serial:", editor)
 
     def test_no_internal_identifiers_in_the_editor_list(self):
         editor = (ROOT / "this_voice_thing/ui/pages/project_editor.py").read_text(encoding="utf-8")

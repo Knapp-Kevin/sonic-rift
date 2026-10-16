@@ -39,10 +39,21 @@ def describe_error(message, project=None):
                             f"{clip.start_frame / project.sample_rate:.1f} s is missing or has changed on disk, "
                             "so the project can't be mixed. Re-attach it, or remove that clip.")
         return "Some audio this project uses is missing or has changed on disk. Re-attach it, then try again."
+    if text.startswith("Source shorter than nonlooping clip:"):
+        clip_id = text.split(":", 1)[1].strip()
+        for track in (project.tracks if project is not None else []):
+            for clip in track.clips:
+                if clip.id == clip_id:
+                    return (f"The clip on \u201c{track.name}\u201d at {clip.start_frame / project.sample_rate:.1f} s "
+                            "is longer than its audio. Shorten it, or turn on \u201cRepeat sound as needed\u201d.")
+        return "A clip is longer than its audio. Shorten it, or turn on looping."
     messages = {
         "Project export cancelled": "Export cancelled. Nothing was written.",
         "Unsupported project schema version":
-            "This project was saved by a newer version of Sonic Rift, so it can't be opened here.",
+            "This project file is from a different version of Sonic Rift or is damaged, so it can't be "
+            "opened here.",
+        "Refusing to replace an untracked project file":
+            "A file with that name already exists. Choose a new name for this project.",
         "Project changed on disk; reopen instead of overwriting":
             "This project was changed outside the editor since you opened it. Reopen it to see those "
             "changes, or save it as a new file.",
@@ -55,7 +66,7 @@ def describe_error(message, project=None):
         return messages[text]
     if text.startswith(("Expecting", "Extra data", "Unterminated", "Invalid control", "'utf-8' codec")):
         return "This file isn't a readable Sonic Rift project. It may be damaged or incomplete."
-    return text
+    return text.strip("'\"")
 
 
 class ProjectEditorDialog(QDialog):
@@ -69,6 +80,7 @@ class ProjectEditorDialog(QDialog):
         self.session = ProjectSession(AudioProject(new_id(), "Untitled project"))
         self.saved_revision = None
         self.baseline_revision = self.session.project.revision   # nothing to lose until edited
+        self.session_serial = 0   # bumped on New/Open: a late import can't attach to another session
         self.worker = None
         self.import_worker = None
         self._pending_import = None
@@ -219,6 +231,7 @@ class ProjectEditorDialog(QDialog):
         title, ok = QInputDialog.getText(self, "New project", "Project title")
         if ok and title.strip():
             self.session = ProjectSession(AudioProject(new_id(), title.strip()))
+            self.session_serial += 1
             self.saved_revision = None
             self.baseline_revision = self.session.project.revision
             self.refresh()
@@ -231,6 +244,7 @@ class ProjectEditorDialog(QDialog):
         if filename:
             try:
                 self.session = ProjectSession.open(filename)
+                self.session_serial += 1
                 self._mark_clean()
                 self.refresh()
             except Exception as exc:
@@ -298,7 +312,7 @@ class ProjectEditorDialog(QDialog):
             pcm, source_rate = media.resolve("sound_" + asset.id)
             frames = math.ceil(len(pcm) * sample_rate / source_rate)
             return asset.id, asset.name, asset.loop, frames
-        self._pending_import = ("sound", selection, project_id, revision)
+        self._pending_import = ("sound", selection, project_id, revision, self.session_serial)
         self.import_worker = TaskThread(resolve_sound, self)
         self.import_worker.done.connect(self._import_done)
         self.import_worker.finished.connect(self._voice_import_finished)
@@ -311,7 +325,10 @@ class ProjectEditorDialog(QDialog):
         """Dispatch worker results to Qt's UI thread through a bound QObject slot."""
         if self._pending_import is None:
             return
-        kind, selection, project_id, revision = self._pending_import
+        kind, selection, project_id, revision, serial = self._pending_import
+        if serial != self.session_serial:
+            self.note.setText("A different project was opened during the import, so nothing was attached.")
+            return
         if kind == "sound":
             self._sound_import_done(result, error, selection, project_id, revision)
         else:
@@ -397,7 +414,7 @@ class ProjectEditorDialog(QDialog):
             asset_id = media.import_voice_take(pcm, sr)
             frames = math.ceil(len(pcm) * project_rate / sr)
             return asset_id, frames, filename
-        self._pending_import = ("voice", selection, project_id, revision)
+        self._pending_import = ("voice", selection, project_id, revision, self.session_serial)
         self.import_worker = TaskThread(import_file, self)
         self.import_worker.done.connect(self._import_done)
         self.import_worker.finished.connect(self._voice_import_finished)
@@ -472,6 +489,8 @@ class ProjectEditorDialog(QDialog):
             return
         track_id = selection[1]
         index = next(i for i, t in enumerate(self.session.project.tracks) if t.id == track_id)
+        if not 0 <= index + offset < len(self.session.project.tracks):
+            return
         self._mutate(lambda: self.session.move_track(track_id, index + offset), track_id)
 
     def edit_narration(self):
@@ -510,7 +529,7 @@ class ProjectEditorDialog(QDialog):
             if not ok or not name.strip():
                 return
             gain, ok = QInputDialog.getDouble(self, "Track gain", "Gain (dB)",
-                                               track.gain_db, -60, 24, 1)
+                                               track.gain_db, -60, 24, 2)
             if not ok:
                 return
             self._mutate(lambda: self.session.update_track(
@@ -536,6 +555,8 @@ class ProjectEditorDialog(QDialog):
         gain = spin("Gain (dB)", clip.gain_db, -60, 24)
         fade_in = spin("Fade in (seconds)", clip.fade_in_frames / rate, 0, 36000)
         fade_out = spin("Fade out (seconds)", clip.fade_out_frames / rate, 0, 36000)
+        for control in (fade_in, fade_out):
+            control.setEnabled(bool(clip.asset_id))   # a script-only clip has no audio to fade yet
         loop = QCheckBox("Repeat sound as needed")
         loop.setChecked(clip.loop)
         loop.setEnabled(clip.kind == "sound")
@@ -638,6 +659,7 @@ class ProjectEditorDialog(QDialog):
 
     def closeEvent(self, event):
         if self.worker is not None or self.import_worker is not None:
+            QMessageBox.information(self, "Project", "Finish the media operation before closing this editor.")
             event.ignore()
             return
         if self._confirm_discard():
