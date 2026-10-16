@@ -36,6 +36,8 @@ class ProjectEditorContractTests(unittest.TestCase):
         self.assertIn("self.import_worker = TaskThread(resolve_sound, self)", source)
         self.assertIn("self.session.update_track(track_id, muted=not track.muted)", source)
         self.assertIn("may_attach_import_result(", source)
+        self.assertIn("self.session.ensure_current_file()", source)
+        self.assertIn("add_actions = QHBoxLayout()", source)
         self.assertIn("self.import_worker.done.connect(self._import_done)", source)
         self.assertIn("@Slot(object, str)", source)
         self.assertIn("@Slot()", source)
