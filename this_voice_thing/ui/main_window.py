@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QStyledItemDelegate,
     QTabBar,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -327,6 +328,12 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self._build_advanced_page()
 
         self._make_pages_scroll()
+        # Tab moves to the next control everywhere: in a text box it used to type a tab, so
+        # keyboard users could never leave Create's or Live's text (only 4 of Create's controls
+        # were reachable). Text that needs a literal tab can still be pasted.
+        for kind in (QPlainTextEdit, QTextEdit):
+            for editor in self.findChildren(kind):
+                editor.setTabChangesFocus(True)
         self.show_page(self.PAGE_GENERATE)
 
         qt_status_bar = self.statusBar()
