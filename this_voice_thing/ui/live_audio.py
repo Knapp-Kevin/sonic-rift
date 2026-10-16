@@ -299,6 +299,9 @@ class LiveAudioOutput(QObject):
             self._input_finished = False
             self._drained_emitted = False
             self._last_stats = {}
+            # A re-buffer left over from the previous item would double this item's start
+            # buffer (and pause a following monitor with it); each item starts fresh.
+            self._rebuffering = False
             # Diagnostics are per utterance: a reused sink would otherwise report every
             # earlier item's underruns and bytes as this one's. _bytes_written itself keeps
             # counting (the underrun check needs to know the sink has played before).
