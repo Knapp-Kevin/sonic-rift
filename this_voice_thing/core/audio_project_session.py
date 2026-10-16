@@ -6,9 +6,10 @@ media, existing voice profiles, or audio settings are ever modified here.
 from copy import deepcopy
 from dataclasses import replace
 import hashlib
+import json
 from pathlib import Path
 
-from this_voice_thing.core.audio_project import AudioProject, Clip, Track, read_project, save_project, new_id
+from this_voice_thing.core.audio_project import AudioProject, Clip, Track, from_dict, save_project, new_id
 
 MAX_HISTORY = 100
 
@@ -48,8 +49,12 @@ class ProjectSession:
 
     @classmethod
     def open(cls, path):
+        """Parse and fingerprint one identical on-disk snapshot, not two reads."""
         path = Path(path).resolve()
-        return cls(read_project(path), path=path, fingerprint=_sha(path))
+        payload = path.read_bytes()
+        project = from_dict(json.loads(payload.decode("utf-8")))
+        fingerprint = hashlib.sha256(payload).hexdigest()
+        return cls(project, path=path, fingerprint=fingerprint)
 
     @property
     def can_undo(self):
