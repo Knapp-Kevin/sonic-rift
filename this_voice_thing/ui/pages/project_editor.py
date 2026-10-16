@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from this_voice_thing.core.audio_project import AudioProject, Clip, new_id
-from this_voice_thing.core.audio_project_session import ProjectSession, compatible_track_id
+from this_voice_thing.core.audio_project_session import ProjectSession, compatible_track_id, may_attach_import_result
 from this_voice_thing.core.audio_project_media import ProjectMedia
 from this_voice_thing.core.audio_project_export import export_project
 from this_voice_thing.ui.threads import TaskThread
@@ -292,7 +292,7 @@ class ProjectEditorDialog(QDialog):
             self.note.setText("Narration import failed; no project edits were made.")
             self._error(error)
             return
-        if self.session.project.id != project_id or self.session.project.revision != revision:
+        if not may_attach_import_result(self.session.project, project_id, revision):
             self.note.setText("Project changed during import. Re-select the narration take to attach it.")
             return
         asset_id, frames, filename = result
