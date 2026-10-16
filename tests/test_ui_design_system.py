@@ -133,3 +133,29 @@ class SharedParts(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KeyboardReach(unittest.TestCase):
+    """#61 acceptance: Tab typed a tab in Create's text, so 4 of its controls were reachable."""
+
+    def test_tab_leaves_every_text_box(self):
+        from PySide6.QtWidgets import QApplication, QPlainTextEdit, QTextEdit
+        from this_voice_thing import paths
+        from this_voice_thing.ui import main_window
+        app = QApplication.instance() or QApplication([])
+        tmp = tempfile.mkdtemp()
+        with patch.object(paths, "ROOT", tmp), \
+                patch.object(main_window.SonicRiftApp, "start_default_model_load", lambda self: None), \
+                patch.object(main_window.SonicRiftApp, "restart_api_server", lambda self: None):
+            window = main_window.SonicRiftApp()
+        try:
+            editors = window.findChildren(QPlainTextEdit) + window.findChildren(QTextEdit)
+            self.assertTrue(editors)
+            self.assertTrue(all(editor.tabChangesFocus() for editor in editors),
+                            [editor.objectName() or type(editor).__name__ for editor in editors
+                             if not editor.tabChangesFocus()])
+            self.assertTrue(window.text_input.tabChangesFocus())
+            self.assertTrue(window.live_text_input.tabChangesFocus())
+        finally:
+            window.close()
+            app.processEvents()
