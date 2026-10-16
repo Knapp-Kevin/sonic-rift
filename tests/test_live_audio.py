@@ -457,7 +457,31 @@ class LiveAudioOutputFormatSwitchTests(unittest.TestCase):
         self.assertAlmostEqual(self.output.buffered_ms() - before, 1000.0, delta=1.0)
         self.output.stop()
         self.assertFalse(self.output.is_playing())
-        self.assertIsNone(self.output._deferred)
+        self.assertEqual(self.output._deferred, [])
+
+    def test_a_third_item_queues_behind_the_waiting_one(self):
+        """Review regression: a second configure() while one item waited replaced its audio."""
+        other = _OtherDevice({(44100, 2)})
+        self.output.configure(other, 24000)
+        self.output.push(b"\x00" * 24000)                 # line 2: 1 s, waiting
+        self.output.configure(other, 48000)                  # line 3 (e.g. a cached pad) arrives
+        self.output.push(b"\x00" * 4800)                  # 0.1 s
+        self.output.finish_input()
+        self.assertEqual(len(self.output._deferred), 2)
+        self.assertAlmostEqual(self.output._deferred_seconds(), 1.1, places=3)
+        self.output._pending.clear()
+        self.old_sink._state = self.QAudio.State.IdleState
+        self.output._tick()
+        self.assertEqual(self.output._format.sampleRate(), 44100)
+        # both lines' audio reached the new sink or its queue: ~1.1 s at 44.1 kHz stereo float
+        delivered = self.output._sink.io.written + len(self.output._pending)
+        self.assertAlmostEqual(delivered / self.output._bytes_per_second(), 1.1, delta=0.02)
+        self.assertTrue(self.output._input_finished)
+
+    def test_waiting_item_keeps_the_playing_lines_buffer_settings(self):
+        start = self.output._start_buffer_seconds
+        self.output.configure(_OtherDevice({(44100, 2)}), 24000, start_buffer_seconds=0.02, sink_buffer_seconds=0.1)
+        self.assertEqual(self.output._start_buffer_seconds, start)
 
     def test_no_drained_signal_between_the_two_lines(self):
         fired = []
