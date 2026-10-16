@@ -38,7 +38,7 @@ Contrary to the **historical** audit's older identical-dependency observation, t
 `scripts/audit_source_lineage.py` is a standard-library, **offline/read-only** tool. From a checkout with the historical upstream commit present:
 
 ```bash
-python scripts/audit_source_lineage.py --current HEAD --upstream 22460fd99ceb78c309f879b93878240241a0dc9b > /tmp/sonic-rift-lineage.json
+python scripts/audit_source_lineage.py --current HEAD --upstream 22460fd99ceb78c309f879b93878240241a0dc9b
 python -m unittest discover -s tests -p test_source_lineage_audit.py -v
 ```
 
