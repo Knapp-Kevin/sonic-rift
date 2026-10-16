@@ -21,11 +21,15 @@ class ProjectEditorContractTests(unittest.TestCase):
         self.assertTrue({
             "new_project", "open_project", "save_project", "rename_project",
             "add_sound", "add_voice_take", "add_text_block", "edit_selected",
-            "remove_selected", "undo", "redo", "export", "cancel_export",
+            "remove_selected", "undo", "redo", "edit_narration", "export", "cancel_export",
             "_export_done", "_export_finished",
         } <= members)
         self.assertIn("TaskThread(", source)
         self.assertIn("should_cancel=should_cancel", source)
+        self.assertIn("setDecimals(6)", source)
+        self.assertIn("getMultiLineText", source)
+        self.assertIn("compatible_track_id(", source)
+        self.assertIn("update_narration_text(", source)
 
     def test_create_page_keeps_existing_text_generation_path(self):
         path = ROOT / "this_voice_thing/ui/pages/generate.py"
