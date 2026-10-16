@@ -22,7 +22,7 @@ class ProjectEditorContractTests(unittest.TestCase):
             "new_project", "open_project", "save_project", "rename_project",
             "add_sound", "add_voice_take", "add_text_block", "edit_selected",
             "remove_selected", "undo", "redo", "edit_narration", "toggle_track_mute",
-            "_sound_import_done", "export", "cancel_export",
+            "_import_done", "_sound_import_done", "export", "cancel_export",
             "_export_done", "_export_finished",
         } <= members)
         self.assertIn("TaskThread(", source)
@@ -34,6 +34,11 @@ class ProjectEditorContractTests(unittest.TestCase):
         self.assertIn("self.import_worker = TaskThread(resolve_sound, self)", source)
         self.assertIn("self.session.update_track(track_id, muted=not track.muted)", source)
         self.assertIn("may_attach_import_result(", source)
+        self.assertIn("self.import_worker.done.connect(self._import_done)", source)
+        self.assertIn("@Slot(object, str)", source)
+        self.assertIn("@Slot()", source)
+        self.assertNotIn("lambda result, error: self._sound_import_done", source)
+        self.assertNotIn("lambda result, error: self._voice_import_done", source)
 
     def test_create_page_keeps_existing_text_generation_path(self):
         path = ROOT / "this_voice_thing/ui/pages/generate.py"
