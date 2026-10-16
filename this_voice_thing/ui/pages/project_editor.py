@@ -511,6 +511,13 @@ class ProjectEditorDialog(QDialog):
             self._error(ValueError("Use a simple, new folder name (letters, numbers, spaces, - or _)"))
             return
         destination = Path(parent) / label
+        # A file chooser may be open while another process edits the project.
+        # Recheck immediately before freezing the export snapshot.
+        try:
+            self.session.ensure_current_file()
+        except (OSError, ValueError) as exc:
+            self._error(exc)
+            return
         snapshot = deepcopy(self.session.project)
         media = self.media
         self.export_button.setEnabled(False)
