@@ -58,6 +58,9 @@ def live_sink_kwargs(mode):
 class LiveVoicePage:
     """Live Speak UI mixed into SonicRiftApp."""
 
+    SOUNDBOARD_EMPTY = ("No pads yet. Type a line above and choose Save as pad, or add an audio clip. "
+                        "Alt+1\u20269 play the first nine.")
+
     def _build_live_voice_page(self):
         self.live_voice_queue = []
         self.live_voice_history = []
@@ -404,8 +407,7 @@ class LiveVoicePage:
 
         self.soundboard_list = QListWidget()
         self.soundboard_list.setMinimumHeight(130)
-        set_empty_text(self.soundboard_list, "No pads yet. Type a line above and choose Save as pad, "
-                                             "or add an audio clip. Alt+1\u20269 play the first nine.")
+        set_empty_text(self.soundboard_list, self.SOUNDBOARD_EMPTY)
         self.soundboard_list.itemDoubleClicked.connect(lambda _item: self.trigger_selected_soundboard_pad())
         board_layout.addWidget(self.soundboard_list)
         board_actions = QHBoxLayout()
@@ -2322,6 +2324,10 @@ class LiveVoicePage:
             if hasattr(self, "soundboard_favorites_only")
             else False
         )
+        if board.pads and (query or favorites_only):
+            set_empty_text(self.soundboard_list, "No pads match the search or the Favorites filter.")
+        else:
+            set_empty_text(self.soundboard_list, self.SOUNDBOARD_EMPTY)
 
         for index, pad in enumerate(board.pads, 1):
             searchable = " ".join(

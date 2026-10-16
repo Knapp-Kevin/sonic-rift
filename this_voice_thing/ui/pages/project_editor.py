@@ -149,8 +149,7 @@ class ProjectEditorDialog(QDialog):
         self.note.setObjectName("Muted")
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
-        self.close_button = QPushButton("Close")   # Esc and the title bar close it; kept for code paths
-        self.close_button.clicked.connect(self.reject)
+
         self.refresh()
 
     @staticmethod

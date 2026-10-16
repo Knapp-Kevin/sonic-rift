@@ -90,6 +90,38 @@ class SharedParts(unittest.TestCase):
         actions[1].trigger()
         self.assertEqual(calls, [2])
 
+    def test_wheel_scrolls_the_page_not_an_unfocused_combo(self):
+        """Regression: with scrolling pages, wheeling over Live's Source combo switched it."""
+        from PySide6.QtCore import QPoint, QPointF, Qt
+        from PySide6.QtGui import QWheelEvent
+        from PySide6.QtWidgets import QApplication, QComboBox, QScrollArea, QVBoxLayout, QWidget
+        from this_voice_thing.ui.widgets import install_wheel_guard
+        app = QApplication.instance() or QApplication([])
+        guard = install_wheel_guard(app)
+        try:
+            page = QWidget()
+            combo = QComboBox(page)
+            combo.addItems(["Live Speak", "Mic Effects"])
+            QVBoxLayout(page).addWidget(combo)
+            area = QScrollArea()
+            area.setWidget(page)
+
+            def wheel():
+                event = QWheelEvent(QPointF(5, 5), QPointF(5, 5), QPoint(0, 0), QPoint(0, -120),
+                                    Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier,
+                                    Qt.ScrollPhase.NoScrollPhase, False)
+                QApplication.sendEvent(combo, event)
+
+            wheel()
+            self.assertEqual(combo.currentIndex(), 0)     # unfocused: the page gets the wheel
+            area.show(); combo.setFocus(); QApplication.processEvents()
+            if combo.hasFocus():                          # focus needs a shown, active window
+                wheel()
+                self.assertEqual(combo.currentIndex(), 1)
+            area.close()
+        finally:
+            app.removeEventFilter(guard)
+
     def test_spin_boxes_and_scrollbars_are_styled(self):
         from this_voice_thing.ui import theme
         for colors in (theme.DARK, theme.LIGHT):

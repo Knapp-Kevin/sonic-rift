@@ -71,6 +71,7 @@ from this_voice_thing.ui.pages.transcribe import TranscribePage
 from this_voice_thing.ui.pages.voice import VoicePage
 from this_voice_thing.ui.pages.voice_picker import VoicePicker
 from this_voice_thing.ui.pages.voice_use import VoiceUse
+from this_voice_thing.ui.widgets import install_wheel_guard
 
 
 class SidebarDelegate(QStyledItemDelegate):
@@ -181,6 +182,9 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self.fit_default_geometry()
         self.restore_window_settings()
         self.fit_to_screen()   # a size saved on a bigger screen (or by older versions) may not fit
+        # Before show() the frame (title bar, borders) has no size yet; check again once it does.
+        QTimer.singleShot(0, self.fit_to_screen)
+        self._wheel_guard = install_wheel_guard(QApplication.instance())
         self.attach_log_sink()
         self.update_output_log()
         if CHATTERBOX_AVAILABLE:

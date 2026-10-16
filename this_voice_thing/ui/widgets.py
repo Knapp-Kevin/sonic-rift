@@ -5,8 +5,8 @@ from collections import deque
 
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QColor, QPainter, QPalette
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QMenu, QSizePolicy, QSlider, QToolButton,
-                               QWidget)
+from PySide6.QtWidgets import (QAbstractScrollArea, QAbstractSpinBox, QApplication, QComboBox, QDialog,
+                               QHBoxLayout, QLabel, QMenu, QSizePolicy, QSlider, QToolButton, QWidget)
 
 from this_voice_thing.ui import theme as ui_theme
 
@@ -218,6 +218,30 @@ class _EmptyState(QObject):
             self.label.setVisible(self.view.model().rowCount() == 0)
         except RuntimeError:   # the view is already gone (application shutdown)
             self._detach()
+
+
+class WheelGuard(QObject):
+    """Pages scroll with the wheel. Without this, wheeling over a combo box, spin box or slider
+    that isn't focused changes its value (e.g. Live's Source) instead of scrolling the page.
+    Those controls take the wheel only once clicked or tabbed into."""
+
+    def eventFilter(self, watched, event):
+        if event.type() != QEvent.Type.Wheel or not isinstance(watched, (QComboBox, QAbstractSpinBox, QSlider)):
+            return False
+        if watched.hasFocus():
+            return False
+        parent = watched.parentWidget()
+        while parent is not None and not isinstance(parent, QAbstractScrollArea):
+            parent = parent.parentWidget()
+        if parent is not None:
+            QApplication.sendEvent(parent.viewport(), event)
+        return True
+
+
+def install_wheel_guard(app):
+    guard = WheelGuard(app)
+    app.installEventFilter(guard)
+    return guard
 
 
 def set_empty_text(view, text):
