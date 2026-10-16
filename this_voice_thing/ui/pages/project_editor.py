@@ -26,6 +26,38 @@ from this_voice_thing.core.audio_project_export import export_project
 from this_voice_thing.ui.threads import TaskThread
 
 
+def describe_error(message, project=None):
+    """Plain-language text for errors raised by the project core and exporter."""
+    text = str(message or "")
+    if text.startswith("Cannot resolve clip asset:"):
+        asset_id = text.split(":", 1)[1].strip()
+        for track in (project.tracks if project is not None else []):
+            for clip in track.clips:
+                if clip.asset_id == asset_id:
+                    what = "sound" if asset_id.startswith("sound_") else "narration take"
+                    return (f"The {what} used on \u201c{track.name}\u201d at "
+                            f"{clip.start_frame / project.sample_rate:.1f} s is missing or has changed on disk, "
+                            "so the project can't be mixed. Re-attach it, or remove that clip.")
+        return "Some audio this project uses is missing or has changed on disk. Re-attach it, then try again."
+    messages = {
+        "Project export cancelled": "Export cancelled. Nothing was written.",
+        "Unsupported project schema version":
+            "This project was saved by a newer version of Sonic Rift, so it can't be opened here.",
+        "Project changed on disk; reopen instead of overwriting":
+            "This project was changed outside the editor since you opened it. Reopen it to see those "
+            "changes, or save it as a new file.",
+        "Project changed on disk; reopen or save a new copy":
+            "This project was changed outside the editor. Reopen it before exporting.",
+        "Refusing to overwrite an existing project export":
+            "A folder with that name already exists there. Choose a new export name.",
+    }
+    if text in messages:
+        return messages[text]
+    if text.startswith(("Expecting", "Extra data", "Unterminated", "Invalid control", "'utf-8' codec")):
+        return "This file isn't a readable Sonic Rift project. It may be damaged or incomplete."
+    return text
+
+
 class ProjectEditorDialog(QDialog):
     """Save, arrange and export tracks without changing ordinary Create settings."""
 
@@ -36,6 +68,7 @@ class ProjectEditorDialog(QDialog):
         self.resize(850, 580)
         self.session = ProjectSession(AudioProject(new_id(), "Untitled project"))
         self.saved_revision = None
+        self.baseline_revision = self.session.project.revision   # nothing to lose until edited
         self.worker = None
         self.import_worker = None
         self._pending_import = None
@@ -50,8 +83,8 @@ class ProjectEditorDialog(QDialog):
         self._button(file_actions, "Save", self.save_project)
         self._button(file_actions, "Rename", self.rename_project)
         file_actions.addStretch()
-        self._button(file_actions, "Undo", self.undo)
-        self._button(file_actions, "Redo", self.redo)
+        self.undo_button = self._button(file_actions, "Undo", self.undo)
+        self.redo_button = self._button(file_actions, "Redo", self.redo)
         layout.addLayout(file_actions)
 
         self.tree = QTreeWidget()
@@ -65,7 +98,8 @@ class ProjectEditorDialog(QDialog):
         self._button(add_actions, "+ Track", self.add_track)
         self._button(add_actions, "+ Saved sound", self.add_sound)
         self._button(add_actions, "+ Create text", self.add_text_block)
-        self._button(add_actions, "+ / Attach narration", self.add_voice_take)
+        self._button(add_actions, "+ Latest Create take", self.add_latest_take)
+        self._button(add_actions, "+ Narration file\u2026", lambda: self.add_voice_take())
         add_actions.addStretch()
         layout.addLayout(add_actions)
 
@@ -99,13 +133,40 @@ class ProjectEditorDialog(QDialog):
         return button
 
     def _error(self, exc):
-        QMessageBox.warning(self, "Project", str(exc))
+        QMessageBox.warning(self, "Project", describe_error(exc, self.session.project))
+
+    def is_dirty(self):
+        return self.session.project.revision != self.baseline_revision
+
+    def _mark_clean(self):
+        self.saved_revision = self.session.project.revision
+        self.baseline_revision = self.session.project.revision
+
+    def _clip_label(self, clip):
+        if clip.kind == "sound" and clip.asset_id:
+            asset = self.owner.sound_library.get(clip.asset_id[len("sound_"):])
+            return asset.name if asset is not None else "Missing sound"
+        if clip.text:
+            return clip.text if len(clip.text) <= 55 else clip.text[:54] + "\u2026"
+        return "Narration take" if clip.kind == "voice" else "Clip"
+
+    @staticmethod
+    def _clip_source(clip):
+        if not clip.asset_id:
+            return "Script only \u2014 needs audio"
+        return "Sound Library" if clip.asset_id.startswith("sound_") else "Narration take"
 
     def refresh(self, selected=None):
         project = self.session.project
-        dirty = self.saved_revision is None or self.saved_revision != project.revision
-        self.heading.setText(f"{project.title}  •  revision {project.revision}" +
-                             ("  •  unsaved edits" if dirty else "  •  saved"))
+        if self.is_dirty():
+            state = "Unsaved changes"
+        elif self.session.path is not None:
+            state = f"Saved \u00b7 {self.session.path.name}"
+        else:
+            state = "New project"
+        self.heading.setText(f"{project.title}  \u2022  {state}")
+        self.undo_button.setEnabled(self.session.can_undo)
+        self.redo_button.setEnabled(self.session.can_redo)
         self.tree.clear()
         for track in project.tracks:
             row = QTreeWidgetItem([f"{track.name} ({track.kind})" + (" [muted]" if track.muted else ""),
@@ -113,13 +174,14 @@ class ProjectEditorDialog(QDialog):
             row.setData(0, Qt.ItemDataRole.UserRole, ("track", track.id))
             self.tree.addTopLevelItem(row)
             for clip in track.clips:
-                source = clip.asset_id or "(unrendered text)"
+                length = f"{clip.frame_count / project.sample_rate:.3f} s" + ("  (loops)" if clip.loop else "")
                 item = QTreeWidgetItem([
-                    clip.text[:55] if clip.text and not clip.asset_id else f"Clip {clip.id[:8]}",
-                    f"{clip.start_frame / project.sample_rate:.3f}s",
-                    f"{clip.frame_count / project.sample_rate:.3f}s",
-                    f"{clip.gain_db:+.1f} dB", source,
+                    self._clip_label(clip),
+                    f"{clip.start_frame / project.sample_rate:.3f} s",
+                    length if clip.asset_id else "\u2014",
+                    f"{clip.gain_db:+.1f} dB", self._clip_source(clip),
                 ])
+                item.setToolTip(4, clip.asset_id or "Generate this script in Create, then attach the take.")
                 item.setData(0, Qt.ItemDataRole.UserRole, ("clip", clip.id))
                 row.addChild(item)
                 if selected == clip.id:
@@ -142,7 +204,7 @@ class ProjectEditorDialog(QDialog):
             return False
 
     def _confirm_discard(self):
-        if self.saved_revision is not None and self.saved_revision == self.session.project.revision:
+        if not self.is_dirty():
             return True
         answer = QMessageBox.question(
             self, "Unsaved project", "Discard unsaved project edits?",
@@ -158,6 +220,7 @@ class ProjectEditorDialog(QDialog):
         if ok and title.strip():
             self.session = ProjectSession(AudioProject(new_id(), title.strip()))
             self.saved_revision = None
+            self.baseline_revision = self.session.project.revision
             self.refresh()
 
     def open_project(self):
@@ -168,7 +231,7 @@ class ProjectEditorDialog(QDialog):
         if filename:
             try:
                 self.session = ProjectSession.open(filename)
-                self.saved_revision = self.session.project.revision
+                self._mark_clean()
                 self.refresh()
             except Exception as exc:
                 self._error(exc)
@@ -186,7 +249,7 @@ class ProjectEditorDialog(QDialog):
                 path = Path(str(path) + ".sonicrift.json")
         try:
             self.session.save(path)
-            self.saved_revision = self.session.project.revision
+            self._mark_clean()
             self.refresh()
             return True
         except Exception as exc:
@@ -302,13 +365,23 @@ class ProjectEditorDialog(QDialog):
                 track.clips.append(clip)
         self._mutate(lambda: self.session.apply(change))
 
-    def add_voice_take(self):
+    def add_latest_take(self):
+        """Attach the take Create made most recently (to the selected script clip, if any)."""
+        latest = self.owner.current_audio_file
+        if not latest or not os.path.isfile(latest):
+            QMessageBox.information(self, "Narration", "Generate narration in Create first. This editor "
+                                    "can stay open while you do.")
+            return
+        self.add_voice_take(latest)
+
+    def add_voice_take(self, filename=None):
         if self.import_worker is not None or self.worker is not None:
             QMessageBox.information(self, "Project", "Finish the current media operation first.")
             return
-        initial = self.owner.current_audio_file or self.owner.output_directory
-        filename, _ = QFileDialog.getOpenFileName(self, "Import rendered narration", initial,
-                                                 "Audio files (*.wav *.flac *.ogg *.mp3)")
+        if not filename:
+            initial = self.owner.current_audio_file or self.owner.output_directory
+            filename, _ = QFileDialog.getOpenFileName(self, "Import rendered narration", initial,
+                                                     "Audio files (*.wav *.flac *.ogg *.mp3)")
         if not filename:
             return
         selection = self._selected()
@@ -486,7 +559,7 @@ class ProjectEditorDialog(QDialog):
     def export(self):
         if self.worker is not None or self.import_worker is not None:
             return
-        if self.saved_revision != self.session.project.revision and not self.save_project():
+        if (self.is_dirty() or self.session.path is None) and not self.save_project():
             return
         try:
             self.session.ensure_current_file()
@@ -539,7 +612,9 @@ class ProjectEditorDialog(QDialog):
 
     @Slot(object, str)
     def _export_done(self, result, error):
-        if error:
+        if error == "Project export cancelled":
+            self.note.setText(describe_error(error))
+        elif error:
             self.note.setText("Export failed. Source files were not modified.")
             self._error(error)
         else:
@@ -566,6 +641,7 @@ class ProjectEditorDialog(QDialog):
             event.ignore()
             return
         if self._confirm_discard():
+            QDialog.reject(self)   # finished(): the owner drops its reference (no second prompt)
             event.accept()
         else:
             event.ignore()

@@ -76,9 +76,30 @@ class GeneratePage:
         self.pages.addWidget(generate_page)
 
     def open_project_editor(self):
+        """One editor window, not modal: Create stays usable to generate narration for it."""
         from this_voice_thing.ui.pages.project_editor import ProjectEditorDialog
-        editor = ProjectEditorDialog(self)
-        editor.exec()
+        editor = getattr(self, "project_editor", None)
+        if editor is None:
+            editor = ProjectEditorDialog(self)
+            editor.setModal(False)
+            editor.finished.connect(self._project_editor_closed)
+            self.project_editor = editor
+        editor.show()
+        editor.raise_()
+        editor.activateWindow()
+
+    def _project_editor_closed(self, _result=0):
+        editor, self.project_editor = getattr(self, "project_editor", None), None
+        if editor is not None:
+            editor.deleteLater()
+
+    def close_project_editor(self):
+        """Ask an open project editor to close (it prompts for unsaved edits); False if it stays."""
+        editor = getattr(self, "project_editor", None)
+        if editor is None or not editor.isVisible():
+            return True
+        editor.close()
+        return not editor.isVisible()
 
     def _build_text_card(self):
         text_card, text_card_layout = self._make_card()
