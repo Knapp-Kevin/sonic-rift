@@ -37,6 +37,7 @@ class ProjectEditorDialog(QDialog):
         self.session = ProjectSession(AudioProject(new_id(), "Untitled project"))
         self.saved_revision = None
         self.worker = None
+        self.import_worker = None
         self.export_cancel = None
         self.media = ProjectMedia(owner.script_dir, owner.sound_library)
         layout = QVBoxLayout(self)
@@ -257,37 +258,64 @@ class ProjectEditorDialog(QDialog):
         self._mutate(lambda: self.session.apply(change))
 
     def add_voice_take(self):
+        if self.import_worker is not None or self.worker is not None:
+            QMessageBox.information(self, "Project", "Finish the current media operation first.")
+            return
         initial = self.owner.current_audio_file or self.owner.output_directory
         filename, _ = QFileDialog.getOpenFileName(self, "Import rendered narration", initial,
                                                  "Audio files (*.wav *.flac *.ogg *.mp3)")
         if not filename:
             return
-        try:
+        selection = self._selected()
+        project_id = self.session.project.id
+        revision = self.session.project.revision
+        project_rate = self.session.project.sample_rate
+        media = self.media
+        def import_file():
             info = sf.info(filename)
             if info.duration > 900 or info.channels not in (1, 2):
                 raise ValueError("Narration must be mono/stereo and no longer than 15 minutes")
             pcm, sr = sf.read(filename, dtype="float32", always_2d=True)
-            asset_id = self.media.import_voice_take(pcm, sr)
-            frames = math.ceil(len(pcm) * self.session.project.sample_rate / sr)
-            selection = self._selected()
-            existing = next((clip for track in self.session.project.tracks for clip in track.clips
-                             if selection == ("clip", clip.id) and clip.kind == "voice"), None)
-            if existing is not None:
-                self._mutate(lambda: self.session.update_clip(
-                    existing.id, asset_id=asset_id, frame_count=frames), existing.id)
-            else:
-                clip = Clip(new_id(), "voice", 0, frames, asset_id=asset_id)
-                selected_track_id = self._track_for_selection(selection, "voice")
-                def change(project):
-                    from this_voice_thing.core.audio_project import Track
-                    track = next((track for track in project.tracks if track.id == selected_track_id), None)
-                    if track is None:
-                        project.tracks.append(Track(new_id(), "voice", Path(filename).stem, clips=[clip]))
-                    else:
-                        track.clips.append(clip)
-                self._mutate(lambda: self.session.apply(change))
-        except Exception as exc:
-            self._error(exc)
+            asset_id = media.import_voice_take(pcm, sr)
+            frames = round(len(pcm) * project_rate / sr)
+            return asset_id, frames, filename
+        self.import_worker = TaskThread(import_file, self)
+        self.import_worker.done.connect(
+            lambda result, error: self._voice_import_done(
+                result, error, selection, project_id, revision))
+        self.import_worker.finished.connect(self._voice_import_finished)
+        self.note.setText("Importing narration in the background. Source files are not modified.")
+        self.import_worker.start()
+
+    def _voice_import_done(self, result, error, selection, project_id, revision):
+        if error:
+            self.note.setText("Narration import failed; no project edits were made.")
+            self._error(error)
+            return
+        if self.session.project.id != project_id or self.session.project.revision != revision:
+            self.note.setText("Project changed during import. Re-select the narration take to attach it.")
+            return
+        asset_id, frames, filename = result
+        existing = next((clip for track in self.session.project.tracks for clip in track.clips
+                         if selection == ("clip", clip.id) and clip.kind == "voice"), None)
+        if existing is not None:
+            self._mutate(lambda: self.session.update_clip(
+                existing.id, asset_id=asset_id, frame_count=frames), existing.id)
+        else:
+            clip = Clip(new_id(), "voice", 0, frames, asset_id=asset_id)
+            selected_track_id = self._track_for_selection(selection, "voice")
+            def change(project):
+                from this_voice_thing.core.audio_project import Track
+                track = next((track for track in project.tracks if track.id == selected_track_id), None)
+                if track is None:
+                    project.tracks.append(Track(new_id(), "voice", Path(filename).stem, clips=[clip]))
+                else:
+                    track.clips.append(clip)
+            self._mutate(lambda: self.session.apply(change))
+        self.note.setText("Narration imported. Save the project to keep the new clip.")
+
+    def _voice_import_finished(self):
+        self.import_worker = None
 
     def remove_selected(self):
         selection = self._selected()
@@ -392,7 +420,7 @@ class ProjectEditorDialog(QDialog):
         self._mutate(lambda: self.session.update_clip(identifier, **params), identifier)
 
     def export(self):
-        if self.worker is not None:
+        if self.worker is not None or self.import_worker is not None:
             return
         if self.saved_revision != self.session.project.revision and not self.save_project():
             return
@@ -448,14 +476,14 @@ class ProjectEditorDialog(QDialog):
         self.export_button.setEnabled(True)
 
     def reject(self):
-        if self.worker is not None:
-            QMessageBox.information(self, "Project export", "Finish exporting before closing this editor.")
+        if self.worker is not None or self.import_worker is not None:
+            QMessageBox.information(self, "Project", "Finish the media operation before closing this editor.")
             return
         if self._confirm_discard():
             super().reject()
 
     def closeEvent(self, event):
-        if self.worker is not None:
+        if self.worker is not None or self.import_worker is not None:
             event.ignore()
             return
         if self._confirm_discard():
