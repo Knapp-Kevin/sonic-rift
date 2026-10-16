@@ -217,12 +217,32 @@ class ProjectEditorDialog(QDialog):
             pcm, source_rate = self.media.resolve("sound_" + asset.id)
             frames = math.ceil(len(pcm) * self.session.project.sample_rate / source_rate)
             clip = Clip(new_id(), "sound", 0, frames, asset_id="sound_" + asset.id, loop=asset.loop)
+            selection = self._selected()
+            selected_track_id = self._track_for_selection(selection, "sound")
             def change(project):
                 from this_voice_thing.core.audio_project import Track
-                project.tracks.append(Track(new_id(), "sound", asset.name, clips=[clip]))
+                track = next((track for track in project.tracks if track.id == selected_track_id), None)
+                if track is None:
+                    project.tracks.append(Track(new_id(), "sound", asset.name, clips=[clip]))
+                else:
+                    track.clips.append(clip)
             self._mutate(lambda: self.session.apply(change))
         except Exception as exc:
             self._error(exc)
+
+    def _track_for_selection(self, selection, kind):
+        """Return a selected compatible track ID, never a project file path."""
+        if not selection:
+            return None
+        selected_kind, identifier = selection
+        for track in self.session.project.tracks:
+            if track.kind != kind:
+                continue
+            if selected_kind == "track" and track.id == identifier:
+                return track.id
+            if selected_kind == "clip" and any(clip.id == identifier for clip in track.clips):
+                return track.id
+        return None
 
     def add_text_block(self):
         text = self.owner.text_input.toPlainText().strip()
@@ -231,9 +251,14 @@ class ProjectEditorDialog(QDialog):
             return
         clip = Clip(new_id(), "voice", 0, 0, text=text,
                     voice_id=self.owner.active_voice_id or "")
+        selected_track_id = self._track_for_selection(self._selected(), "voice")
         def change(project):
             from this_voice_thing.core.audio_project import Track
-            project.tracks.append(Track(new_id(), "voice", "Narration", clips=[clip]))
+            track = next((track for track in project.tracks if track.id == selected_track_id), None)
+            if track is None:
+                project.tracks.append(Track(new_id(), "voice", "Narration", clips=[clip]))
+            else:
+                track.clips.append(clip)
         self._mutate(lambda: self.session.apply(change))
 
     def add_voice_take(self):
@@ -257,9 +282,14 @@ class ProjectEditorDialog(QDialog):
                     existing.id, asset_id=asset_id, frame_count=frames), existing.id)
             else:
                 clip = Clip(new_id(), "voice", 0, frames, asset_id=asset_id)
+                selected_track_id = self._track_for_selection(selection, "voice")
                 def change(project):
                     from this_voice_thing.core.audio_project import Track
-                    project.tracks.append(Track(new_id(), "voice", Path(filename).stem, clips=[clip]))
+                    track = next((track for track in project.tracks if track.id == selected_track_id), None)
+                    if track is None:
+                        project.tracks.append(Track(new_id(), "voice", Path(filename).stem, clips=[clip]))
+                    else:
+                        track.clips.append(clip)
                 self._mutate(lambda: self.session.apply(change))
         except Exception as exc:
             self._error(exc)
@@ -308,7 +338,9 @@ class ProjectEditorDialog(QDialog):
         form = QFormLayout(dialog)
         def spin(label, value, low, high):
             control = QDoubleSpinBox()
-            control.setDecimals(3)
+            # Six decimal places preserve 44.1/48 kHz frame boundaries on save.
+            # Millisecond rounding silently changes clip positions during edits.
+            control.setDecimals(6)
             control.setRange(low, high)
             control.setValue(value)
             form.addRow(label, control)
