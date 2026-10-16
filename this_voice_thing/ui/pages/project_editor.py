@@ -130,8 +130,10 @@ class ProjectEditorDialog(QDialog):
         try:
             function()
             self.refresh(selected)
+            return True
         except Exception as exc:
             self._error(exc)
+            return False
 
     def _confirm_discard(self):
         if self.saved_revision is not None and self.saved_revision == self.session.project.revision:
@@ -299,7 +301,7 @@ class ProjectEditorDialog(QDialog):
         existing = next((clip for track in self.session.project.tracks for clip in track.clips
                          if selection == ("clip", clip.id) and clip.kind == "voice"), None)
         if existing is not None:
-            self._mutate(lambda: self.session.update_clip(
+            applied = self._mutate(lambda: self.session.update_clip(
                 existing.id, asset_id=asset_id, frame_count=frames), existing.id)
         else:
             clip = Clip(new_id(), "voice", 0, frames, asset_id=asset_id)
@@ -311,8 +313,11 @@ class ProjectEditorDialog(QDialog):
                     project.tracks.append(Track(new_id(), "voice", Path(filename).stem, clips=[clip]))
                 else:
                     track.clips.append(clip)
-            self._mutate(lambda: self.session.apply(change))
-        self.note.setText("Narration imported. Save the project to keep the new clip.")
+            applied = self._mutate(lambda: self.session.apply(change))
+        if applied:
+            self.note.setText("Narration imported. Save the project to keep the new clip.")
+        else:
+            self.note.setText("Narration was saved, but could not be attached to this clip.")
 
     def _voice_import_finished(self):
         self.import_worker = None
