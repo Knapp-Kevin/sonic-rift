@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 from this_voice_thing.core.audio_project import AudioProject, Clip, new_id
-from this_voice_thing.core.audio_project_session import ProjectSession, MAX_HISTORY
+from this_voice_thing.core.audio_project_session import ProjectSession, MAX_HISTORY, compatible_track_id
 
 
 class ProjectEditSessionTests(unittest.TestCase):
@@ -98,6 +98,53 @@ class ProjectEditSessionTests(unittest.TestCase):
         original = self.session.project
         self.session.update_clip("wave", gain_db=-12)
         self.assertEqual(original.tracks[0].clips[0].gain_db, 0)
+
+    def test_selected_track_reuses_matching_voice_or_sound_track(self):
+        voice_track = self.session.add_track("voice", "Narration")
+        self.session.add_clip(self.track, Clip("wave", "sound", 0, 48000,
+                                               asset_id="sound_deadbeef1234"))
+        self.assertEqual(
+            compatible_track_id(self.session.project, ("track", self.track), "sound"),
+            self.track)
+        self.assertEqual(
+            compatible_track_id(self.session.project, ("clip", "wave"), "sound"),
+            self.track)
+        self.assertEqual(
+            compatible_track_id(self.session.project, ("track", voice_track), "voice"),
+            voice_track)
+        self.assertIsNone(compatible_track_id(self.session.project, ("clip", "wave"), "voice"))
+        self.assertIsNone(compatible_track_id(self.session.project, ("track", "unknown"), "sound"))
+        self.assertIsNone(compatible_track_id(self.session.project, None, "sound"))
+
+    def test_edit_narration_invalidates_old_take_without_deleting_media(self):
+        voice_track = self.session.add_track("voice", "Narration")
+        self.session.add_clip(voice_track, Clip(
+            "speech", "voice", 0, 48000, asset_id="voice_deadbeef",
+            text="The ocean is peaceful", fade_in_frames=100))
+        prior = deepcopy(self.session.project)
+        self.assertTrue(self.session.update_narration_text("speech", "New narration"))
+        speech = next(clip for track in self.session.project.tracks
+                      for clip in track.clips if clip.id == "speech")
+        self.assertEqual((speech.asset_id, speech.frame_count), ("", 0))
+        self.assertEqual((speech.fade_in_frames, speech.fade_out_frames), (0, 0))
+        self.assertEqual(speech.text, "New narration")
+        self.assertEqual(prior.tracks[-1].clips[0].asset_id, "voice_deadbeef")
+        self.assertTrue(self.session.undo())
+        restored = next(clip for track in self.session.project.tracks
+                        for clip in track.clips if clip.id == "speech")
+        self.assertEqual(restored.asset_id, "voice_deadbeef")
+
+    def test_narration_edit_rejects_wrong_kind_empty_text_and_missing_clip(self):
+        self.session.add_clip(self.track, Clip("surf", "sound", 0, 48000,
+                                               asset_id="sound_deadbeef1234"))
+        baseline = deepcopy(self.session.project)
+        with self.assertRaisesRegex(ValueError, "Only voice clips"):
+            self.session.update_narration_text("surf", "Not narration")
+        with self.assertRaisesRegex(ValueError, "cannot be empty"):
+            self.session.update_narration_text("surf", "  ")
+        with self.assertRaises(KeyError):
+            self.session.update_narration_text("missing", "Actual words")
+        self.assertEqual(self.session.project, baseline)
 
     def test_history_is_bounded(self):
         for number in range(MAX_HISTORY + 15):
