@@ -358,6 +358,42 @@ class LiveAudioOutputReuseTests(unittest.TestCase):
         self.assertEqual((stats["underruns"], stats["bytes_written"]), (0, 0))
         output.stop()
 
+    def test_underrun_rebuffers_instead_of_stuttering(self):
+        """Regression (#13 soak): a stream that ran dry restarted on every small chunk,
+        11 times in 1.8 s; it now waits for twice the start buffer, then resumes."""
+        from PySide6.QtMultimedia import QAudio
+        output = LiveAudioOutput()
+        device = _NegotiatingDevice({(48000, 2)})
+        with patch("this_voice_thing.ui.live_audio.QAudioSink", _StartableSink):
+            output.configure(device, 48000, start_buffer_seconds=0.15)
+        output.push(b"\x00\x00" * 12000)                 # 0.25 s: playing
+        io = output._sink.io
+        output._on_state_changed(QAudio.State.ActiveState)
+        output._on_state_changed(QAudio.State.IdleState)   # ran dry mid-utterance
+        self.assertEqual(output.stats()["underruns"], 1)
+        written = io.written
+        output.push(b"\x00\x00" * 9600)                  # 0.2 s: below 2 x 0.15 s
+        self.assertEqual(io.written, written)
+        output.push(b"\x00\x00" * 7200)                  # 0.35 s in total: resume
+        self.assertGreater(io.written, written)
+        output.stop()
+
+    def test_end_of_input_releases_a_rebuffer_hold(self):
+        from PySide6.QtMultimedia import QAudio
+        output = LiveAudioOutput()
+        device = _NegotiatingDevice({(48000, 2)})
+        with patch("this_voice_thing.ui.live_audio.QAudioSink", _StartableSink):
+            output.configure(device, 48000, start_buffer_seconds=0.15)
+        output.push(b"\x00\x00" * 12000)
+        io = output._sink.io
+        output._on_state_changed(QAudio.State.ActiveState)
+        output._on_state_changed(QAudio.State.IdleState)
+        written = io.written
+        output.push(b"\x00\x00" * 2400)                  # the last short chunk of the line
+        output.finish_input()
+        self.assertGreater(io.written, written)              # not held back forever
+        output.stop()
+
     def test_back_to_back_items_are_not_held(self):
         from PySide6.QtMultimedia import QAudio
         output, device = self._played_item()
