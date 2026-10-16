@@ -544,6 +544,10 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             self.set_status_message(current_tooltip)
 
     def closeEvent(self, event):
+        # An open project editor asks about unsaved edits first; keep the app open if it stays.
+        if not self.close_project_editor():
+            event.ignore()
+            return
         if hasattr(self, "live_hotkeys"):
             self.live_hotkeys.close()
         if hasattr(self, "live_mic_input"):

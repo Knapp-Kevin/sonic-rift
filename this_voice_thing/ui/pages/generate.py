@@ -58,11 +58,48 @@ class GeneratePage:
         voice_row.addWidget(self.model_repo_combo)
         generate_layout.addLayout(voice_row)
 
+        # Project mode is opt-in: keep the established single-text Create flow.
+        project_row = QHBoxLayout()
+        project_hint = QLabel("Layer narration and sounds in a saved project")
+        project_hint.setObjectName("Muted")
+        project_row.addWidget(project_hint, 1)
+        project_button = self._link(QPushButton("Project…"))
+        project_button.setToolTip("Arrange saved voice takes and sounds, then export a layered mix.")
+        project_button.clicked.connect(self.open_project_editor)
+        project_row.addWidget(project_button)
+        generate_layout.addLayout(project_row)
+
         generate_layout.addWidget(self._build_text_card(), 3)
         self._build_engine_rows()
         generate_layout.addWidget(self._build_delivery_card())
         generate_layout.addWidget(self._build_player_card(), 2)
         self.pages.addWidget(generate_page)
+
+    def open_project_editor(self):
+        """One editor window, not modal: Create stays usable to generate narration for it."""
+        from this_voice_thing.ui.pages.project_editor import ProjectEditorDialog
+        editor = getattr(self, "project_editor", None)
+        if editor is None:
+            editor = ProjectEditorDialog(self)
+            editor.setModal(False)
+            editor.finished.connect(self._project_editor_closed)
+            self.project_editor = editor
+        editor.show()
+        editor.raise_()
+        editor.activateWindow()
+
+    def _project_editor_closed(self, _result=0):
+        editor, self.project_editor = getattr(self, "project_editor", None), None
+        if editor is not None:
+            editor.deleteLater()
+
+    def close_project_editor(self):
+        """Ask an open project editor to close (it prompts for unsaved edits); False if it stays."""
+        editor = getattr(self, "project_editor", None)
+        if editor is None or not editor.isVisible():
+            return True
+        editor.close()
+        return not editor.isVisible()
 
     def _build_text_card(self):
         text_card, text_card_layout = self._make_card()

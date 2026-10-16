@@ -52,6 +52,19 @@ class TimelineMixTests(unittest.TestCase):
         np.testing.assert_allclose(m.audio[:,0],m.audio[:,1])
         np.testing.assert_array_equal(m.stems["v"],m.audio)
 
+    def test_fractional_resample_length_matches_import_clip_duration(self):
+        import math
+        source = np.linspace(-0.2, 0.2, 1000, dtype=np.float32)
+        expected = math.ceil(1000 * 48000 / 44100)
+        self.assertEqual(expected, 1089)
+        project = self.project([
+            Track("voice", "voice", "Narration",
+                  [Clip("take", "voice", 0, expected, asset_id="take")])
+        ])
+        result = render_timeline(project, lambda _: (source, 44100))
+        self.assertEqual(result.audio.shape, (expected, 2))
+        self.assertNotEqual(result.audio[-1, 0], 0)
+
     def test_unrendered_or_missing_asset_fails_loudly(self):
         p = self.project([Track("voice","voice","N",[Clip("text","voice",0,0,text="Hello")]),
                           Track("sound","sound","S",[Clip("id","sound",0,400,asset_id="gone")])])

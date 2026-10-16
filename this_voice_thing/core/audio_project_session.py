@@ -6,15 +6,36 @@ media, existing voice profiles, or audio settings are ever modified here.
 from copy import deepcopy
 from dataclasses import replace
 import hashlib
+import json
 from pathlib import Path
 
-from this_voice_thing.core.audio_project import AudioProject, Clip, Track, read_project, save_project, new_id
+from this_voice_thing.core.audio_project import AudioProject, Clip, Track, from_dict, save_project, new_id
 
 MAX_HISTORY = 100
 
 
 def _sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def may_attach_import_result(project, project_id, revision):
+    """Reject late worker results after any project switch or edit."""
+    return (project.id == project_id and project.revision == revision)
+
+
+def compatible_track_id(project, selection, kind):
+    """Resolve a selected track or its clip to a compatible track, without paths."""
+    if not selection or not isinstance(selection, tuple) or len(selection) != 2:
+        return None
+    selected_kind, identifier = selection
+    for track in project.tracks:
+        if track.kind != kind:
+            continue
+        if selected_kind == "track" and track.id == identifier:
+            return track.id
+        if selected_kind == "clip" and any(clip.id == identifier for clip in track.clips):
+            return track.id
+    return None
 
 
 class ProjectSession:
@@ -28,8 +49,12 @@ class ProjectSession:
 
     @classmethod
     def open(cls, path):
+        """Parse and fingerprint one identical on-disk snapshot, not two reads."""
         path = Path(path).resolve()
-        return cls(read_project(path), path=path, fingerprint=_sha(path))
+        payload = path.read_bytes()
+        project = from_dict(json.loads(payload.decode("utf-8")))
+        fingerprint = hashlib.sha256(payload).hexdigest()
+        return cls(project, path=path, fingerprint=fingerprint)
 
     @property
     def can_undo(self):
@@ -117,6 +142,43 @@ class ProjectSession:
                 setattr(clip, key, value)
         return self.apply(edit)
 
+    def attach_narration_take(self, clip_id, asset_id, frame_count):
+        """Replace a voice clip's rendered take atomically and preserve undo history.
+
+        Shorter takes must not inherit invalid or overlapping fade lengths from
+        the previous recording. The previous source remains in project media.
+        """
+        def edit(project):
+            clip = next((c for t in project.tracks for c in t.clips if c.id == clip_id), None)
+            if clip is None:
+                raise KeyError(f"Unknown clip: {clip_id}")
+            if clip.kind != "voice":
+                raise ValueError("Only voice clips can attach narration")
+            if type(frame_count) is not int or frame_count <= 0:
+                raise ValueError("Narration duration must be positive frames")
+            clip.asset_id = asset_id
+            clip.frame_count = frame_count
+            clip.fade_in_frames = min(clip.fade_in_frames, frame_count // 2)
+            clip.fade_out_frames = min(clip.fade_out_frames, frame_count // 2)
+        return self.apply(edit)
+
+    def update_narration_text(self, clip_id, text):
+        """Changing script invalidates its previous rendered take, never deletes media."""
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError("Narration text cannot be empty")
+        def edit(project):
+            clip = next((c for t in project.tracks for c in t.clips if c.id == clip_id), None)
+            if clip is None:
+                raise KeyError(f"Unknown clip: {clip_id}")
+            if clip.kind != "voice":
+                raise ValueError("Only voice clips can contain narration text")
+            clip.text = text.strip()
+            clip.asset_id = ""
+            clip.frame_count = 0
+            clip.fade_in_frames = 0
+            clip.fade_out_frames = 0
+        return self.apply(edit)
+
     def remove_clip(self, clip_id):
         def edit(project):
             if not any(c.id == clip_id for track in project.tracks for c in track.clips):
@@ -137,6 +199,14 @@ class ProjectSession:
             track = project.tracks.pop(position)
             project.tracks.insert(new_index, track)
         return self.apply(edit)
+
+    def ensure_current_file(self):
+        """Prevent exporting a stale in-memory view of a changed saved document."""
+        if self.path is None or self._fingerprint is None:
+            raise ValueError("Save this project before exporting")
+        if not self.path.is_file() or _sha(self.path) != self._fingerprint:
+            raise ValueError("Project changed on disk; reopen or save a new copy")
+        return self.path
 
     def save(self, path=None):
         """Refuse unnoticed outside edits and accidental overwrite of another file."""
