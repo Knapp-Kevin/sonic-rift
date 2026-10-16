@@ -227,10 +227,9 @@ class ModelLoading:
         self.model_is_warm = False
         self.model = model_instance
         self.device_used = device_used
-        status_message = (
-            f"Status: Model loaded from {self.current_model_repo} "
-            f"using {self.current_model_backend} on {self.device_used}. Ready."
-        )
+        loaded = self.loaded_entry() or {}
+        where = "the GPU" if str(device_used).startswith("cuda") else "the CPU"
+        status_message = f"Status: {loaded.get('label') or self.current_model_repo} is ready on {where}."
         if self.system_has_nvidia_gpu and self.device_used == "cpu":
             status_message += " NVIDIA GPU detected, but PyTorch CUDA is unavailable."
         self.set_status_message(status_message)

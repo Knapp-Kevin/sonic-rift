@@ -119,6 +119,8 @@ def _asset(name):
 
 DARK["chevron"] = _asset("chevron_down_dark.svg")
 LIGHT["chevron"] = _asset("chevron_down_light.svg")
+DARK["chevron_up"] = _asset("chevron_up_dark.svg")
+LIGHT["chevron_up"] = _asset("chevron_up_light.svg")
 DARK["check"] = _asset("check_dark.svg")    # dark tick on the cyan fill
 LIGHT["check"] = _asset("check_light.svg")  # white tick on the deep-cyan fill
 
@@ -406,11 +408,13 @@ def _stylesheet(c):
     QTabBar#CapabilityTabs::tab:selected {{ color: {c['text']}; border-bottom-color: {c['accent']}; font-weight: 600; }}
     QTabBar#CapabilityTabs:focus {{ outline: none; }}
     QTabBar#CapabilityTabs::tab:focus {{ color: {c['text']}; border-bottom-color: {c['focus']}; }}
-    QScrollArea#TileArea QScrollBar:vertical {{ background: transparent; width: 8px; margin: 0; }}
-    QScrollArea#TileArea QScrollBar::handle:vertical {{ background: {c['border_strong']}; border-radius: 4px; min-height: 28px; }}
-    QScrollArea#TileArea QScrollBar::handle:vertical:hover {{ background: {c['accent']}; }}
-    QScrollArea#TileArea QScrollBar::add-line, QScrollArea#TileArea QScrollBar::sub-line,
-    QScrollArea#TileArea QScrollBar::add-page, QScrollArea#TileArea QScrollBar::sub-page {{ height: 0; background: none; }}
+    QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; }}
+    QScrollBar:horizontal {{ background: transparent; height: 10px; margin: 2px; }}
+    QScrollBar::handle:vertical {{ background: {c['border_strong']}; border-radius: 3px; min-height: 28px; }}
+    QScrollBar::handle:horizontal {{ background: {c['border_strong']}; border-radius: 3px; min-width: 28px; }}
+    QScrollBar::handle:hover {{ background: {c['accent']}; }}
+    QScrollBar::add-line, QScrollBar::sub-line {{ width: 0; height: 0; background: none; border: none; }}
+    QScrollBar::add-page, QScrollBar::sub-page {{ background: none; }}
     QLabel#SectionLabel {{ color: {c['muted']}; font-size: 8.5pt; font-weight: 700; letter-spacing: 1px; }}
 
     QPushButton {{
@@ -429,18 +433,20 @@ def _stylesheet(c):
     QPushButton[accent="true"]:focus {{ border: 2px solid {c['focus']}; padding: 8px 21px; }}
     QPushButton[accent="true"]:pressed {{ background: {c['accent_pressed']}; }}
     QPushButton[accent="true"]:disabled {{ background: {c['disabled_bg']}; color: {c['disabled']}; border-color: {c['border']}; }}
+    QPushButton[role="destructive"] {{ color: {c['error_text']}; }}
+    QPushButton[role="destructive"]:hover {{ border-color: {c['error_text']}; }}
     QPushButton[flat="true"] {{ background: transparent; border: none; color: {c['accent']}; padding: 4px 6px; }}
     QPushButton[flat="true"]:hover {{ text-decoration: underline; }}
     QPushButton[flat="true"]:focus {{ text-decoration: underline; border: 1px dotted {c['focus']}; }}
     QPushButton[flat="true"]:disabled {{ color: {c['disabled']}; }}
 
-    QTextEdit, QPlainTextEdit, QListWidget, QComboBox, QSpinBox, QLineEdit, QDoubleSpinBox, QTableWidget {{
+    QTextEdit, QPlainTextEdit, QListWidget, QComboBox, QSpinBox, QLineEdit, QDoubleSpinBox, QTableWidget, QTreeWidget {{
         background: {c['surface_alt']}; border: 1px solid {c['border']}; border-top-color: {c['border_strong']};
         border-radius: 7px; padding: 4px 6px; color: {c['text']};
         selection-background-color: {c['accent']}; selection-color: {c['accent_text']};
     }}
     QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QSpinBox:focus, QLineEdit:focus,
-    QDoubleSpinBox:focus, QListWidget:focus, QTableWidget:focus {{
+    QDoubleSpinBox:focus, QListWidget:focus, QTableWidget:focus, QTreeWidget:focus {{
         border: 1px solid {c['focus']};
     }}
     QComboBox {{ background: {button}; border-top-color: {c['border']}; border-bottom-color: {c['border_strong']}; }}
@@ -450,7 +456,32 @@ def _stylesheet(c):
         background: {c['surface']}; color: {c['muted']}; border: none; border-bottom: 1px solid {c['border']};
         padding: 4px 6px; font-weight: 600;
     }}
-    QTableWidget::item:selected {{ background: {c['selected_bg']}; color: {c['text']}; }}
+    QTableWidget::item:selected, QTreeWidget::item:selected {{ background: {c['selected_bg']}; color: {c['text']}; }}
+    QTreeWidget::item {{ padding: 3px 2px; }}
+
+    QAbstractSpinBox {{ padding-right: 22px; }}
+    QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {{
+        subcontrol-origin: border; width: 20px; border: none; border-left: 1px solid {c['border']}; background: transparent;
+    }}
+    QAbstractSpinBox::up-button {{ subcontrol-position: top right; border-top-right-radius: 7px; }}
+    QAbstractSpinBox::down-button {{ subcontrol-position: bottom right; border-bottom-right-radius: 7px; }}
+    QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover {{ background: {c['selected_bg']}; }}
+    QAbstractSpinBox::up-arrow {{ image: url({c['chevron_up']}); width: 9px; height: 6px; }}
+    QAbstractSpinBox::down-arrow {{ image: url({c['chevron']}); width: 9px; height: 6px; }}
+    QAbstractSpinBox::up-arrow:disabled, QAbstractSpinBox::down-arrow:disabled {{ image: none; }}
+
+    QToolButton#MenuButton {{
+        background: {button}; border: 1px solid {c['border']}; border-bottom-color: {c['border_strong']};
+        border-radius: 7px; padding: 6px 26px 6px 14px; color: {c['text']};
+    }}
+    QToolButton#MenuButton:hover {{ border-color: {c['accent']}; }}
+    QToolButton#MenuButton:focus {{ border: 1px solid {c['focus']}; }}
+    QToolButton#MenuButton:disabled {{ color: {c['disabled']}; background: {c['disabled_bg']}; }}
+    QToolButton#MenuButton::menu-indicator {{
+        image: url({c['chevron']}); subcontrol-origin: padding; subcontrol-position: center right;
+        width: 10px; height: 7px; right: 9px;
+    }}
+    QLabel#EmptyState {{ color: {c['muted']}; padding: 18px; }}
 
     QSlider::groove:horizontal {{ height: 4px; background: {c['border']}; border-radius: 2px; }}
     QSlider::sub-page:horizontal {{ background: {c['accent']}; border-radius: 2px; }}

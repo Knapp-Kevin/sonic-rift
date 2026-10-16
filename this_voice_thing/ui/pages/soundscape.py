@@ -34,6 +34,7 @@ from this_voice_thing.core.soundscape import catalog, mastering, procedural, ren
 from this_voice_thing.engines import sound_models
 from this_voice_thing.ui import tiles as model_tiles
 from this_voice_thing.ui.threads import SoundRenderThread, TaskThread
+from this_voice_thing.ui.widgets import set_empty_text
 
 EXPORT_FILTER = "WAV master (*.wav);;OGG Vorbis (*.ogg);;MP3 (*.mp3)"
 
@@ -192,6 +193,7 @@ class SoundscapePage:
 
         takes_card, takes_layout = self._make_card("Takes")
         self.sound_take_list = QListWidget()
+        set_empty_text(self.sound_take_list, "Takes appear here after Generate. Play them, then keep the one you like.")
         self.sound_take_list.setMaximumHeight(130)
         self.sound_take_list.itemDoubleClicked.connect(lambda _item: self.play_sound_take())
         takes_layout.addWidget(self.sound_take_list)
@@ -215,6 +217,8 @@ class SoundscapePage:
 
         library_card, library_layout = self._make_card("Asset Library")
         self.sound_asset_list = QListWidget()
+        set_empty_text(self.sound_asset_list, "Sounds you keep are stored here with how they were made, "
+                                               "ready to use in projects.")
         self.sound_asset_list.itemDoubleClicked.connect(lambda _item: self.play_sound_asset())
         library_layout.addWidget(self.sound_asset_list, 1)
         asset_row = QHBoxLayout()

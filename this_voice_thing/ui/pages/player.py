@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtWidgets import QSlider
 
 from this_voice_thing.core import audio_effects
+from this_voice_thing.ui.widgets import set_empty_text
 
 
 class Player:
@@ -63,6 +64,7 @@ class Player:
         history_label.setObjectName("Muted")
         player_layout.addWidget(history_label)
         self.output_log_listwidget = QListWidget()
+        set_empty_text(self.output_log_listwidget, "Audio you generate appears here. Double-click to play it.")
         self.output_log_listwidget.itemDoubleClicked.connect(
             self.play_selected_from_log)
         self.output_log_listwidget.setMinimumHeight(70)

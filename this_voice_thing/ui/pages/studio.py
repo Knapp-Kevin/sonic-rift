@@ -33,7 +33,7 @@ from this_voice_thing.engines import omnivoice as omnivoice_engine
 from this_voice_thing.ui.common import DUAL_MODE_BACKENDS, languages_for_backend
 from this_voice_thing.ui.dialogs.voices import VoiceDetailsDialog
 from this_voice_thing.ui.threads import TaskThread
-from this_voice_thing.ui.widgets import dialog_accepted
+from this_voice_thing.ui.widgets import dialog_accepted, set_empty_text
 
 MODE_TITLES = {"clone": "Clone", "design": "Design", "remix": "Remix"}
 MODE_HINTS = {
@@ -225,6 +225,7 @@ class StudioPage:
         header.addWidget(hint, 1)
         layout.addLayout(header)
         self.studio_take_list = QListWidget()
+        set_empty_text(self.studio_take_list, "Takes appear here. Double-click one to listen, then refine and save it.")
         self.studio_take_list.setMinimumHeight(70)
         self.studio_take_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
         self.studio_take_list.currentRowChanged.connect(lambda _row: self._studio_take_selected())
