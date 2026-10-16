@@ -12,11 +12,11 @@ from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
     QLabel,
-    QLayout,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
     QMessageBox,
+    QScrollArea,
     QPlainTextEdit,
     QProgressBar,
     QSizePolicy,
@@ -71,6 +71,7 @@ from this_voice_thing.ui.pages.transcribe import TranscribePage
 from this_voice_thing.ui.pages.voice import VoicePage
 from this_voice_thing.ui.pages.voice_picker import VoicePicker
 from this_voice_thing.ui.pages.voice_use import VoiceUse
+from this_voice_thing.ui.widgets import install_wheel_guard
 
 
 class SidebarDelegate(QStyledItemDelegate):
@@ -177,9 +178,13 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
 
         self.log_message_signal.connect(self.append_console_log)
         self._init_ui()
+        self.update_minimum_size()
         self.fit_default_geometry()
         self.restore_window_settings()
-        self.update_minimum_size()
+        self.fit_to_screen()   # a size saved on a bigger screen (or by older versions) may not fit
+        # Before show() the frame (title bar, borders) has no size yet; check again once it does.
+        QTimer.singleShot(0, self.fit_to_screen)
+        self._wheel_guard = install_wheel_guard(QApplication.instance())
         self.attach_log_sink()
         self.update_output_log()
         if CHATTERBOX_AVAILABLE:
@@ -321,6 +326,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self._build_model_page()
         self._build_advanced_page()
 
+        self._make_pages_scroll()
         self.show_page(self.PAGE_GENERATE)
 
         qt_status_bar = self.statusBar()
@@ -444,32 +450,54 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             return payload
         return {}
 
+    # The window never has to be larger than this: pages scroll inside it instead.
+    # 960 x 600 fits a 1366 x 768 laptop at 125% scaling with the taskbar showing.
+    MIN_WINDOW = QSize(960, 600)
+
+    def _make_pages_scroll(self):
+        """Put every page in a scroll area, so the tallest or widest page sets no window
+        minimum (Live alone needed 1560 x 1489 and pushed the window off the screen)."""
+        for index in range(self.pages.count()):
+            page = self.pages.widget(index)
+            if isinstance(page, QScrollArea):
+                continue
+            self.pages.removeWidget(page)
+            scroll = QScrollArea()
+            scroll.setObjectName("PageScroll")
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+            scroll.setWidget(page)
+            self.pages.insertWidget(index, scroll)
+
     def update_minimum_size(self):
-        """Keep the window at least as large as its content needs, so nothing
-        ever clips or scrolls; grow the window if the content just got bigger."""
-        if self.centralWidget() is None:
-            return
-        # Layout changes propagate upward one event-loop pass per level, so
-        # invalidate the whole chain to measure the current content right now.
-        for layout in self.findChildren(QLayout):
-            layout.invalidate()
-        self.layout().activate()
-        hint = self.minimumSizeHint()
-        self.setMinimumSize(hint)
+        """Pages scroll, so the window keeps one fixed minimum whatever they contain."""
+        self.setMinimumSize(self.MIN_WINDOW)
+
+    def fit_to_screen(self):
+        """Keep the whole window, title bar included, on the screen it's on."""
         if self.isMaximized() or self.isFullScreen():
             return
-        if self.width() < hint.width() or self.height() < hint.height():
-            self.resize(max(self.width(), hint.width()), max(self.height(), hint.height()))
+        screen = self.screen() or QApplication.primaryScreen()
+        if screen is None:
+            return
+        available = screen.availableGeometry()
+        frame_extra = self.frameGeometry().size() - self.geometry().size()
+        width = min(self.width(), available.width() - frame_extra.width())
+        height = min(self.height(), available.height() - frame_extra.height())
+        if (width, height) != (self.width(), self.height()):
+            self.resize(max(width, self.MIN_WINDOW.width()), max(height, self.MIN_WINDOW.height()))
+        frame = self.frameGeometry()
+        if not available.contains(frame):
+            frame.moveLeft(max(available.left(), min(frame.left(), available.right() - frame.width())))
+            frame.moveTop(max(available.top(), min(frame.top(), available.bottom() - frame.height())))
+            self.move(frame.topLeft())
 
     def fit_default_geometry(self):
         screen = self.screen() or QApplication.primaryScreen()
         if screen is None:
             return
         available = screen.availableGeometry()
-        hint = self.minimumSizeHint()
-        width = max(hint.width(), min(self.width(), available.width() - 40))
-        height = max(hint.height(), min(self.height(), available.height() - 60))
-        self.resize(width, height)
+        self.resize(min(1280, available.width() - 80), min(900, available.height() - 80))
         frame = self.frameGeometry()
         frame.moveCenter(available.center())
         self.move(frame.topLeft())
@@ -513,6 +541,9 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
 
     def set_status_message(self, message):
         compact_message = " ".join(str(message).split())
+        # The bar itself says this is status; the old "Status: " prefix only crowded every message.
+        if compact_message.startswith("Status: "):
+            compact_message = compact_message[len("Status: "):]
         self.status_bar.setToolTip(compact_message)
         metrics = self.status_bar.fontMetrics()
         elided_message = metrics.elidedText(

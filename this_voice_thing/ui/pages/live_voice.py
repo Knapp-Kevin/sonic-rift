@@ -32,6 +32,7 @@ from this_voice_thing.ui.global_hotkeys import GlobalHotkeyManager, HotkeyError,
 from this_voice_thing.ui.live_audio import LiveAudioOutput, LiveSpeechThread
 from this_voice_thing.ui.live_capture import LiveAudioInput
 from this_voice_thing.ui import theme as ui_theme
+from this_voice_thing.ui.widgets import MenuButton, set_empty_text
 
 
 MAX_LIVE_QUEUE_ITEMS = 25
@@ -56,6 +57,9 @@ def live_sink_kwargs(mode):
 
 class LiveVoicePage:
     """Live Speak UI mixed into SonicRiftApp."""
+
+    SOUNDBOARD_EMPTY = ("No pads yet. Type a line above and choose Save as pad, or add an audio clip. "
+                        "Alt+1\u20269 play the first nine.")
 
     def _build_live_voice_page(self):
         self.live_voice_queue = []
@@ -93,8 +97,8 @@ class LiveVoicePage:
         )
 
         page, layout = self._make_page(
-            "Live Voice",
-            "Type text or use a microphone, then route the audio directly to an output device.",
+            "Live",
+            "Speak typed lines, soundboard pads or your microphone straight to an audio device.",
         )
 
         route_card, route_layout = self._make_card("Voice & route")
@@ -114,16 +118,19 @@ class LiveVoicePage:
         self.live_model_label.setObjectName("Muted")
         voice_row.addWidget(self.live_model_label)
         voice_row.addStretch(1)
-        self.live_mode_label = QLabel("Buffered")
-        self.live_mode_label.setObjectName("Muted")
-        voice_row.addWidget(self.live_mode_label)
-        self.live_voice_origin_label = QLabel("Origin: default")
-        self.live_voice_origin_label.setObjectName("Muted")
-        voice_row.addWidget(self.live_voice_origin_label)
-        self.live_provenance_label = QLabel("Provenance: idle")
-        self.live_provenance_label.setObjectName("Muted")
-        voice_row.addWidget(self.live_provenance_label)
         route_layout.addLayout(voice_row)
+        meta_row = QHBoxLayout()
+        self.live_mode_label = QLabel("Buffered")
+        self.live_voice_origin_label = QLabel("Origin: default")
+        self.live_provenance_label = QLabel("Provenance: idle")
+        for index, label in enumerate((self.live_mode_label, self.live_voice_origin_label,
+                                       self.live_provenance_label)):
+            label.setObjectName("Muted")
+            if index:
+                meta_row.addWidget(QLabel("\u00b7", objectName="Muted"))
+            meta_row.addWidget(label)
+        meta_row.addStretch(1)
+        route_layout.addLayout(meta_row)
 
         favorite_voice_row = QHBoxLayout()
         favorite_voice_row.addWidget(QLabel("Quick voices"))
@@ -132,12 +139,10 @@ class LiveVoicePage:
         use_favorite_voice = QPushButton("Use")
         use_favorite_voice.clicked.connect(self.use_selected_favorite_voice)
         favorite_voice_row.addWidget(use_favorite_voice)
-        favorite_current_voice = self._link(QPushButton("Favorite current"))
-        favorite_current_voice.clicked.connect(self.favorite_current_live_voice)
-        favorite_voice_row.addWidget(favorite_current_voice)
-        remove_favorite_voice = self._link(QPushButton("Remove favorite"))
-        remove_favorite_voice.clicked.connect(self.remove_selected_favorite_voice)
-        favorite_voice_row.addWidget(remove_favorite_voice)
+        favorite_voice_row.addWidget(MenuButton("Favorites", [
+            ("Add the current voice", self.favorite_current_live_voice),
+            ("Remove the selected favorite", self.remove_selected_favorite_voice),
+        ]))
         route_layout.addLayout(favorite_voice_row)
 
         profile_row = QHBoxLayout()
@@ -293,6 +298,7 @@ class LiveVoicePage:
         mic_layout.addLayout(effects_row)
 
         layout.addWidget(mic_card)
+        self.live_mic_card = mic_card   # shown only while Source is Mic Effects
 
         speak_card, speak_layout = self._make_card("Live Speak")
         self.live_text_input = QPlainTextEdit()
@@ -330,26 +336,21 @@ class LiveVoicePage:
         queue_layout.addWidget(self.live_current_label)
         self.live_queue_list = QListWidget()
         self.live_queue_list.setMinimumHeight(110)
+        set_empty_text(self.live_queue_list, "Lines you send while something is speaking wait here, in order.")
         queue_layout.addWidget(self.live_queue_list)
         queue_actions = QHBoxLayout()
-        repeat = self._link(QPushButton("Repeat last"))
+        repeat = QPushButton("Repeat last")
+        repeat.setToolTip("Say the last line again (Ctrl+Shift+Enter)")
         repeat.clicked.connect(self.live_repeat_last)
         queue_actions.addWidget(repeat)
-        remove = self._link(QPushButton("Remove selected"))
-        remove.clicked.connect(self.live_remove_selected_queue_item)
-        queue_actions.addWidget(remove)
-        move_up = self._link(QPushButton("Move up"))
-        move_up.clicked.connect(lambda: self.live_move_selected_queue_item(-1))
-        queue_actions.addWidget(move_up)
-        move_down = self._link(QPushButton("Move down"))
-        move_down.clicked.connect(lambda: self.live_move_selected_queue_item(1))
-        queue_actions.addWidget(move_down)
-        clear = self._link(QPushButton("Clear queued"))
-        clear.clicked.connect(self.live_clear_queue)
-        queue_actions.addWidget(clear)
-        clear_history = self._link(QPushButton("Clear history"))
-        clear_history.clicked.connect(self.live_clear_history)
-        queue_actions.addWidget(clear_history)
+        queue_actions.addWidget(MenuButton("Queue", [
+            ("Remove selected line\tDelete", self.live_remove_selected_queue_item),
+            ("Move selected up\tAlt+Up", lambda: self.live_move_selected_queue_item(-1)),
+            ("Move selected down\tAlt+Down", lambda: self.live_move_selected_queue_item(1)),
+            None,
+            ("Clear queued lines", self.live_clear_queue),
+            ("Clear history", self.live_clear_history),
+        ]))
         queue_actions.addStretch(1)
         self.live_queue_pressure_label = QLabel("0 queued")
         self.live_queue_pressure_label.setObjectName("Muted")
@@ -364,38 +365,22 @@ class LiveVoicePage:
         self.soundboard_board_combo.setMinimumWidth(220)
         self.soundboard_board_combo.currentIndexChanged.connect(self.on_soundboard_board_changed)
         board_picker_row.addWidget(self.soundboard_board_combo, 1)
-        new_board = QPushButton("New…")
-        new_board.clicked.connect(self.create_soundboard_board)
-        board_picker_row.addWidget(new_board)
-        rename_board = QPushButton("Rename…")
-        rename_board.clicked.connect(self.rename_soundboard_board)
-        board_picker_row.addWidget(rename_board)
-        delete_board = self._link(QPushButton("Delete board"))
-        delete_board.clicked.connect(self.delete_soundboard_board)
-        board_picker_row.addWidget(delete_board)
+        board_picker_row.addWidget(MenuButton("Board", [
+            ("New board\u2026", self.create_soundboard_board),
+            ("Rename board\u2026", self.rename_soundboard_board),
+            None,
+            ("Use the current voice for this board", self.set_soundboard_default_voice),
+            ("Forget this board's voice", self.clear_soundboard_default_voice),
+            ("Use the current route for this board", self.set_soundboard_default_route),
+            ("Forget this board's route", self.clear_soundboard_default_route),
+            None,
+            ("Clear cached pad audio", self.clear_soundboard_cache),
+            ("Delete board\u2026", self.delete_soundboard_board),
+        ]))
         board_layout.addLayout(board_picker_row)
 
-        defaults_row = QHBoxLayout()
-        defaults_row.addWidget(QLabel("Board defaults"))
-        self.soundboard_defaults_label = QLabel("Voice: none · Route: none")
-        self.soundboard_defaults_label.setObjectName("Muted")
-        defaults_row.addWidget(self.soundboard_defaults_label, 1)
-        save_voice_default = QPushButton("Use current voice")
-        save_voice_default.clicked.connect(self.set_soundboard_default_voice)
-        defaults_row.addWidget(save_voice_default)
-        clear_voice_default = self._link(QPushButton("Clear voice"))
-        clear_voice_default.clicked.connect(self.clear_soundboard_default_voice)
-        defaults_row.addWidget(clear_voice_default)
-        save_route_default = QPushButton("Use current route")
-        save_route_default.clicked.connect(self.set_soundboard_default_route)
-        defaults_row.addWidget(save_route_default)
-        clear_route_default = self._link(QPushButton("Clear route"))
-        clear_route_default.clicked.connect(self.clear_soundboard_default_route)
-        defaults_row.addWidget(clear_route_default)
-        board_layout.addLayout(defaults_row)
-
         policy_row = QHBoxLayout()
-        policy_row.addWidget(QLabel("Default pad behavior"))
+        policy_row.addWidget(QLabel("When busy, pads"))
         self.soundboard_board_policy_combo = QComboBox()
         self.soundboard_board_policy_combo.addItem("Queue", "queue")
         self.soundboard_board_policy_combo.addItem("Interrupt current", "interrupt")
@@ -404,7 +389,10 @@ class LiveVoicePage:
             self.on_soundboard_board_policy_changed
         )
         policy_row.addWidget(self.soundboard_board_policy_combo)
-        policy_row.addStretch(1)
+        policy_row.addSpacing(12)
+        self.soundboard_defaults_label = QLabel("Voice: none \u00b7 Route: none")
+        self.soundboard_defaults_label.setObjectName("Muted")
+        policy_row.addWidget(self.soundboard_defaults_label, 1)
         board_layout.addLayout(policy_row)
 
         filter_row = QHBoxLayout()
@@ -419,50 +407,40 @@ class LiveVoicePage:
 
         self.soundboard_list = QListWidget()
         self.soundboard_list.setMinimumHeight(130)
+        set_empty_text(self.soundboard_list, self.SOUNDBOARD_EMPTY)
         self.soundboard_list.itemDoubleClicked.connect(lambda _item: self.trigger_selected_soundboard_pad())
         board_layout.addWidget(self.soundboard_list)
         board_actions = QHBoxLayout()
-        save_pad = self._accent(QPushButton("Save text as pad"))
-        save_pad.clicked.connect(self.save_soundboard_pad)
-        board_actions.addWidget(save_pad)
-        add_audio_pad = QPushButton("Add audio clip…")
-        add_audio_pad.clicked.connect(self.add_soundboard_audio_pad)
-        board_actions.addWidget(add_audio_pad)
-        trigger_pad = QPushButton("Trigger")
+        trigger_pad = QPushButton("Play pad")
+        trigger_pad.setToolTip("Play the selected pad (or double-click it; Alt+1\u20269 for the first nine)")
         trigger_pad.clicked.connect(self.trigger_selected_soundboard_pad)
         board_actions.addWidget(trigger_pad)
-        delete_pad = self._link(QPushButton("Delete"))
-        delete_pad.clicked.connect(self.delete_selected_soundboard_pad)
-        board_actions.addWidget(delete_pad)
-        move_pad_up = self._link(QPushButton("Move up"))
-        move_pad_up.clicked.connect(lambda: self.move_selected_soundboard_pad(-1))
-        board_actions.addWidget(move_pad_up)
-        move_pad_down = self._link(QPushButton("Move down"))
-        move_pad_down.clicked.connect(lambda: self.move_selected_soundboard_pad(1))
-        board_actions.addWidget(move_pad_down)
-        set_hotkey = QPushButton("Set hotkey…")
-        set_hotkey.clicked.connect(self.set_selected_soundboard_hotkey)
-        board_actions.addWidget(set_hotkey)
-        clear_hotkey = self._link(QPushButton("Clear hotkey"))
-        clear_hotkey.clicked.connect(self.clear_selected_soundboard_hotkey)
-        board_actions.addWidget(clear_hotkey)
-        favorite_pad = self._link(QPushButton("Favorite"))
-        favorite_pad.clicked.connect(self.toggle_selected_soundboard_favorite)
-        board_actions.addWidget(favorite_pad)
-        tags_pad = self._link(QPushButton("Tags…"))
-        tags_pad.clicked.connect(self.edit_selected_soundboard_tags)
-        board_actions.addWidget(tags_pad)
-        behavior_pad = self._link(QPushButton("Behavior…"))
-        behavior_pad.clicked.connect(self.set_selected_soundboard_behavior)
-        board_actions.addWidget(behavior_pad)
-        clear_cache = self._link(QPushButton("Clear cache"))
-        clear_cache.clicked.connect(self.clear_soundboard_cache)
-        board_actions.addWidget(clear_cache)
+        save_pad = QPushButton("Save as pad")
+        save_pad.setToolTip("Save the text in Live Speak (or the last line spoken) as a pad")
+        save_pad.clicked.connect(self.save_soundboard_pad)
+        board_actions.addWidget(save_pad)
+        add_audio_pad = QPushButton("Add audio clip\u2026")
+        add_audio_pad.clicked.connect(self.add_soundboard_audio_pad)
+        board_actions.addWidget(add_audio_pad)
+        board_actions.addWidget(MenuButton("Pad", [
+            ("Favorite / unfavorite", self.toggle_selected_soundboard_favorite),
+            ("Tags\u2026", self.edit_selected_soundboard_tags),
+            ("When busy\u2026", self.set_selected_soundboard_behavior),
+            ("Set hotkey\u2026", self.set_selected_soundboard_hotkey),
+            ("Clear hotkey", self.clear_selected_soundboard_hotkey),
+            None,
+            ("Move up\tCtrl+Shift+Up", lambda: self.move_selected_soundboard_pad(-1)),
+            ("Move down\tCtrl+Shift+Down", lambda: self.move_selected_soundboard_pad(1)),
+            None,
+            ("Delete pad", self.delete_selected_soundboard_pad),
+        ]))
         board_actions.addStretch(1)
-        self.soundboard_status_label = QLabel("Static TTS pads cache locally after their first successful generation.")
-        self.soundboard_status_label.setObjectName("Muted")
-        board_actions.addWidget(self.soundboard_status_label)
         board_layout.addLayout(board_actions)
+        self.soundboard_status_label = QLabel("Spoken pads are saved locally after their first play, "
+                                              "so they replay instantly.")
+        self.soundboard_status_label.setObjectName("Muted")
+        self.soundboard_status_label.setWordWrap(True)
+        board_layout.addWidget(self.soundboard_status_label)
 
         hotkey_row = QHBoxLayout()
         self.live_hotkeys_enabled_checkbox = QCheckBox("Enable global pad hotkeys")
@@ -725,6 +703,8 @@ class LiveVoicePage:
             else "tts"
         )
         mic_mode = mode == "mic_effects"
+        if hasattr(self, "live_mic_card"):
+            self.live_mic_card.setVisible(mic_mode)
         if not mic_mode and hasattr(self, "live_mic_input") and self.live_mic_input.is_active():
             self.stop_live_microphone()
 
@@ -2344,6 +2324,10 @@ class LiveVoicePage:
             if hasattr(self, "soundboard_favorites_only")
             else False
         )
+        if board.pads and (query or favorites_only):
+            set_empty_text(self.soundboard_list, "No pads match the search or the Favorites filter.")
+        else:
+            set_empty_text(self.soundboard_list, self.SOUNDBOARD_EMPTY)
 
         for index, pad in enumerate(board.pads, 1):
             searchable = " ".join(

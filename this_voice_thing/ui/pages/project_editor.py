@@ -24,6 +24,7 @@ from this_voice_thing.core.audio_project_session import ProjectSession, compatib
 from this_voice_thing.core.audio_project_media import ProjectMedia
 from this_voice_thing.core.audio_project_export import export_project
 from this_voice_thing.ui.threads import TaskThread
+from this_voice_thing.ui.widgets import MenuButton, set_empty_text, set_role
 
 
 def describe_error(message, project=None):
@@ -76,7 +77,7 @@ class ProjectEditorDialog(QDialog):
         super().__init__(owner)
         self.owner = owner
         self.setWindowTitle("Sonic Rift | Create project")
-        self.resize(850, 580)
+        self.resize(900, 600)
         self.session = ProjectSession(AudioProject(new_id(), "Untitled project"))
         self.saved_revision = None
         self.baseline_revision = self.session.project.revision   # nothing to lose until edited
@@ -87,54 +88,68 @@ class ProjectEditorDialog(QDialog):
         self.export_cancel = None
         self.media = ProjectMedia(owner.script_dir, owner.sound_library)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setSpacing(8)
+        # Same page header as the main window: title, then a muted state line.
+        title_row = QHBoxLayout()
+        self.title_label = QLabel()
+        self.title_label.setObjectName("PageTitle")
+        title_row.addWidget(self.title_label, 1)
+        self.undo_button = self._button(title_row, "Undo", self.undo)
+        self.redo_button = self._button(title_row, "Redo", self.redo)
+        title_row.addWidget(MenuButton("Project", [
+            ("New project\u2026", self.new_project),
+            ("Open\u2026", self.open_project),
+            ("Save", self.save_project),
+            ("Rename\u2026", self.rename_project),
+        ]))
+        layout.addLayout(title_row)
         self.heading = QLabel()
+        self.heading.setObjectName("PageSubtitle")
         layout.addWidget(self.heading)
-        file_actions = QHBoxLayout()
-        self._button(file_actions, "New", self.new_project)
-        self._button(file_actions, "Open…", self.open_project)
-        self._button(file_actions, "Save", self.save_project)
-        self._button(file_actions, "Rename", self.rename_project)
-        file_actions.addStretch()
-        self.undo_button = self._button(file_actions, "Undo", self.undo)
-        self.redo_button = self._button(file_actions, "Redo", self.redo)
-        layout.addLayout(file_actions)
 
         self.tree = QTreeWidget()
+        set_empty_text(self.tree, "Add a saved sound or narration to start. Each kind gets its own track.")
         self.tree.setHeaderLabels(["Track / clip", "Starts", "Length", "Gain", "Source"])
         self.tree.setRootIsDecorated(True)
         self.tree.setAlternatingRowColors(True)
         self.tree.itemDoubleClicked.connect(lambda *_: self.edit_selected())
         layout.addWidget(self.tree, 1)
 
+        # One row: add things, change the selection, then the export the editor exists for.
         add_actions = QHBoxLayout()
-        self._button(add_actions, "+ Track", self.add_track)
-        self._button(add_actions, "+ Saved sound", self.add_sound)
-        self._button(add_actions, "+ Create text", self.add_text_block)
-        self._button(add_actions, "+ Latest Create take", self.add_latest_take)
-        self._button(add_actions, "+ Narration file\u2026", lambda: self.add_voice_take())
+        add_actions.addWidget(MenuButton("Add", [
+            ("Saved sound\u2026", self.add_sound),
+            ("Latest Create take", self.add_latest_take),
+            ("Narration file\u2026", lambda: self.add_voice_take()),
+            ("Narration script\u2026", self.add_text_block),
+            None,
+            ("Empty track\u2026", self.add_track),
+        ]))
+        self._button(add_actions, "Edit\u2026", self.edit_selected)
+        add_actions.addWidget(MenuButton("Selection", [
+            ("Mute / unmute track", self.toggle_track_mute),
+            ("Edit narration script\u2026", self.edit_narration),
+            ("Move track up", lambda: self.move_track(-1)),
+            ("Move track down", lambda: self.move_track(1)),
+            None,
+            ("Remove\u2026", self.remove_selected),
+        ]))
         add_actions.addStretch()
+        self.cancel_button = self._button(add_actions, "Cancel export", self.cancel_export)
+        self.cancel_button.setEnabled(False)
+        self.cancel_button.setVisible(False)
+        self.export_button = set_role(self._button(add_actions, "Export mix\u2026", self.export), "primary")
+        self.export_button.setToolTip("A mastered mix (WAV, plus MP3/OGG if you like) and one stem per track, "
+                                      "in a new folder.")
         layout.addLayout(add_actions)
 
-        edit_actions = QHBoxLayout()
-        self._button(edit_actions, "Edit…", self.edit_selected)
-        self._button(edit_actions, "Mute / Unmute", self.toggle_track_mute)
-        self._button(edit_actions, "Edit narration", self.edit_narration)
-        self._button(edit_actions, "Remove", self.remove_selected)
-        self._button(edit_actions, "↑", lambda: self.move_track(-1))
-        self._button(edit_actions, "↓", lambda: self.move_track(1))
-        layout.addLayout(edit_actions)
-
-        self.note = QLabel("Save a project, then export a mastered mix and post-duck premaster WAV stems. "
-                           "Text blocks need rendered narration attached before export; use Create to generate it.")
+        self.note = QLabel("Narration scripts need audio before export: generate them in Create (this window "
+                           "can stay open), then use Add \u203a Latest Create take with the script selected.")
+        self.note.setObjectName("Muted")
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
-        actions = QHBoxLayout()
-        self.export_button = self._button(actions, "Export mastered mix + stems…", self.export)
-        self.cancel_button = self._button(actions, "Cancel export", self.cancel_export)
-        self.cancel_button.setEnabled(False)
-        actions.addStretch()
-        self.close_button = self._button(actions, "Close", self.reject)
-        layout.addLayout(actions)
+
         self.refresh()
 
     @staticmethod
@@ -176,7 +191,8 @@ class ProjectEditorDialog(QDialog):
             state = f"Saved \u00b7 {self.session.path.name}"
         else:
             state = "New project"
-        self.heading.setText(f"{project.title}  \u2022  {state}")
+        self.title_label.setText(project.title)
+        self.heading.setText(state)
         self.undo_button.setEnabled(self.session.can_undo)
         self.redo_button.setEnabled(self.session.can_redo)
         self.tree.clear()
@@ -617,6 +633,7 @@ class ProjectEditorDialog(QDialog):
         self.export_button.setEnabled(False)
         self.export_cancel = Event()
         self.cancel_button.setEnabled(True)
+        self.cancel_button.setVisible(True)
         should_cancel = self.export_cancel.is_set
         self.worker = TaskThread(lambda: export_project(snapshot, media, destination, formats=formats,
                                                         include_stems=True, should_cancel=should_cancel), self)
@@ -648,6 +665,7 @@ class ProjectEditorDialog(QDialog):
         self.worker = None
         self.export_cancel = None
         self.cancel_button.setEnabled(False)
+        self.cancel_button.setVisible(False)
         self.export_button.setEnabled(True)
 
     def reject(self):
