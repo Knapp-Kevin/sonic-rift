@@ -146,6 +146,40 @@ class ProjectEditSessionTests(unittest.TestCase):
             self.session.update_narration_text("missing", "Actual words")
         self.assertEqual(self.session.project, baseline)
 
+    def test_shorter_voice_replacement_keeps_fades_valid_and_undoable(self):
+        track = self.session.add_track("voice", "Narration")
+        self.session.add_clip(track, Clip(
+            "speech", "voice", 0, 24000, asset_id="voice_original",
+            fade_in_frames=9000, fade_out_frames=8000, text="Hello"))
+        previous = deepcopy(self.session.project)
+        self.assertTrue(self.session.attach_narration_take("speech", "voice_newtake", 4000))
+        current = next(c for t in self.session.project.tracks for c in t.clips
+                       if c.id == "speech")
+        self.assertEqual(current.asset_id, "voice_newtake")
+        self.assertEqual(current.frame_count, 4000)
+        self.assertEqual((current.fade_in_frames, current.fade_out_frames), (2000, 2000))
+        self.assertTrue(self.session.undo())
+        self.assertEqual(self.session.project.tracks[-1].clips[0].asset_id, "voice_original")
+        self.assertEqual(previous.tracks[-1].clips[0].fade_in_frames, 9000)
+
+    def test_narration_attach_rejects_wrong_kind_invalid_frames_without_mutation(self):
+        self.session.add_clip(self.track, Clip(
+            "surf", "sound", 0, 48000, asset_id="sound_deadbeef1234"))
+        before = deepcopy(self.session.project)
+        with self.assertRaisesRegex(ValueError, "Only voice"):
+            self.session.attach_narration_take("surf", "voice_recording", 100)
+        with self.assertRaises(KeyError):
+            self.session.attach_narration_take("notfound", "voice_recording", 100)
+        track = self.session.add_track("voice", "Reader")
+        self.session.add_clip(track, Clip("speech", "voice", 0, 0, text="Hello"))
+        after = deepcopy(self.session.project)
+        with self.assertRaisesRegex(ValueError, "positive frames"):
+            self.session.attach_narration_take("speech", "voice_recording", 0)
+        with self.assertRaisesRegex(ValueError, "Invalid asset ID"):
+            self.session.attach_narration_take("speech", "../not-safe", 100)
+        self.assertEqual(self.session.project, after)
+        self.assertEqual(before.tracks[0].clips[0].asset_id, "sound_deadbeef1234")
+
     def test_stale_async_result_is_rejected_after_edit_or_project_switch(self):
         initial_id = self.session.project.id
         initial_revision = self.session.project.revision
