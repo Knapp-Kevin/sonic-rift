@@ -42,6 +42,10 @@ The project owner can select a new license for code they own and have authority 
 
 See [issue #55](https://github.com/Knapp-Kevin/sonic-rift/issues/55) for source provenance and [issue #60](https://github.com/Knapp-Kevin/sonic-rift/issues/60) for the licensing, metadata and distribution decision. **Neither a new license nor a clean-room status is asserted here.**
 
+## Source-based installed-environment checks
+
+A [read-only dependency metadata inventory](docs/runtime-license-inventory.md) and [offline script](scripts/audit_runtime_licenses.py) allow the project's actual Windows app/engine Python environments to be inventoried without installing packages, importing speech models, or relying on a historical package snapshot. Package metadata alone **cannot** establish commercial-use clearance. Review actual package license files and model-weight terms before making rights claims.
+
 ## Distribution verification checklist
 
 - [ ] Freeze the exact release commit and dependency lockfiles used for packaging.
