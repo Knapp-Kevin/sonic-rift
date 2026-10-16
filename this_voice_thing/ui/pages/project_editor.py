@@ -61,11 +61,15 @@ class ProjectEditorDialog(QDialog):
         self.tree.itemDoubleClicked.connect(lambda *_: self.edit_selected())
         layout.addWidget(self.tree, 1)
 
+        add_actions = QHBoxLayout()
+        self._button(add_actions, "+ Track", self.add_track)
+        self._button(add_actions, "+ Saved sound", self.add_sound)
+        self._button(add_actions, "+ Create text", self.add_text_block)
+        self._button(add_actions, "+ / Attach narration", self.add_voice_take)
+        add_actions.addStretch()
+        layout.addLayout(add_actions)
+
         edit_actions = QHBoxLayout()
-        self._button(edit_actions, "+ Track", self.add_track)
-        self._button(edit_actions, "+ Saved sound", self.add_sound)
-        self._button(edit_actions, "+ Create text", self.add_text_block)
-        self._button(edit_actions, "+ / Attach narration", self.add_voice_take)
         self._button(edit_actions, "Edit…", self.edit_selected)
         self._button(edit_actions, "Mute / Unmute", self.toggle_track_mute)
         self._button(edit_actions, "Edit narration", self.edit_narration)
@@ -481,6 +485,11 @@ class ProjectEditorDialog(QDialog):
         if self.worker is not None or self.import_worker is not None:
             return
         if self.saved_revision != self.session.project.revision and not self.save_project():
+            return
+        try:
+            self.session.ensure_current_file()
+        except (OSError, ValueError) as exc:
+            self._error(exc)
             return
         parent = QFileDialog.getExistingDirectory(self, "Choose export location",
                                                   self.owner.output_directory)
