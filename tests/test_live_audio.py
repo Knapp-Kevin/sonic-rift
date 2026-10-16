@@ -458,7 +458,7 @@ class LiveAudioOutputFormatSwitchTests(unittest.TestCase):
         """Review regression: a second configure() while one item waited replaced its audio."""
         other = _OtherDevice({(44100, 2)})
         self.output.configure(other, 24000)
-        self.output.push(b"\x00" * 24000)                 # line 2: 1 s, waiting
+        self.output.push(b"\x00\x02" * 24000)                 # line 2: 1 s, waiting
         self.output.configure(other, 48000)                  # line 3 (e.g. a cached pad) arrives
         self.output.push(b"\x00" * 4800)                  # 0.1 s
         self.output.finish_input()
@@ -538,6 +538,28 @@ class LiveAudioOutputMonitorFollowTests(unittest.TestCase):
         self.monitor.push(b"\x00\x01" * 2400)
         self.assertGreater(self.monitor._sink.io.written, written)
 
+    def test_primary_format_switch_neither_pauses_nor_drops_the_monitor(self):
+        """#107 with #108: the primary's next line waits for its old line to play out (it needs
+        another sink format). The monitor keeps playing its own line meanwhile, and its next
+        line goes on as usual; Stop clears what waits."""
+        self.primary._sink._state = self.QAudio.State.ActiveState  # primary's line 1 still audible
+        for output in (self.primary, self.monitor):
+            output._sink.bytesFree = lambda: 0                     # device buffers full
+            output.push(b"\x00\x01" * 48000)                  # the rest of line 1, queued
+            output.finish_input()
+            output._sink.bytesFree = lambda: 9600                  # draining again
+        self.primary.configure(_OtherDevice({(44100, 2)}), 48000, start_buffer_seconds=0.15)
+        self.assertTrue(self.primary._deferred)
+        self.assertFalse(self.monitor._leader_paused())            # a waiting switch isn't a pause
+        written = self.monitor._sink.io.written
+        self.monitor._tick()
+        self.assertGreater(self.monitor._sink.io.written, written)  # line 1 keeps playing
+        self.monitor.configure(_NegotiatingDevice({(48000, 2)}), 48000, start_buffer_seconds=0.15)
+        self.monitor.push(b"\x00\x02" * 24000)
+        self.assertFalse(self.monitor._deferred)
+        self.primary.stop()
+        self.assertFalse(self.primary._deferred)
+        self.assertFalse(self.monitor._leader_paused())
 
 class LiveAudioOutputNextItemStartsFresh(unittest.TestCase):
     def test_a_rebuffer_does_not_carry_into_the_next_item(self):
