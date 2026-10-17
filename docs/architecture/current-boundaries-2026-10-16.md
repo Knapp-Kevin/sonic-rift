@@ -1,6 +1,6 @@
 # Sonic Rift current architecture boundaries and acceptance contract
 
-Status: **working architecture index entry, review requested** (2026-10-16). Tracking: [#56](https://github.com/Knapp-Kevin/sonic-rift/issues/56), [#71](https://github.com/Knapp-Kevin/sonic-rift/issues/71), [#61](https://github.com/Knapp-Kevin/sonic-rift/issues/61), [#13](https://github.com/Knapp-Kevin/sonic-rift/issues/13).
+Status: **working architecture index entry, updated after Windows local-use GO evidence** (2026-10-16). Tracking: [#56](https://github.com/Knapp-Kevin/sonic-rift/issues/56), [#71](https://github.com/Knapp-Kevin/sonic-rift/issues/71), [#61](https://github.com/Knapp-Kevin/sonic-rift/issues/61), [#13](https://github.com/Knapp-Kevin/sonic-rift/issues/13).
 
 This document distinguishes the *integrated capabilities recorded by the delivery issues* from unverified future architectural contracts. It is not a declaration of full Windows runtime acceptance or commercial-license clearance. Code and accepted ADRs take precedence when this working summary conflicts.
 
@@ -18,7 +18,7 @@ This document distinguishes the *integrated capabilities recorded by the deliver
 | Providers / hardware | Provider and model boundaries may be reused across journeys, but a TTS engine is not assumed to provide sound generation or arbitrary accent control. Installed engine/weight rights and source inheritance are separate decisions. | #55, #57, #40 |
 | Plugins / external integration | **No stable external plugin API is certified by this document.** Define explicit versioned permissions, data exchange and lifecycle only when implementation is approved. | #56 subsequent ADR |
 
-## Editing invariants for the next composer slice
+## Composer editing invariants (drag/trim integrated in #111; continue enforcing for future slices)
 
 1. Timeline pointer events produce *proposed* clip edits, never direct mutation of project data inside paint code. Session/project state validates and commits; UI rerenders accepted state.
 2. Positions and durations are canonical integer frames at the project's sample rate. Convert display seconds/pixels at the UI boundary with documented rounding; guard zero/negative length, overflow and out-of-range starts.
@@ -36,7 +36,7 @@ This document distinguishes the *integrated capabilities recorded by the deliver
 - **Audio acceptance:** measured duration/peak/loudness, physically audible monitoring and device/route observations.
 - **Owner/product acceptance:** distinct explicit review after technically passing checks.
 
-The #99/#101/#103/#104 individual branch test results and #105 seven math tests do **not** sum to a combined-main regression pass. At this document's preparation, #61 still requires exact-main source-run evidence. Packaging, signing and Store distribution are deferred P4; they do not block source-app acceptance.
+The original #99/#101/#103/#104 per-PR checks and #105 math tests did not establish integrated acceptance alone. Later Windows regression and exact merged-tree verification for `c0fc13bba6d88bc5fb9a94d24dba09bc24c43e3b` were recorded in #61, supporting GO **for local source-run use** with explicit device, audible-latency, and owner-listening exclusions. This does not automatically certify subsequent commits or distribution. Packaging, signing and Store distribution are deferred P4; they do not block source-app acceptance.
 
 ## Decision register still open
 
@@ -44,7 +44,7 @@ The #99/#101/#103/#104 individual branch test results and #105 seven math tests 
 - Specify the cross-provider generation job / cancellation / error envelope, ownership and failure recovery in an accepted ADR before calling it a public extension interface.
 - Decide whether project timeline edits permit overlap within a track and how snapping works; make current mixer behavior the test oracle rather than changing it implicitly.
 - Verify actual installed model/source/weight licenses and remaining derived UI/worker functions under #55/#57 before removing upstream notices or claiming independence.
-- Capture verified output/monitor device drift, near-end underrun and queue-format transition results under #13.
+- Preserve #107/#108 monitor/queue regression evidence and investigate remaining first-line monitor offset, physical latency and external routes under #13.
 
 ## Update discipline
 
