@@ -17,6 +17,10 @@ class Generation:
     """Starting, tracking and finishing a generation. Mixed into ChatterboxApp."""
 
     def handle_generate_stop_toggle(self):
+        if getattr(self, "editor_generation_active", False):
+            self.set_status_message("Status: The project editor is generating narration; cancel it there "
+                                    "or wait for it to finish.")
+            return
         if not self.is_generating:
             self.start_generation(preview=False)
             return
@@ -150,7 +154,7 @@ class Generation:
 
         Uses Create's voice and settings but never changes Create's text, last take or player.
         Always WAV and no captions: the take is imported into project media afterwards."""
-        problem = self.prepare_qwen_generation()
+        problem = self.prepare_qwen_generation(text)
         if problem:
             raise ValueError(problem)
         finishing = replace(self.current_finishing_settings(), output_format="WAV", save_subtitles=False)
@@ -160,12 +164,16 @@ class Generation:
         """The model is in use by the project editor: Create, Live, the API and model
         switching all see `is_generating` and wait."""
         self.is_generating = True
+        self.editor_generation_active = True
         for control in (self.generate_button, self.preview_button, self.open_document_button,
                         self.model_repo_combo):
             control.setEnabled(False)
         self.set_status_message("Status: Generating narration for the project editor…")
 
     def end_editor_generation(self):
+        if not getattr(self, "editor_generation_active", False):
+            return
+        self.editor_generation_active = False
         self.is_generating = False
         self.generate_button.setEnabled(True)
         self.preview_button.setEnabled(True)

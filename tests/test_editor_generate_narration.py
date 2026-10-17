@@ -88,6 +88,68 @@ class NarrationProblem(unittest.TestCase):
         self.assertIn("no longer in the Voice Library", self.problem(self.owner(), "gone"))
 
 
+class _Control:
+    def __init__(self):
+        self.enabled = True
+
+    def setEnabled(self, value):
+        self.enabled = bool(value)
+
+    def isEnabled(self):
+        return self.enabled
+
+
+class ModelLock(unittest.TestCase):
+    """Review of the first version: Live's busy refresh re-enabled Create's Generate during an
+    editor render, and one click on it cleared the lock while the editor still used the model."""
+
+    def owner(self):
+        from this_voice_thing.ui.pages.generation import Generation
+        cls = type("Owner", (Generation,), {})
+        owner = cls.__new__(cls)
+        owner.is_generating = False
+        owner.model = object()
+        owner.model_is_loading = False
+        owner.api_busy = False
+        owner.messages = []
+        owner.set_status_message = owner.messages.append
+        owner.update_model_details = lambda: None
+        for name in ("generate_button", "preview_button", "open_document_button", "model_repo_combo"):
+            setattr(owner, name, _Control())
+        return owner
+
+    def test_create_cannot_release_the_editors_lock(self):
+        owner = self.owner()
+        owner.begin_editor_generation()
+        owner.generate_button.setEnabled(True)          # whatever re-enables it ...
+        owner.handle_generate_stop_toggle()             # ... a click doesn't touch the lock
+        self.assertTrue(owner.is_generating)
+        self.assertIn("project editor", owner.messages[-1])
+        owner.end_editor_generation()
+        self.assertFalse(owner.is_generating)
+        self.assertTrue(owner.generate_button.isEnabled())
+
+    def test_end_only_releases_what_the_editor_took(self):
+        owner = self.owner()
+        owner.is_generating = True                       # Create's own render
+        owner.end_editor_generation()
+        self.assertTrue(owner.is_generating)
+
+    def test_live_refresh_leaves_create_controls_alone_during_a_render(self):
+        from this_voice_thing.ui.pages.live_voice import LiveVoicePage
+        source = Path(sys.modules[LiveVoicePage.__module__].__file__).read_text(encoding="utf-8")
+        body = source[source.index("def _set_live_generation_busy"):source.index("def _refresh_live_stop_buttons")]
+        guard = body.index("if self.is_generating:")
+        self.assertLess(guard, body.index("self.generate_button.setEnabled("))
+        self.assertLess(guard, body.index("self.model_repo_combo.setEnabled("))
+
+    def test_vibevoice_cast_comes_from_the_rendered_text(self):
+        from this_voice_thing.ui.pages.engine_controls import EngineControls
+        owner = SimpleNamespace(text_input=SimpleNamespace(toPlainText=lambda: "Ann: hi" + chr(10) + "Bob: yo" + chr(10) + "Cy: hey"))
+        self.assertEqual(len(EngineControls.script_speakers(owner)), 3)
+        self.assertEqual(len(EngineControls.script_speakers(owner, "Breathe in slowly.")), 1)
+
+
 try:
     from PySide6.QtCore import QThread, Signal
     from PySide6.QtWidgets import QApplication, QWidget
@@ -305,6 +367,26 @@ class EditorGeneratesNarration(unittest.TestCase):
         self.editor.generate_narration()
         self.assertEqual(self.owner.renders, [])
         self.assertIn("Select a narration script", self.dialogs[-1][1])
+
+    def test_the_rendered_file_is_removed_once_imported(self):
+        self.editor.generate_narration()
+        render = self.owner.renders[-1]
+        self.run_render()
+        self.assertTrue(self.clip().asset_id)
+        folder = Path(render.output_dir)
+        self.assertEqual(list(folder.glob("*.wav")), [])               # the take lives in project media
+
+    def test_cancel_while_importing_says_so(self):
+        self.editor.generate_narration()
+        self.owner.renders[-1].release.set()
+        self.assertTrue(self.pump(lambda: self.editor.narration_job is not None
+                                  and self.editor.narration_job["thread"] is None))
+        if self.editor.narration_job is not None:
+            self.editor.cancel_narration()
+            self.assertIn("cancelled", self.editor.note.text().lower())
+        self.assertTrue(self.pump(lambda: self.editor.narration_job is None))
+        self.assertEqual(self.editor.narrate_button.text(), "Generate narration")
+        self.assertTrue(self.editor.narrate_button.isEnabled())
 
     def test_closing_waits_for_the_render(self):
         self.editor.generate_narration()
