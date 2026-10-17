@@ -89,6 +89,16 @@ def describe_error(message, project=None):
     return text.strip("'\"")
 
 
+def _remove_render(path):
+    """Drop an in-editor render's intermediate file (never a user file: it was written moments
+    ago into the project_narration folder by this editor's own render)."""
+    try:
+        if Path(path).parent.name == "project_narration":
+            os.remove(path)
+    except OSError:
+        pass
+
+
 class ProjectEditorDialog(QDialog):
     """Save, arrange and export tracks without changing Speech's settings.
 
@@ -763,11 +773,13 @@ class ProjectEditorDialog(QDialog):
         if job is None:
             return
         job["cancelled"] = True
+        self.narrate_button.setEnabled(False)
+        self.narrate_button.setText("Stopping\u2026")
         if job["thread"] is not None:
             job["thread"].stop()
-            self.narrate_button.setEnabled(False)
-            self.narrate_button.setText("Stopping\u2026")
             self.note.setText("Stopping after the section in progress. Nothing will be attached.")
+        else:
+            self.note.setText("Narration cancelled. Nothing was attached.")
 
     @Slot(int, int, int)
     def _narration_progress(self, _first, last, total):
@@ -784,6 +796,7 @@ class ProjectEditorDialog(QDialog):
         if job["cancelled"] or (thread is not None and thread.partial_info):
             job["cancelled"] = True
             self.note.setText("Narration cancelled. Nothing was attached.")
+            _remove_render(output_path)
             return
         project_rate = self.session.project.sample_rate
         media = self.media
@@ -793,7 +806,9 @@ class ProjectEditorDialog(QDialog):
             if info.duration > 900 or info.channels not in (1, 2):
                 raise ValueError("Narration must be mono/stereo and no longer than 15 minutes")
             pcm, sr = sf.read(output_path, dtype="float32", always_2d=True)
-            return media.import_voice_take(pcm, sr), math.ceil(len(pcm) * project_rate / sr), project_rate
+            asset_id = media.import_voice_take(pcm, sr)
+            _remove_render(output_path)          # the take now lives in project media
+            return asset_id, math.ceil(len(pcm) * project_rate / sr), project_rate
         worker = TaskThread(import_take, self)
         job["import"] = worker
         worker.done.connect(self._narration_imported)
