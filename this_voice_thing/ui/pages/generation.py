@@ -1,5 +1,6 @@
 """Running a generation: preview and full renders, progress, Stop, and the finished take."""
 
+from dataclasses import replace
 import os
 import time
 
@@ -16,6 +17,10 @@ class Generation:
     """Starting, tracking and finishing a generation. Mixed into ChatterboxApp."""
 
     def handle_generate_stop_toggle(self):
+        if getattr(self, "editor_generation_active", False):
+            self.set_status_message("Status: The project editor is generating narration; cancel it there "
+                                    "or wait for it to finish.")
+            return
         if not self.is_generating:
             self.start_generation(preview=False)
             return
@@ -92,23 +97,9 @@ class Generation:
         self.generation_timer.start(1000)
         self.update_generation_time_display()
 
-        self.audio_generator_thread = AudioGeneratorThread(
-            self.model, text,
-            self.reference_path,
-            self.exaggeration_slider.get_value(),
-            self.temp_slider.get_value(),
-            self.cfg_slider.get_value(),
-            self.seed_input.value(),
-            self.output_directory,
-            language_id=self.language_combo.currentData() or "en",
-            repetition_penalty=self.repetition_penalty,
-            min_p=self.min_p,
-            top_p=self.top_p,
-            finishing=self.current_finishing_settings(),
-            output_name=self.current_document_name,
-            preview=preview,
-        )
-        self.audio_generator_thread.pronunciations = self.pronunciations
+        self.audio_generator_thread = self._generator_thread(
+            text, self.output_directory, self.current_finishing_settings(),
+            output_name=self.current_document_name, preview=preview)
         self.audio_generator_thread.preview_chars = preview_budget
         self.audio_generator_thread.generation_complete.connect(self.on_generation_complete)
         self.audio_generator_thread.error_occurred.connect(self.on_generation_error)
@@ -116,6 +107,80 @@ class Generation:
         self.audio_generator_thread.section_timed.connect(self.on_section_timed)
         self.audio_generator_thread.finished.connect(self.on_generation_thread_finished)
         self.audio_generator_thread.start()
+
+    def _generator_thread(self, text, output_dir, finishing, output_name=None, preview=False):
+        """A render of `text` with the voice and settings currently chosen in Create."""
+        thread = AudioGeneratorThread(
+            self.model, text,
+            self.reference_path,
+            self.exaggeration_slider.get_value(),
+            self.temp_slider.get_value(),
+            self.cfg_slider.get_value(),
+            self.seed_input.value(),
+            output_dir,
+            language_id=self.language_combo.currentData() or "en",
+            repetition_penalty=self.repetition_penalty,
+            min_p=self.min_p,
+            top_p=self.top_p,
+            finishing=finishing,
+            output_name=output_name,
+            preview=preview,
+        )
+        thread.pronunciations = self.pronunciations
+        return thread
+
+    # ---- narration for the project editor ----
+    def narration_generation_problem(self, voice_id=""):
+        """Why the project editor can't render narration right now (None: it can).
+
+        `voice_id` is the voice a script was written for ("" = any): the take must not
+        silently come out in a different voice."""
+        if self.model is None or getattr(self, "model_is_loading", False):
+            return ("Load a speech model in Models first (this window can stay open)."
+                    if self.model is None else "A model is still loading; try again when it's ready.")
+        if self.model_busy_outside_live() or getattr(self, "live_voice_busy", False):
+            return "The voice model is busy (Create, Live, the local API or a preview). Try again when it's free."
+        if voice_id and voice_id != (self.active_voice_id or ""):
+            voice = self.voice_library.get(voice_id)
+            if voice is None:
+                return ("This script was written for a voice that is no longer in the Voice Library. "
+                        "Edit the script to use the current voice, or restore that voice.")
+            return (f"This script was written for the voice “{voice.name}”. "
+                    "Pick that voice in Create, then generate again.")
+        return None
+
+    def narration_generator(self, text, output_dir):
+        """A ready (not started) render of one narration script for the project editor.
+
+        Uses Create's voice and settings but never changes Create's text, last take or player.
+        Always WAV and no captions: the take is imported into project media afterwards."""
+        problem = self.prepare_qwen_generation(text)
+        if problem:
+            raise ValueError(problem)
+        finishing = replace(self.current_finishing_settings(), output_format="WAV", save_subtitles=False)
+        return self._generator_thread(text, output_dir, finishing, output_name="narration")
+
+    def begin_editor_generation(self):
+        """The model is in use by the project editor: Create, Live, the API and model
+        switching all see `is_generating` and wait."""
+        self.is_generating = True
+        self.editor_generation_active = True
+        for control in (self.generate_button, self.preview_button, self.open_document_button,
+                        self.model_repo_combo):
+            control.setEnabled(False)
+        self.set_status_message("Status: Generating narration for the project editor…")
+
+    def end_editor_generation(self):
+        if not getattr(self, "editor_generation_active", False):
+            return
+        self.editor_generation_active = False
+        self.is_generating = False
+        self.generate_button.setEnabled(True)
+        self.preview_button.setEnabled(True)
+        self.open_document_button.setEnabled(True)
+        self.model_repo_combo.setEnabled(not getattr(self, "model_is_loading", False))
+        self.update_model_details()
+        self.set_status_message("Status: Ready.")
 
     def keep_preview_take(self):
         if self.last_preview_seed:

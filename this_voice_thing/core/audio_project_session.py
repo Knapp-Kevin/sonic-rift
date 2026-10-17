@@ -23,6 +23,22 @@ def may_attach_import_result(project, project_id, revision):
     return (project.id == project_id and project.revision == revision)
 
 
+def generated_take_target(project, project_id, clip_id, text, previous_asset_id):
+    """The voice clip a finished in-editor narration render may attach to: (clip, "") or
+    (None, reason). Other edits made meanwhile are fine; the result is stale only if this
+    clip's own script or take changed, it was removed, or another project is open."""
+    if project.id != project_id:
+        return None, "A different project is open now, so the new take wasn't attached."
+    clip = next((c for t in project.tracks for c in t.clips if c.id == clip_id), None)
+    if clip is None or clip.kind != "voice":
+        return None, "The script was removed while it was generating, so the new take wasn't attached."
+    if clip.text != text:
+        return None, "The script was edited while it was generating, so the new take wasn't attached."
+    if clip.asset_id != previous_asset_id:
+        return None, "Another take was attached while this one was generating, so it wasn't replaced."
+    return clip, ""
+
+
 def compatible_track_id(project, selection, kind):
     """Resolve a selected track or its clip to a compatible track, without paths."""
     if not selection or not isinstance(selection, tuple) or len(selection) != 2:

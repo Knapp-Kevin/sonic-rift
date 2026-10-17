@@ -1,7 +1,7 @@
 """Opt-in project editor for Create; legacy single-text generation stays intact.
 
 A visual timeline (lanes, clip blocks with waveforms, playhead, mix preview) above the
-track list; clips are still edited through the list and the properties dialog, not dragged.
+track list. Narration scripts can be rendered in place with the voice chosen in Create.
 Qt widgets only hold inputs; versioned project state lives in ProjectSession.
 """
 from copy import deepcopy
@@ -23,7 +23,9 @@ from PySide6.QtWidgets import (
 )
 
 from this_voice_thing.core.audio_project import AudioProject, Clip, new_id
-from this_voice_thing.core.audio_project_session import ProjectSession, compatible_track_id, may_attach_import_result
+from this_voice_thing.core.audio_project_session import (
+    ProjectSession, compatible_track_id, generated_take_target, may_attach_import_result,
+)
 from this_voice_thing.core.audio_project_media import ProjectMedia
 from this_voice_thing.core.audio_project_export import export_project
 from this_voice_thing.ui.project_timeline import TimelineView, envelope, preview_mix, seconds_label
@@ -87,6 +89,16 @@ def describe_error(message, project=None):
     return text.strip("'\"")
 
 
+def _remove_render(path):
+    """Drop an in-editor render's intermediate file (never a user file: it was written moments
+    ago into the project_narration folder by this editor's own render)."""
+    try:
+        if Path(path).parent.name == "project_narration":
+            os.remove(path)
+    except OSError:
+        pass
+
+
 class ProjectEditorDialog(QDialog):
     """Save, arrange and export tracks without changing ordinary Create settings."""
 
@@ -103,6 +115,7 @@ class ProjectEditorDialog(QDialog):
         self.import_worker = None
         self._pending_import = None
         self.export_cancel = None
+        self.narration_job = None        # in-editor narration render: thread, target clip, then import
         self.peak_worker = None
         self.preview_worker = None
         self.preview_revision = None     # project revision the preview file was rendered from
@@ -179,6 +192,9 @@ class ProjectEditorDialog(QDialog):
             ("Empty track\u2026", self.add_track),
         ]))
         self._button(add_actions, "Edit\u2026", self.edit_selected)
+        self.narrate_button = self._button(add_actions, "Generate narration", self.generate_narration)
+        self.narrate_button.setToolTip("Render the selected narration script with the voice and settings "
+                                       "chosen in Create, and put the take on that clip.")
         add_actions.addWidget(MenuButton("Selection", [
             ("Mute / unmute track", self.toggle_track_mute),
             ("Edit narration script\u2026", self.edit_narration),
@@ -196,8 +212,8 @@ class ProjectEditorDialog(QDialog):
                                       "in a new folder.")
         layout.addLayout(add_actions)
 
-        self.note = QLabel("Narration scripts need audio before export: generate them in Create (this window "
-                           "can stay open), then use Add \u203a Latest Create take with the script selected.")
+        self.note = QLabel("Narration scripts need audio before export: select a script and use Generate "
+                           "narration (it uses the voice chosen in Create), or attach a take you made in Create.")
         self.note.setObjectName("Muted")
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
@@ -263,7 +279,7 @@ class ProjectEditorDialog(QDialog):
                     length if clip.asset_id else "\u2014",
                     f"{clip.gain_db:+.1f} dB", self._clip_source(clip),
                 ])
-                item.setToolTip(4, clip.asset_id or "Generate this script in Create, then attach the take.")
+                item.setToolTip(4, clip.asset_id or "Select it and use Generate narration.")
                 item.setData(0, Qt.ItemDataRole.UserRole, ("clip", clip.id))
                 row.addChild(item)
                 if selected == clip.id:
@@ -665,6 +681,169 @@ class ProjectEditorDialog(QDialog):
         self.import_worker = None
         self._pending_import = None
 
+    # ---- narration rendered in place ----
+    def _selected_script(self):
+        selection = self._selected()
+        if not selection or selection[0] != "clip":
+            return None
+        return next((c for t in self.session.project.tracks for c in t.clips
+                     if c.id == selection[1] and c.kind == "voice" and c.text.strip()), None)
+
+    def generate_narration(self):
+        """Render the selected script and attach the take to that clip (one undoable edit).
+
+        The model works in the background; the project stays editable. The take is attached
+        only if that clip still has the same script and take when it finishes."""
+        if self.narration_job is not None:
+            self.cancel_narration()
+            return
+        clip = self._selected_script()
+        if clip is None:
+            QMessageBox.information(self, "Narration", "Select a narration script (a voice clip with text) "
+                                    "first. Add \u203a Narration script\u2026 makes one.")
+            return
+        if clip.asset_id:
+            answer = QMessageBox.question(
+                self, "Replace take",
+                "This clip already has a take. Generate a new one and use it instead? The current take "
+                "stays in project media, and Undo puts it back.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No)
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        problem = self.owner.narration_generation_problem(clip.voice_id)
+        if problem:
+            QMessageBox.information(self, "Narration", problem)
+            return
+        try:
+            thread = self.owner.narration_generator(
+                clip.text, os.path.join(self.owner.output_directory, "project_narration"))
+        except Exception as exc:
+            QMessageBox.information(self, "Narration", str(exc))
+            return
+        self.narration_job = {
+            "thread": thread, "import": None, "cancelled": False, "serial": self.session_serial,
+            "project_id": self.session.project.id, "clip_id": clip.id, "text": clip.text,
+            "previous_asset_id": clip.asset_id,
+        }
+        thread.generation_complete.connect(self._narration_rendered)
+        thread.error_occurred.connect(self._narration_failed)
+        thread.chunk_generated.connect(self._narration_progress)
+        thread.finished.connect(self._narration_thread_finished)
+        self.owner.begin_editor_generation()
+        thread.start()
+        self.narrate_button.setText("Cancel narration")
+        self.note.setText(f"Generating narration for \u201c{self._clip_label(clip)}\u201d with the voice chosen "
+                          "in Create. You can keep editing; Cancel narration stops it.")
+
+    def cancel_narration(self):
+        job = self.narration_job
+        if job is None:
+            return
+        job["cancelled"] = True
+        self.narrate_button.setEnabled(False)
+        self.narrate_button.setText("Stopping\u2026")
+        if job["thread"] is not None:
+            job["thread"].stop()
+            self.note.setText("Stopping after the section in progress. Nothing will be attached.")
+        else:
+            self.note.setText("Narration cancelled. Nothing was attached.")
+
+    @Slot(int, int, int)
+    def _narration_progress(self, _first, last, total):
+        if self.narration_job is not None and not self.narration_job["cancelled"] and total > 1:
+            self.note.setText(f"Generating narration: {last} of {total} sections done. "
+                              "You can keep editing; Cancel narration stops it.")
+
+    @Slot(str, int)
+    def _narration_rendered(self, output_path, _sample_rate):
+        job = self.narration_job
+        if job is None:
+            return
+        thread = job["thread"]
+        if job["cancelled"] or (thread is not None and thread.partial_info):
+            job["cancelled"] = True
+            self.note.setText("Narration cancelled. Nothing was attached.")
+            _remove_render(output_path)
+            return
+        project_rate = self.session.project.sample_rate
+        media = self.media
+
+        def import_take():
+            info = sf.info(output_path)
+            if info.duration > 900 or info.channels not in (1, 2):
+                raise ValueError("Narration must be mono/stereo and no longer than 15 minutes")
+            pcm, sr = sf.read(output_path, dtype="float32", always_2d=True)
+            asset_id = media.import_voice_take(pcm, sr)
+            _remove_render(output_path)          # the take now lives in project media
+            return asset_id, math.ceil(len(pcm) * project_rate / sr), project_rate
+        worker = TaskThread(import_take, self)
+        job["import"] = worker
+        worker.done.connect(self._narration_imported)
+        worker.finished.connect(self._narration_import_finished)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    @Slot(object, str)
+    def _narration_imported(self, result, error):
+        job = self.narration_job
+        if job is None or job["cancelled"]:
+            return
+        if error:
+            self.note.setText("The narration was generated but couldn't be imported; no project edits were made.")
+            QMessageBox.warning(self, "Narration", describe_error(error, self.session.project))
+            return
+        if job["serial"] != self.session_serial:
+            self.note.setText("A different project was opened while it was generating, so the new take "
+                              "wasn't attached.")
+            return
+        clip, reason = generated_take_target(self.session.project, job["project_id"], job["clip_id"],
+                                             job["text"], job["previous_asset_id"])
+        asset_id, frames, rate = result
+        if clip is None or rate != self.session.project.sample_rate:
+            self.note.setText(reason or "The project's sample rate changed, so the new take wasn't attached.")
+            return
+        if self._mutate(lambda: self.session.attach_narration_take(clip.id, asset_id, frames), clip.id):
+            self.note.setText("Narration generated and placed on its clip. Undo removes it; save the project "
+                              "to keep it.")
+
+    @Slot(str)
+    def _narration_failed(self, message):
+        job = self.narration_job
+        if job is None:
+            return
+        if job["cancelled"] or "stopped" in message.lower():
+            job["cancelled"] = True
+            self.note.setText("Narration cancelled. Nothing was attached.")
+            return
+        self.note.setText("Narration generation failed; no project edits were made.")
+        QMessageBox.warning(self, "Narration", message)
+
+    @Slot()
+    def _narration_thread_finished(self):
+        job = self.narration_job
+        if job is None:
+            return
+        thread, job["thread"] = job["thread"], None
+        if thread is not None:
+            thread.deleteLater()
+        self.owner.end_editor_generation()      # the model is free; importing doesn't need it
+        if job["import"] is None:
+            self._narration_done()
+
+    @Slot()
+    def _narration_import_finished(self):
+        job = self.narration_job
+        if job is not None:
+            job["import"] = None
+            if job["thread"] is None:
+                self._narration_done()
+
+    def _narration_done(self):
+        self.narration_job = None
+        self.narrate_button.setEnabled(True)
+        self.narrate_button.setText("Generate narration")
+
     def remove_selected(self):
         selection = self._selected()
         if not selection:
@@ -874,7 +1053,16 @@ class ProjectEditorDialog(QDialog):
             if job is not None:
                 job.wait(10000)
 
+    def _narration_running(self):
+        if self.narration_job is None:
+            return False
+        QMessageBox.information(self, "Project", "Narration is still generating. Use Cancel narration, "
+                                "then close this editor.")
+        return True
+
     def reject(self):
+        if self._narration_running():
+            return
         if self.worker is not None or self.import_worker is not None:
             QMessageBox.information(self, "Project", "Finish the media operation before closing this editor.")
             return
@@ -883,6 +1071,9 @@ class ProjectEditorDialog(QDialog):
             super().reject()
 
     def closeEvent(self, event):
+        if self._narration_running():
+            event.ignore()
+            return
         if self.worker is not None or self.import_worker is not None:
             QMessageBox.information(self, "Project", "Finish the media operation before closing this editor.")
             event.ignore()

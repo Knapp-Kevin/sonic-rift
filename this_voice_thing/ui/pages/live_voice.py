@@ -2573,6 +2573,8 @@ class LiveVoicePage:
             self.live_text_input.setEnabled(not busy and tts_mode)
         if hasattr(self, "live_speak_button"):
             self.live_speak_button.setEnabled(not busy and tts_mode)
+        if self.is_generating:
+            return      # a render owns Create's controls (its Stop, or the project editor's)
         other_busy = getattr(self, "model_is_loading", False) or self.api_busy
         self.model_repo_combo.setEnabled(not busy and not other_busy)
         self.generate_button.setEnabled(not busy and not other_busy and self.model is not None)
