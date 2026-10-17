@@ -92,9 +92,19 @@ class VoiceUse:
         self.refresh_voice_chip()
         self.render_voice_tiles()
 
+    def making_voice_clip(self):
+        """A Make clip render is using the model."""
+        thread = getattr(self, "clip_thread", None)
+        return thread is not None and thread.isRunning()
+
     def make_voice_clip(self, voice):
         """Generate a clip of a preset or designed voice reading a passage, so cloning
         models can use it. The voice has to be the one in use (it is loaded first)."""
+        # The menu was enabled when the tiles were drawn; the model may be busy by now.
+        if self.model_busy():
+            QMessageBox.information(self, "Make Clip", "The voice model is busy (a render, Live, the local "
+                                    "API, a model load or another clip). Try again when it's free.")
+            return
         if not self.voice_is_active(voice):
             self.use_voice(voice)
             if not self.voice_is_active(voice):

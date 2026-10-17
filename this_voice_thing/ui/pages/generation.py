@@ -47,6 +47,9 @@ class Generation:
         if self.api_busy:
             self.set_status_message("Status: Busy with a request from the local API; try again in a moment.")
             return
+        if self.making_voice_clip():
+            self.set_status_message("Status: Making a voice clip; try again when it's done.")
+            return
         if self.model is None:
             QMessageBox.warning(self, "Model Not Loaded", "Please load the model first.")
             return

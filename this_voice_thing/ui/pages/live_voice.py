@@ -1431,11 +1431,13 @@ class LiveVoicePage:
         )
 
     def model_busy_outside_live(self):
-        """Another job is using the model (load, Generate, the API, the Studio, Hear it).
+        """Another job is using the model (load, Generate, the API, the Studio, Hear it, Make clip).
         Live's own run doesn't count, so lines can still queue while it speaks."""
         speak = getattr(self, "speak_thread", None)
+        clip = getattr(self, "clip_thread", None)
         return bool(getattr(self, "model_is_loading", False) or self.is_generating or self.api_busy
-                    or getattr(self, "studio_busy", False) or (speak is not None and speak.isRunning()))
+                    or getattr(self, "studio_busy", False) or (speak is not None and speak.isRunning())
+                    or (clip is not None and clip.isRunning()))
 
     def on_live_speech_frame(self, frame):
         # A frame already in flight when Stop was pressed belongs to a stopped thread: drop it.

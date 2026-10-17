@@ -23,7 +23,7 @@ from this_voice_thing.ui.pages.models import ModelPage  # noqa: E402
 class BusyChecks(unittest.TestCase):
     def window(self, **flags):
         values = dict(model_is_loading=False, is_generating=False, api_busy=False, studio_busy=False,
-                      live_voice_busy=False, speak_thread=None)
+                      live_voice_busy=False, speak_thread=None, clip_thread=None)
         values.update(flags)
         return SimpleNamespace(**values)
 
