@@ -90,6 +90,7 @@ class LiveVoicePage:
         self.live_audio_output.drained.connect(self.on_live_audio_drained)
         self.live_audio_output.buffer_changed.connect(self.on_live_buffer_changed)
         self.live_monitor_output = LiveAudioOutput(self)
+        self.live_monitor_output.set_leader(self.live_audio_output)   # pause and resume together
         self.live_monitor_output.failed.connect(self.on_live_monitor_error)
         self.live_monitor_output.drained.connect(self.on_live_audio_drained)
         self.live_monitor_output.buffer_changed.connect(
