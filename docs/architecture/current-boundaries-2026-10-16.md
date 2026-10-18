@@ -49,3 +49,12 @@ The original #99/#101/#103/#104 per-PR checks and #105 math tests did not establ
 ## Update discipline
 
 Issue #56 tracks architecture reconciliation; #71 tracks composer features; #61 tracks integrated source-run acceptance; #13 tracks Live Voice reliability. Update these at the same commit/PR checkpoint. Do not replace feature evidence with this architecture summary and do not close issues on planning text alone.
+
+## Proposed extension track (2026-10-18): Performance Direction
+
+**Research and architecture only; not an accepted implementation or shipped engine.** [Issue #116](https://github.com/Knapp-Kevin/sonic-rift/issues/116) tracks a first-class phrase-level speech-direction capability, with Fish Audio Drama 3 as an evaluation backend rather than an architectural dependency.
+
+- [Proposed ADR 002: Performance Direction](../adr-002-performance-direction-proposed.md) records the verified provider features, engine-neutral authoring model, compatibility boundaries and open decisions.
+- [Testable prototype and comparison specification](../performance-direction-prototype-spec.md) defines deterministic editor/compiler cases, scoped markup, accent experiments, privacy/license gates and evidence-driven promotion.
+- Current \`AudioProject\` schema v1 remains canonical; no additional project keys, user-data migration, loaded model, implementation API or live feature is authorized by these research docs. Any persistent performance structure needs a separate approved versioned format decision.
+- Keep #71 composer delivery, #13 Live audio QA, #61 Windows source-run acceptance and the #40/#44 Accent Studio approval gates independent. If future implementation proceeds, reconcile provider capability mapping and job ownership against current code and this index before code merge.
