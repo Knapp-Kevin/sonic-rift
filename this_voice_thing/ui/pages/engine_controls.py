@@ -172,8 +172,9 @@ class EngineControls:
         self.voice_chip.setText(text)
         self.voice_chip.setToolTip(tip)
 
-    def prepare_qwen_generation(self):
-        """Copy the Qwen card into the model; returns an error message or None."""
+    def prepare_qwen_generation(self, text=None):
+        """Copy the Qwen card into the model; returns an error message or None.
+        `text`: what will be rendered, when it isn't Create's text (its speakers set the cast)."""
         qwen = self.active_qwen_model()
         if qwen is None:
             return None
@@ -184,7 +185,7 @@ class EngineControls:
         if qwen.mode == "base" and not self.reference_path:
             return "Pick a voice with Change (next to Voice); this cloning model needs one."
         if isinstance(qwen, vibevoice_engine.VibeVoiceModel):
-            speakers = self.script_speakers()
+            speakers = self.script_speakers(text)
             if len(speakers) > vibevoice_engine.MAX_SPEAKERS:
                 return (f"VibeVoice handles up to {vibevoice_engine.MAX_SPEAKERS} speakers; this script has "
                         f"{len(speakers)}: {', '.join(speakers)}.")
@@ -226,8 +227,9 @@ class EngineControls:
 
     # --- Conversations (VibeVoice) ---
 
-    def script_speakers(self):
-        return documents.script_speakers(documents.parse_script(self.text_input.toPlainText()))
+    def script_speakers(self, text=None):
+        source = self.text_input.toPlainText() if text is None else text
+        return documents.script_speakers(documents.parse_script(source))
 
     def current_cast(self, speakers):
         model = self.active_qwen_model()
