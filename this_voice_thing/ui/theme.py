@@ -14,11 +14,10 @@ text fields and lists slow and glitchy.
 
 import os
 
-import numpy as np
 
 from this_voice_thing import paths
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
-from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap
+from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPainterPath, QPalette, QPen
 from PySide6.QtWidgets import QApplication, QFrame, QWidget
 
 APP_NAME = "Sonic Rift"
@@ -72,7 +71,6 @@ DARK = {
     "button_top": "#1d2642", "button_bottom": "#172038",
     "shadow": "#000000", "shadow_strength": 0.6,
     "edge_highlight": "#ffffff12",
-    "grain_color": "#ffffff", "grain_alpha": 5,
 }
 
 LIGHT = {
@@ -103,14 +101,12 @@ LIGHT = {
     "button_top": "#ffffff", "button_bottom": "#eef2f8",
     "shadow": "#1b2a4a", "shadow_strength": 0.14,
     "edge_highlight": "#ffffff",
-    "grain_color": "#1b2a4a", "grain_alpha": 8,
 }
 
 ASSETS_DIR = paths.ASSETS_DIR
 SHADOW = 7          # pixels around each card reserved for its painted shadow
 CARD_RADIUS = 10
 _current = DARK
-_grain_cache = {}
 
 
 def _asset(name):
@@ -197,22 +193,6 @@ def relative_luminance(hex_color):
 def contrast_ratio(foreground, background):
     lighter, darker = sorted((relative_luminance(foreground), relative_luminance(background)), reverse=True)
     return (lighter + 0.05) / (darker + 0.05)
-
-
-def _grain(colors):
-    """A small tile of random, very faint specks for a matte texture."""
-    key = (colors["grain_color"], colors["grain_alpha"])
-    if key not in _grain_cache:
-        size = 160
-        rng = np.random.default_rng(7)
-        alpha = (rng.random((size, size)) ** 3 * colors["grain_alpha"] * 2).astype(np.uint8)
-        base = _color(colors["grain_color"])
-        argb = np.zeros((size, size, 4), dtype=np.uint8)
-        argb[..., 0], argb[..., 1], argb[..., 2] = base.blue(), base.green(), base.red()
-        argb[..., 3] = alpha
-        image = QImage(argb.data, size, size, size * 4, QImage.Format.Format_ARGB32).copy()
-        _grain_cache[key] = QPixmap.fromImage(image)
-    return _grain_cache[key]
 
 
 def _vertical(rect, top, bottom):
