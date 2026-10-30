@@ -44,6 +44,26 @@ def take_label(filename):
     return label
 
 
+def history_take_labels(paths):
+    """Readable labels that distinguish renders created within the same second.
+
+    Assign a stable variation index by filename, independent of filesystem
+    enumeration order or modification times. Original filenames remain in tooltips.
+    """
+    groups = {}
+    for path in paths:
+        groups.setdefault(take_label(os.path.basename(path)), []).append(path)
+    labels = {}
+    for label, group in groups.items():
+        if len(group) == 1:
+            labels[group[0]] = label
+        else:
+            ordered = sorted(group, key=lambda p: (os.path.basename(p).casefold(), p.casefold()))
+            for number, path in enumerate(ordered, 1):
+                labels[path] = f"{label} · variation {number}/{len(group)}"
+    return labels
+
+
 class Player:
     """The output list and audio player under the Generate page. Mixed into ChatterboxApp."""
 
@@ -58,8 +78,12 @@ class Player:
         self.autoplay_checkbox.setChecked(True)
         player_header.addWidget(self.autoplay_checkbox)
         player_header.addStretch(1)
-        self.current_file_label = QLabel("Currently playing: None")
+        self.current_file_label = QLabel("No take selected")
         self.current_file_label.setObjectName("Muted")
+        self.current_file_label.setWordWrap(False)
+        # Long output/document names cannot widen the entire window.
+        self.current_file_label.setMinimumWidth(0)
+        self.current_file_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         player_header.addWidget(self.current_file_label)
         player_layout.addLayout(player_header)
         player_controls_layout = QHBoxLayout()
@@ -104,15 +128,23 @@ class Player:
         return player_card
 
     def update_output_log(self):
+        selected = self.output_log_listwidget.currentItem()
+        selected_path = selected.data(Qt.ItemDataRole.UserRole) if selected is not None else None
         self.output_log_listwidget.clear()
         try:
-            files = sorted([os.path.join(self.output_directory, f)for f in os.listdir(
-                self.output_directory)if f.lower().endswith(audio_effects.AUDIO_EXTENSIONS)], key=os.path.getmtime, reverse=True)
+            files = sorted(
+                (os.path.join(self.output_directory, name)
+                 for name in os.listdir(self.output_directory)
+                 if name.lower().endswith(audio_effects.AUDIO_EXTENSIONS)),
+                key=lambda path: (-os.path.getmtime(path), path.casefold()))
+            labels = history_take_labels(files)
             for f_path in files:
-                item = QListWidgetItem(take_label(os.path.basename(f_path)))
-                item.setToolTip(os.path.basename(f_path))       # the file name, for finding it on disk
+                item = QListWidgetItem(labels[f_path])
+                item.setToolTip(os.path.basename(f_path))
                 item.setData(Qt.ItemDataRole.UserRole, f_path)
                 self.output_log_listwidget.addItem(item)
+                if f_path == selected_path:
+                    self.output_log_listwidget.setCurrentItem(item)
         except Exception as e:
             print(f"Error updating output log: {e}")
 
@@ -121,8 +153,8 @@ class Player:
         if file_path and os.path.exists(file_path):
             self.current_audio_file = file_path
             self.media_player.setSource(QUrl.fromLocalFile(file_path))
-            self.current_file_label.setText(
-                f"Playing from log: {os.path.basename(file_path)}")
+            self.current_file_label.setText(f"Playing: {item.text()}")
+            self.current_file_label.setToolTip(os.path.basename(file_path))
             self.play_pause_button.setText("Pause")
             self.media_player.play()
             self.play_pause_button.setEnabled(True)
