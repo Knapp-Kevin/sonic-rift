@@ -112,6 +112,8 @@ class GeneratePage:
     def add_take_to_studio(self):
         """Speech -> Studio: the selected (or latest) take goes onto the timeline."""
         item = self.output_log_listwidget.currentItem()
+        if item is None and self.output_log_listwidget.count():
+            item = self.output_log_listwidget.item(0)  # newest visible result, not a stale player path
         path = item.data(Qt.ItemDataRole.UserRole) if item is not None else self.current_audio_file
         if not path or not os.path.isfile(path):
             QMessageBox.information(self, "Studio", "Generate a take first, or select one in the list.")
