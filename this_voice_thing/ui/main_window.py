@@ -316,6 +316,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         except AttributeError:
             pass
         content_area = ui_theme.TexturedArea()
+        self.background_area = content_area
         content_layout = QVBoxLayout(content_area)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.addWidget(self.pages)
@@ -397,6 +398,8 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
 
     def _on_voices_tab(self, index):
         self.voices_stack.setCurrentIndex(index)
+        if self.pages.currentIndex() == self.PAGE_VOICE:
+            self.background_area.set_scene(self.studio_mode() if index == 1 else "voices")
         if index == 1:
             self.on_page_changed(self.PAGE_STUDIO)
 
@@ -406,6 +409,15 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         if page is None:
             return
         self.pages.setCurrentIndex(page)
+        scenes = {
+            self.PAGE_PROJECT: "studio", self.PAGE_GENERATE: "speech",
+            self.PAGE_SOUNDSCAPE: "sounds", self.PAGE_VOICE: "voices",
+            self.PAGE_TRANSCRIBE: "transcribe", self.PAGE_LIVE_VOICE: "live",
+        }
+        scene = scenes.get(page, "neutral")
+        if page == self.PAGE_VOICE and self.voices_tabs.currentIndex() == 1:
+            scene = self.studio_mode()
+        self.background_area.set_scene(scene)
         self.on_page_changed(page)
         if page == self.PAGE_VOICE and self.voices_tabs.currentIndex() == 1:
             self.on_page_changed(self.PAGE_STUDIO)
