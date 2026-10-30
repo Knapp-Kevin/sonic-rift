@@ -187,6 +187,18 @@ class KeyboardReach(unittest.TestCase):
 
 
 class AcousticBackground(unittest.TestCase):
+    def test_primary_and_secondary_copy_contrast_in_both_themes(self):
+        """The acoustic backgrounds must not compromise useful text contrast."""
+        from this_voice_thing.ui import theme
+        for colors in (theme.DARK, theme.LIGHT):
+            for foreground in ("text", "muted"):
+                for background in ("window", "surface", "page_top"):
+                    with self.subTest(theme=colors["window"], foreground=foreground,
+                                      background=background):
+                        self.assertGreaterEqual(
+                            theme.contrast_ratio(colors[foreground], colors[background]),
+                            4.5)
+
     def test_scene_contract_and_no_random_grain(self):
         from PySide6.QtWidgets import QApplication
         from this_voice_thing.ui import theme
