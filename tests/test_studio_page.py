@@ -223,7 +223,7 @@ class TakeHistoryRefinement(unittest.TestCase):
                     row = QListWidgetItem(os.path.basename(path))
                     row.setData(Qt.ItemDataRole.UserRole, path)
                     w.output_log_listwidget.addItem(row)
-                w.output_log_listwidget.setCurrentItem(None)
+                w.output_log_listwidget.setCurrentRow(-1)  # explicitly clear selection
                 editor = Mock()
                 with patch.object(w, "open_project_editor", return_value=editor):
                     w.add_take_to_studio()
