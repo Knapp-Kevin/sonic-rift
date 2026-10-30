@@ -118,7 +118,7 @@ class EngineControls:
             self.qwen_speaker_label.setText("Voice" if mode == "preset" else "Speaker")
             for widget in (self.qwen_speaker_label, self.qwen_speaker_combo):
                 widget.setVisible(mode in ("custom_voice", "preset"))
-            # Voices are designed in the Studio; Generate only takes a style where a model has one.
+            # Voices are designed under New voice; Speech only takes a style where a model has one.
             for widget in (self.qwen_instruct_label, self.qwen_instruct_input):
                 widget.setVisible(mode == "custom_voice" or (voxcpm and mode == "base"))
             for widget in (self.qwen_transcript_label, self.qwen_transcript_input):

@@ -1,4 +1,4 @@
-"""The Studio page: make a voice once (clone, design or remix), refine it, and save it
+"""Voices › New voice (the voice studio): make a voice once (clone, design or remix), refine it, and save it
 frozen to the library, so every later render uses exactly that voice."""
 
 import os
@@ -48,7 +48,7 @@ ACTION_LABELS = {"clone": "Clone", "design": "Design", "remix": "Remix"}
 
 
 class StudioPage:
-    """The voice Studio. Mixed into ChatterboxApp."""
+    """The voice studio (Voices › New voice). Mixed into SonicRiftApp."""
 
     # ---------- layout ----------
 

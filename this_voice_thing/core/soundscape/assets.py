@@ -1,4 +1,4 @@
-"""The Asset Library: kept sounds with their provenance.
+"""The Sound library: kept sounds with their provenance.
 
 Each asset is a 24-bit WAV master in sound_library/audio/ plus an entry in
 sound_library/assets.json recording how it was made (engine, model and license,

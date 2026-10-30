@@ -46,7 +46,7 @@ class Recording:
         self.record_button.setEnabled(has_inputs)
 
     def open_recording_dialog(self, then=None):
-        """Record a clip; `then(path)` gets the saved file (the Studio uses this)."""
+        """Record a clip; `then(path)` gets the saved file (New voice uses this)."""
         device = self.mic_combo.currentData()
         if device is None or device.isNull():
             QMessageBox.warning(self, "No Microphone",

@@ -246,7 +246,7 @@ class ProjectEditorDialog(QDialog):
     def _clip_source(clip):
         if not clip.asset_id:
             return "Script only \u2014 needs audio"
-        return "Sound Library" if clip.asset_id.startswith("sound_") else "Narration take"
+        return "Sound library" if clip.asset_id.startswith("sound_") else "Narration take"
 
     def refresh(self, selected=None):
         project = self.session.project

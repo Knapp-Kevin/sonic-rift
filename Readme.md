@@ -8,6 +8,10 @@
 
 Sonic Rift integrates [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several optional speech providers. Copyright and dependency attribution is maintained in [Licensing and third-party notices](THIRD_PARTY_NOTICES.md) and the repository's [LICENSE](LICENSE).
 
+**Who it's for:** creators who want narration, voices and ambient sound made on their own Windows PC (meditation and wind-down audio, stories, games, streams, video), without sending text or recordings to a cloud service.
+
+**How it fits together:** each generator has its own page (**Speech**, **Sounds**, **Voices**, **Transcribe**, and **Live** for real-time output), and the **Studio** is where their output comes together: arrange speech and sounds on a timeline, play the mix, and export a mastered file with one stem per track. Arranging, trimming and the Studio itself are newer and still evolving; see [Current status](#current-status).
+
 The current voice workbench supports six speech engines, model discovery and management, reusable voices, multi-speaker conversations, document narration, pronunciation tools, subtitles, Whisper transcription, and audio finishing. The **Sounds** workspace provides ambience, loops, effects, presets, and a reusable sound asset library. See [CHANGELOG.md](CHANGELOG.md) for release-by-release details, and [the branding guide](assets/branding/README.md) for visual assets and usage.
 
 | Engine | From | Does |
@@ -58,6 +62,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the long version of how this got out of han
 
 - [Quick Start](#quick-start)
 - [Screenshots](#screenshots)
+- [Current status](#current-status)
 - [How This Got Out of Hand](#how-this-got-out-of-hand)
 - [Features](#features)
 - [Local API](#local-api)
@@ -144,16 +149,17 @@ If setup fails, the launcher tells you where the installer log was written. Look
 
 When the app opens:
 
-1. Go to **Create**.
+1. Go to **Speech**.
 2. Type or paste a short sentence into the text box.
 3. Keep the default model and voice for the first test.
 4. Click **Preview** to make a short sample.
 5. If it sounds right, click **Generate Audio**.
 6. Play the result in the built-in player. Generated files are also kept under `chatterbox_outputs/`.
+7. Optional: **Add to Studio** puts the take on the Studio timeline, where you can add a sound from **Sounds**, play the mix and export it.
 
 Once that works, the rest of the app is safe to explore:
 
-- **Studio** creates, clones, remixes and refines voices.
+- **Voices › New voice** creates, clones, remixes and refines voices; the **Studio** arranges speech and sounds into a mix.
 - **Live** speaks typed lines and soundboard pads straight to an audio output, with a queue and stop controls.
 - **Voices** stores the voices you save.
 - **Transcribe** turns recordings into text.
@@ -185,55 +191,40 @@ Windows remains the primary maintained path. Installer decisions are written to 
 
 ## Screenshots
 
-![Generate page with a Qwen3 preset voice, style instruction and AI watermark option](docs/screenshots/generate_qwen_dark.png)
+Captured from the running app (build `cd9e030`, Windows 11) during one demo session with fictional content and built-in voices. Details, alt text and checksums: [docs/marketing](docs/marketing/README.md).
 
-<details>
-<summary><strong>Writing and generating</strong>: light mode, document renders</summary>
+![The Studio: an ocean bed from Sounds and two narration takes from Speech arranged on one timeline](docs/marketing/screenshots/sonic-rift-studio-dark.png)
 
-| Generate (light) | Rendering a long document |
+| Speech | Sounds |
 | --- | --- |
-| ![Generate page with a document open, delivery controls and finishing touches](docs/screenshots/generate_light.png) | ![Long render in progress with section range and time remaining](docs/screenshots/generate_progress.png) |
+| ![Speech page: a script, the Kokoro voice Heart, and two generated takes with Add to Studio](docs/marketing/screenshots/sonic-rift-speech-dark.png) | ![Sounds page: a procedural ocean preset, three takes with loudness metrics, and the Sound library](docs/marketing/screenshots/sonic-rift-sounds-dark.png) |
 
-</details>
-
-<details>
-<summary><strong>Studio</strong>: clone, design and remix voices</summary>
-
-![Studio designing three candidate voices from one description, with refine and save controls](docs/screenshots/studio.png)
-
-</details>
-
-<details>
-<summary><strong>Voices</strong>: voice library and recording</summary>
-
-| Voice library | Recording a reference clip |
+| Voices: clone a voice | Studio (light theme) |
 | --- | --- |
-| ![Voice library with clip, designed and preset voices](docs/screenshots/voice.png) | ![Recording window with read-aloud passage, timer and level meter](docs/screenshots/recording.png) |
+| ![New voice: three VoxCPM2 clone takes made from a synthetic narration clip](docs/marketing/screenshots/sonic-rift-voices-clone-dark.png) | ![The same Studio project in the light theme](docs/marketing/screenshots/sonic-rift-studio-light.png) |
 
-</details>
-
-<details>
-<summary><strong>Transcribe</strong>: speech to text</summary>
-
-![Transcribe page with a timestamped transcript, subtitle export and Send to Generate](docs/screenshots/transcribe.png)
-
-</details>
+**Walkthrough (about a minute, with sound):** [MP4](docs/marketing/video/sonic-rift-walkthrough.mp4) · [captions](docs/marketing/video/sonic-rift-walkthrough.en.vtt) · [transcript](docs/marketing/video/transcript.md). Waiting for renders is shortened; everything shown is the real app.
 
 <details>
-<summary><strong>Models</strong>: model tiles and Hugging Face discovery</summary>
+<summary>Earlier screenshots (older builds, before the Studio and the new sidebar)</summary>
 
-| Model page (light) | Discover on Hugging Face |
+These show pages as they looked before October 2026: Create is now **Speech**, and the voice studio is **Voices › New voice**.
+
+| | |
 | --- | --- |
-| ![Model page with capability tabs and model tiles showing license and GPU badges](docs/screenshots/model.png) | ![Discover tiles listing loadable Hugging Face models with license badges](docs/screenshots/discover.png) |
+| ![Older build: Generate page with a Qwen3 preset voice and style instruction](docs/screenshots/generate_qwen_dark.png) | ![Older build: voice studio designing three candidate voices](docs/screenshots/studio.png) |
+| ![Older build: voice library with clip, designed and preset voices](docs/screenshots/voice.png) | ![Older build: Transcribe page with a timestamped transcript](docs/screenshots/transcribe.png) |
+| ![Older build: Model page with capability tabs and model tiles](docs/screenshots/model.png) | ![Older build: Discover tiles listing Hugging Face models](docs/screenshots/discover.png) |
 
 </details>
 
-<details>
-<summary><strong>Settings</strong>: Advanced page</summary>
+## Current status
 
-![Advanced page with voice effects, pronunciation dictionary, local API and export settings](docs/screenshots/advanced.png)
-
-</details>
+- **Maintained platform:** Windows 10/11 64-bit, run from source (`run.bat`). macOS and Linux launchers exist but are **experimental and unverified**.
+- **Working in the current Windows build:** Speech (six engines), Voices (library, recording, clone/design/remix), Sounds (procedural ambience and loops, optional sound models), Transcribe, Models, and Live output to local audio devices. Integrated acceptance results are tracked in [#61](https://github.com/Knapp-Kevin/sonic-rift/issues/61).
+- **Newer, still evolving:** the Studio timeline (arranging, moving and trimming clips, preview, export with stems). Its export currently stops at about 11.7 minutes per track while a longer-export approach is decided.
+- **Not verified yet:** Live output through virtual cables, Discord, Zoom or OBS.
+- **Not available:** an installer, code-signed builds or a store listing.
 
 ## How This Got Out of Hand
 
@@ -244,7 +235,7 @@ Current additions include:
 - **Six speech engines grouped by capability.** Chatterbox, Qwen3-TTS, VoxCPM2, OmniVoice, VibeVoice and Kokoro provide different combinations of cloning, preset voices, voice design and conversations.
 - **Multi-speaker conversations.** VibeVoice performs scripts with a different voice for each speaker.
 - **Model-aware hardware guidance.** Model tiles show licensing, expected download size and GPU-memory requirements against the current machine.
-- **A voice Studio.** Clone a recording, design a voice from a description (several candidates at once), or remix a voice with words; clean it up, adjust pitch and speed, and save it frozen so it sounds the same in every render.
+- **A voice studio (Voices › New voice).** Clone a recording, design a voice from a description (several candidates at once), or remix a voice with words; clean it up, adjust pitch and speed, and save it frozen so it sounds the same in every render.
 - **Voice first.** Generate starts from a saved voice, and only offers the models that can speak it.
 - **Document narration.** Open long text, documents and Google Docs, preview a few seconds, estimate generation time, render in sensible sections, and keep partial work if generation is stopped.
 - **Hugging Face model discovery.** Search compatible models, inspect compatibility and licensing, and add supported repositories without hand-editing configuration files.
@@ -252,20 +243,32 @@ Current additions include:
 - **Pronunciation controls and subtitles.** Maintain a pronunciation dictionary and generate SRT or WebVTT from the known generation timeline.
 - **Audio finishing.** Adjust paragraph pauses, even out volume, trim silence, change speed or pitch, and export WAV, FLAC or MP3.
 - **A local HTTP API.** Use the same engines and voice library from other software through OpenAI-compatible or native endpoints.
-- **A redesigned desktop interface.** Generate, Studio, Voices, Transcribe, Model, Advanced and Log pages with light and dark themes.
+- **A redesigned desktop interface.** Studio, Speech, Sounds, Voices, Transcribe, Live, Models and Settings pages with light and dark themes.
 
 The goal is one coherent creative-audio application, not a collection of unrelated engine interfaces.
 
 ## Features
 
-The sidebar is organized by what you're doing: **Create** (write or open text and generate speech), **Voices** (your library, and **New voice** to make one), **Sounds** (ambience and effects), **Live** (speak to a device in real time), then **Tools** (Transcribe) and **Setup** (Models, Settings).
+The sidebar is organized by what you're doing: the **Studio** (arrange speech and sounds on a timeline and export the mix), then **Make** (**Speech**: write or open text and generate it; **Sounds**: ambience and effects; **Voices**: your library, and **New voice** to make one; **Transcribe**), **Perform** (**Live**: speak to a device in real time) and **Setup** (Models, Settings).
 
 <details>
-<summary><strong>Create</strong></summary>
+<summary><strong>Studio</strong></summary>
 
-- **Voice first:** pick a voice with **Change** (one of yours, or a model's built-in voices), and the model list shows only the models that can speak it. A clip or Studio voice works with every cloning model; picking one while a non-cloning model is loaded loads a cloning model for you.
+- **One place for everything you make:** **Add to Studio** on Speech (a take) and on Sounds (a kept sound) puts it on the timeline; **Add** in the Studio also takes a saved sound, a narration file or a narration script. Narration lands on one Narration track, one line after another.
+- **Arrange:** drag clips to move them and drag their edges to trim them (the source audio is never changed); loop sounds, set gain and fades, mute tracks, reorder them. Every edit can be undone.
+- **Listen:** **Play mix** plays the arrangement with narration ducking the background; click the ruler to jump.
+- **Export:** a mastered mix (WAV, plus MP3/OGG if you like) at about -16 LUFS, one stem per track and a manifest, in a new folder.
+- **Projects** are `.sonicrift.json` files. A project changed outside the app is never silently overwritten.
+- **Limits today:** export stops at about 11.7 minutes for a single track (less with more tracks); narration scripts need a take from Speech before export.
+
+</details>
+
+<details>
+<summary><strong>Speech</strong></summary>
+
+- **Voice first:** pick a voice with **Change** (one of yours, or a model's built-in voices), and the model list shows only the models that can speak it. A clip voice, or one made under New voice, works with every cloning model; picking one while a non-cloning model is loaded loads a cloning model for you.
 - Per-model time estimates for the current text (click the estimate to compare and switch).
-- Plain-language delivery controls, with engine-specific settings where they apply: speaker and style for Qwen, voice per language for Kokoro, style and clip transcript for VoxCPM, and a cast of voices for VibeVoice. Designing a voice happens in the Studio.
+- Plain-language delivery controls, with engine-specific settings where they apply: speaker and style for Qwen, voice per language for Kokoro, style and clip transcript for VoxCPM, and a cast of voices for VibeVoice. Designing a voice happens in Voices › New voice.
 - Variation and take-number controls for repeatable takes where supported.
 - Language selection based on the active model.
 - A built-in player with history, seeking and optional auto-play.
@@ -275,10 +278,10 @@ The sidebar is organized by what you're doing: **Create** (write or open text an
 <details>
 <summary><strong>Live</strong></summary>
 
-**Live** speaks with the loaded model and voice straight to an audio device, without rendering a file first. It uses the same voice, language and pronunciation settings as Create.
+**Live** speaks with the loaded model and voice straight to an audio device, without rendering a file first. It uses the same voice, language and pronunciation settings as Speech.
 
 - **Speak:** type a line and click **Speak** (or **Ctrl+Enter**). New lines queue in order; **Stop current** cuts the current line and keeps the queue, **Stop all** clears everything, **Repeat last** says the last line again. The queue is capped (25 items, about 10 minutes).
-- **Streaming:** VoxCPM2 streams natively (live quality **Low latency · 6 steps** by default, or 8 or 10 steps; Create always uses 10). Kokoro streams in short sections. Other engines speak after finishing the line. The status line says which mode is in use and warns when generation falls behind playback.
+- **Streaming:** VoxCPM2 streams natively (live quality **Low latency · 6 steps** by default, or 8 or 10 steps; Speech always uses 10). Kokoro streams in short sections. Other engines speak after finishing the line. The status line says which mode is in use and warns when generation falls behind playback.
 - **Soundboard:** save lines as pads on one or more boards, or import WAV/FLAC/OGG/MP3/AIFF clips. A spoken pad is cached after its first render, so it plays again without the model or GPU, and is marked **rebuild needed** if its voice or settings change. Pads can queue, interrupt, or be ignored while busy; favourites, tags, search and reordering are built in.
 - **Shortcuts:** on the Live page, **Alt+1…9** triggers pads, **Ctrl+.** is Stop all. Optional Windows-wide hotkeys can be assigned to pads and Stop all, with a switch that turns pad hotkeys off at once.
 - **Mic effects:** pass a microphone through gain, tone and compression (or untouched) to the same outputs. The microphone is processed in memory and never recorded to disk.
@@ -338,9 +341,9 @@ Sound beyond speech: ambience loops, rain and waves, tonal beds and UI chimes, k
 </details>
 
 <details>
-<summary><strong>Voices: New voice</strong> (the Studio)</summary>
+<summary><strong>Voices: New voice</strong> (the voice studio)</summary>
 
-One place to make a voice, so generating is just a matter of picking it. Every voice the Studio saves is frozen: a clip plus the words it says. Any cloning model can speak it, and it sounds the same in every render and batch.
+One place to make a voice, so generating is just a matter of picking it. Every voice New voice saves is frozen: a clip plus the words it says. Any cloning model can speak it, and it sounds the same in every render and batch.
 
 - **Clone:** record (with the guided recorder), open a file, or start from a library voice. Fill in what it says with **Transcribe** (Whisper). Use the clip as it is, or have a cloning model (Chatterbox, Qwen3, VoxCPM2, OmniVoice) re-read a passage in that voice for cleaner takes, with Chatterbox's expressiveness and pacing.
 - **Design:** describe a voice (or pick OmniVoice attributes) and make 1 to 4 candidates at once with Qwen3, VoxCPM2 or OmniVoice. Each take is a different voice from the same description; keep the one you like, or change the wording and roll again.
@@ -354,12 +357,12 @@ One place to make a voice, so generating is just a matter of picking it. Every v
 <details>
 <summary><strong>Voice library</strong></summary>
 
-The **Voices** page holds your saved voices: search, tag, rename, preview, and click one to use it on Create. New voices start under **New voice**.
+The **Voices** page holds your saved voices: search, tag, rename, preview, and click one to use it on Speech. New voices start under **New voice**.
 
 - **Clip voices:** recordings or imported audio plus transcript. They work with every cloning model.
 - **Preset voices:** built-in voices from engines such as Kokoro or Qwen.
-- **Designed and remixed voices:** made in the Studio and saved frozen as a clip, so picking one later, even after restarting the app, renders the same voice every time. **Open in Studio** (in a voice's ⋯ menu) brings any voice back to refine it. **Make clip** turns an older description-only voice into a clip voice.
-- Record with countdown, level monitoring, clipping and too-quiet warnings, and phonetically rich read-aloud passages; recordings open in the Studio.
+- **Designed and remixed voices:** made under New voice and saved frozen as a clip, so picking one later, even after restarting the app, renders the same voice every time. **Open in New voice** (in a voice's ⋯ menu) brings any voice back to refine it. **Make clip** turns an older description-only voice into a clip voice.
+- Record with countdown, level monitoring, clipping and too-quiet warnings, and phonetically rich read-aloud passages; recordings open in New voice.
 
 </details>
 
@@ -372,7 +375,7 @@ Speech to text with OpenAI's [Whisper large-v3 turbo](https://huggingface.co/ope
 - Language detection, or pick one of about 45 languages.
 - Optional `[1:05]` timestamps; edit the text before using it.
 - **Copy**, **Save text…**, or **Save subtitles…** as SRT or WebVTT, timed from the audio.
-- **Send to Generate** puts the text (without timestamps) on the Generate page, ready to speak with any voice.
+- **Send to Speech** puts the text (without timestamps) on the Speech page, ready to speak with any voice.
 - **Transcribe clip** in a library voice's ⋯ menu fills in the clip's transcript, which Qwen, VoxCPM and OmniVoice cloning use.
 
 On an RTX 5070 Ti, 20 seconds of speech takes about a second once Whisper is loaded. It uses about 1.7 GB of GPU memory. Whisper turbo transcribes; it doesn't translate.
@@ -413,7 +416,7 @@ Optional engines install themselves into their own `engines/<name>/.venv` the fi
 <summary><strong>Finishing touches and Settings</strong></summary>
 
 - Paragraph pause control, volume levelling and start/end silence trimming.
-- WAV, FLAC or MP3 output, chosen in **Finishing touches** on Create.
+- WAV, FLAC or MP3 output, chosen in **Finishing touches** on Speech.
 - Speed and pitch adjustment (formant-preserving with FFmpeg's Rubber Band), also in Finishing touches.
 - SRT and WebVTT subtitles, timed from the generation itself.
 - A pronunciation dictionary with import/export and auditioning (**Settings**).
@@ -599,7 +602,7 @@ this-voice-thing/
 │  │  ├─ subtitles.py           SRT/WebVTT from the render timeline
 │  │  ├─ pronunciation.py       pronunciation dictionary
 │  │  ├─ transcription.py       speech to text with Whisper
-│  │  ├─ voice_studio.py        designing, cloning, remixing and refining voices for the Studio
+│  │  ├─ voice_studio.py        designing, cloning, remixing and refining voices (Voices › New voice)
 │  │  ├─ soundscape/            procedural sounds, mastering (loudness, seams, export), the sound
 │  │  │                         engine catalogue and the Asset Library
 │  │  └─ voice_library.py       saved clip, preset and designed voices

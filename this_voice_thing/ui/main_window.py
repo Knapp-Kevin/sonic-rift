@@ -371,7 +371,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self.set_reference_audio(None)
 
     def _build_voices_section(self):
-        """Voices: the library and New voice (the Studio) as tabs of one page."""
+        """Voices: the library and New voice (the voice studio) as tabs of one page."""
         page, layout = self._make_page(
             "Voices", "Your saved voices, and new ones made from a recording, a description or another voice.")
         self.voices_tabs = QTabBar()
@@ -391,7 +391,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self.voices_stack = QStackedWidget()
         layout.addWidget(self.voices_stack, 1)
         self._build_voice_page()      # adds the library to voices_stack
-        self._build_studio_page()     # adds the Studio to voices_stack
+        self._build_studio_page()     # adds New voice (the voice studio) to voices_stack
         self.voices_tabs.currentChanged.connect(self._on_voices_tab)
         self.pages.addWidget(page)
 
