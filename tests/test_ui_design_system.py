@@ -190,12 +190,12 @@ class AcousticBackground(unittest.TestCase):
     def test_sonic_profiles_render_distinct_pixels_without_animation(self):
         """The named scenes must differ in Qt output, not just in metadata."""
         from PySide6.QtCore import QRectF
-        from PySide6.QtGui import QImage, QPainter
+        from PySide6.QtGui import QColor, QImage, QPainter
         from this_voice_thing.ui import theme
 
         def capture(scene):
             image = QImage(400, 260, QImage.Format.Format_ARGB32)
-            image.fill(theme.DARK["window"])
+            image.fill(QColor(theme.DARK["window"]))
             painter = QPainter(image)
             theme._paint_sonic_waves(painter, QRectF(0, 0, 400, 260), theme.DARK, scene)
             painter.end()
