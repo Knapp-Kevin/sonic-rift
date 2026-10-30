@@ -148,6 +148,91 @@ class TakeNames(unittest.TestCase):
         self.assertEqual(take_label("ocean.wav"), "ocean.wav")
 
 
+class TakeHistoryRefinement(unittest.TestCase):
+    def test_same_second_takes_have_stable_distinct_labels(self):
+        from this_voice_thing.ui.pages.player import history_take_labels
+        one = "C:/audio/chatterbox_20261030_030738_seed111_full_stitched.wav"
+        two = "C:/audio/chatterbox_20261030_030738_seed222_full_stitched.wav"
+        labels = history_take_labels([two, one])
+        self.assertNotEqual(labels[one], labels[two])
+        self.assertEqual(labels[one], "Take · 30 Oct, 03:07:38 · variation 1/2")
+        self.assertEqual(labels[two], "Take · 30 Oct, 03:07:38 · variation 2/2")
+        self.assertEqual(history_take_labels([one, two]), labels)
+        self.assertEqual(history_take_labels([one])[one], "Take · 30 Oct, 03:07:38")
+
+    def test_other_files_and_formats_keep_readable_names(self):
+        from this_voice_thing.ui.pages.player import history_take_labels
+        one = "ocean.wav"
+        two = "chatterbox_20261030_030738_seed55_partial.mp3"
+        labels = history_take_labels([one, two])
+        self.assertEqual(labels[one], "ocean.wav")
+        self.assertEqual(labels[two], "Take · 30 Oct, 03:07:38 · stopped early · MP3")
+
+    def test_refresh_preserves_user_selection_and_unique_rows(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication
+        from this_voice_thing import paths
+        from this_voice_thing.ui import main_window
+        app = QApplication.instance() or QApplication([])
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(paths, "ROOT", tmp), \\
+                    patch.object(main_window.SonicRiftApp, "start_default_model_load", lambda self: None), \\
+                    patch.object(main_window.SonicRiftApp, "restart_api_server", lambda self: None):
+                w = main_window.SonicRiftApp()
+            try:
+                one = os.path.join(tmp, "chatterbox_20261030_030738_seed111_full_stitched.wav")
+                two = os.path.join(tmp, "chatterbox_20261030_030738_seed222_full_stitched.wav")
+                for path in (one, two):
+                    with open(path, "wb") as audio:
+                        audio.write(b"unused test fixture")
+                w.output_directory = tmp
+                w.update_output_log()
+                self.assertEqual(w.output_log_listwidget.count(), 2)
+                self.assertNotEqual(w.output_log_listwidget.item(0).text(),
+                                    w.output_log_listwidget.item(1).text())
+                w.output_log_listwidget.setCurrentRow(1)
+                selected = w.output_log_listwidget.currentItem().data(Qt.ItemDataRole.UserRole)
+                w.update_output_log()
+                self.assertEqual(w.output_log_listwidget.currentItem().data(
+                    Qt.ItemDataRole.UserRole), selected)
+            finally:
+                w.close()
+                app.processEvents()
+
+    def test_add_to_studio_prefers_newest_visible_take_when_nothing_selected(self):
+        from unittest.mock import Mock
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication, QListWidgetItem
+        from this_voice_thing import paths
+        from this_voice_thing.ui import main_window
+        app = QApplication.instance() or QApplication([])
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(paths, "ROOT", tmp), \\
+                    patch.object(main_window.SonicRiftApp, "start_default_model_load", lambda self: None), \\
+                    patch.object(main_window.SonicRiftApp, "restart_api_server", lambda self: None):
+                w = main_window.SonicRiftApp()
+            try:
+                latest = os.path.join(tmp, "latest.wav")
+                stale = os.path.join(tmp, "stale.wav")
+                for path in (latest, stale):
+                    with open(path, "wb") as audio:
+                        audio.write(b"not decoded by this test")
+                w.current_audio_file = stale
+                w.output_log_listwidget.clear()
+                for path in (latest, stale):
+                    row = QListWidgetItem(os.path.basename(path))
+                    row.setData(Qt.ItemDataRole.UserRole, path)
+                    w.output_log_listwidget.addItem(row)
+                w.output_log_listwidget.setCurrentItem(None)
+                editor = Mock()
+                with patch.object(w, "open_project_editor", return_value=editor):
+                    w.add_take_to_studio()
+                editor.add_voice_take.assert_called_once_with(latest, text="")
+            finally:
+                w.close()
+                app.processEvents()
+
+
 class StatusBarKeepsWholeMessages(unittest.TestCase):
     def test_a_message_cut_short_is_shown_whole_when_the_bar_grows(self):
         from PySide6.QtWidgets import QApplication
