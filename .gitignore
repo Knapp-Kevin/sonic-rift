@@ -38,6 +38,8 @@ htmlcov/
 *.wav
 *.mp3
 *.flac
+# ...except the #118 listening-review package, which is published on purpose.
+!docs/marketing/audio/**/*.wav
 
 
 # Output directory for generated files
