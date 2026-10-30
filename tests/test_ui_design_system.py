@@ -187,6 +187,26 @@ class KeyboardReach(unittest.TestCase):
 
 
 class AcousticBackground(unittest.TestCase):
+    def test_sonic_profiles_render_distinct_pixels_without_animation(self):
+        """The named scenes must differ in Qt output, not just in metadata."""
+        from PySide6.QtCore import QRectF
+        from PySide6.QtGui import QImage, QPainter
+        from this_voice_thing.ui import theme
+
+        def capture(scene):
+            image = QImage(400, 260, QImage.Format.Format_ARGB32)
+            image.fill(theme.DARK["window"])
+            painter = QPainter(image)
+            theme._paint_sonic_waves(painter, QRectF(0, 0, 400, 260), theme.DARK, scene)
+            painter.end()
+            return image.bits().tobytes()
+
+        studio = capture("studio")
+        self.assertEqual(studio, capture("studio"))  # deterministic on repeated paints
+        self.assertNotEqual(studio, capture("speech"))
+        self.assertNotEqual(capture("clone"), capture("design"))
+
+
     def test_primary_and_secondary_copy_contrast_in_both_themes(self):
         """The acoustic backgrounds must not compromise useful text contrast."""
         from this_voice_thing.ui import theme
