@@ -174,8 +174,26 @@ class LiveSpeechSession:
         }
 
 
+def audible_start_frame(path, preroll_seconds=0.02, floor=32, peak_fraction=0.005):
+    """First frame worth playing in a mono s16 WAV: just before the first sample louder than
+    0.5% of the clip's peak (about -46 dB), keeping a short pre-roll. 0 if nothing is."""
+    with wave.open(path, "rb") as handle:
+        rate = handle.getframerate()
+        samples = np.abs(np.frombuffer(handle.readframes(handle.getnframes()), dtype="<i2").astype(np.int32))
+    if not len(samples):
+        return 0
+    loud = np.flatnonzero(samples > max(floor, int(samples.max() * peak_fraction)))
+    if not len(loud):
+        return 0
+    return max(0, int(loud[0]) - int(rate * preroll_seconds))
+
+
 class CachedSpeechSession:
-    """Read a cached mono s16 WAV through the same frame interface as live TTS."""
+    """Read a cached mono s16 WAV through the same frame interface as live TTS.
+
+    A cache holds the engine's whole render, including the silence TTS models put before the
+    first word (Kokoro: about 165 ms). A pad is meant to sound the moment it is triggered, so
+    playback starts just before the first audible sample; the file itself is unchanged."""
 
     def __init__(self, path, label="Cached soundboard", provenance="soundboard-cache-unknown"):
         self.path = path
@@ -184,6 +202,7 @@ class CachedSpeechSession:
             if handle.getnchannels() != 1 or handle.getsampwidth() != 2:
                 raise ValueError("Cached soundboard audio must be mono 16-bit PCM WAV.")
             self.sample_rate = int(handle.getframerate())
+        self.start_frame = audible_start_frame(path)
         self.delivery_mode = "cached"
         self.provenance = str(provenance or "soundboard-cache-unknown")
         self._started_at = None
@@ -197,6 +216,7 @@ class CachedSpeechSession:
         self._started_at = time.monotonic()
         try:
             with wave.open(self.path, "rb") as handle:
+                handle.setpos(self.start_frame)
                 while True:
                     if cancelled():
                         self.cancelled = True
