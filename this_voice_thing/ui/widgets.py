@@ -3,7 +3,7 @@ design-system pieces every page shares (button roles, menu buttons, empty states
 
 from collections import deque
 
-from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import (QAbstractScrollArea, QAbstractSpinBox, QApplication, QComboBox, QDialog,
                                QHBoxLayout, QLabel, QMenu, QSizePolicy, QSlider, QToolButton, QVBoxLayout,
@@ -223,25 +223,37 @@ class _EmptyState(QObject):
 class WheelGuard(QObject):
     """Pages scroll with the wheel. Without this, wheeling over a combo box, spin box or slider
     that isn't focused changes its value (e.g. Live's Source) instead of scrolling the page.
-    Those controls take the wheel only once clicked or tabbed into."""
+    Those controls take the wheel only once clicked or tabbed into.
 
-    def eventFilter(self, watched, event):
-        if event.type() != QEvent.Type.Wheel or not isinstance(watched, (QComboBox, QAbstractSpinBox, QSlider)):
-            return False
-        if watched.hasFocus():
-            return False
-        parent = watched.parentWidget()
+    It overrides wheelEvent on those control classes, so Python runs only for wheel events. It
+    used to be an application-wide event filter: Python for every event in the app. With an
+    engine rendering on another thread, that filter is where the app crashed (access violation),
+    reproducibly in voice renders; without it the same renders complete."""
+
+
+_GUARDED_CONTROLS = (QComboBox, QAbstractSpinBox, QSlider)
+
+
+def _guarded_wheel(original):
+    def wheelEvent(self, event):
+        if self.hasFocus():
+            return original(self, event)
+        parent = self.parentWidget()
         while parent is not None and not isinstance(parent, QAbstractScrollArea):
             parent = parent.parentWidget()
         if parent is not None:
             QApplication.sendEvent(parent.viewport(), event)
-        return True
+        else:
+            event.ignore()
+    wheelEvent.sonic_rift_guard = True
+    return wheelEvent
 
 
 def install_wheel_guard(app):
-    guard = WheelGuard(app)
-    app.installEventFilter(guard)
-    return guard
+    for control in _GUARDED_CONTROLS:
+        if not getattr(control.wheelEvent, "sonic_rift_guard", False):
+            control.wheelEvent = _guarded_wheel(control.wheelEvent)
+    return WheelGuard(app)
 
 
 def set_empty_text(view, text):

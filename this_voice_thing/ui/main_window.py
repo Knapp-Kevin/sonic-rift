@@ -5,7 +5,7 @@ import os
 import sys
 
 import torch
-from PySide6.QtCore import QEvent, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
 from PySide6.QtWidgets import (
@@ -352,7 +352,6 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             QSizePolicy.Policy.Fixed,
         )
         self.status_bar.setMinimumWidth(120)
-        self.status_bar.installEventFilter(self)     # re-elide when the bar is resized
         self.status_bar.setFixedHeight(self.status_bar.sizeHint().height() + 4)
         qt_status_bar.addWidget(self.status_bar, 1)
         self.model_load_progress = QProgressBar()
@@ -582,11 +581,6 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             max(120, self.status_bar.width() - 8),
         )
         self.status_bar.setText(elided_message)
-
-    def eventFilter(self, watched, event):
-        if watched is getattr(self, "status_bar", None) and event.type() == QEvent.Type.Resize:
-            self._elide_status()
-        return super().eventFilter(watched, event)
 
     OPENAI_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"}
 

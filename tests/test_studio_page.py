@@ -260,11 +260,13 @@ class StatusBarKeepsWholeMessages(unittest.TestCase):
             w.show()
             QApplication.processEvents()
             message = "Kokoro voices is ready on the GPU, and this sentence is long enough to be cut short."
-            w.status_bar.resize(160, w.status_bar.height())
-            w.set_status_message(message)
-            self.assertNotEqual(w.status_bar.text(), message)
-            w.status_bar.resize(1400, w.status_bar.height())
+            w.resize(w.minimumWidth(), w.height())
             QApplication.processEvents()
+            w.set_status_message(message * 3)
+            self.assertNotEqual(w.status_bar.text(), message * 3)
+            w.resize(2600, w.height())
+            QApplication.processEvents()
+            message = message * 3
             self.assertEqual(w.status_bar.text(), message)
             w.close()
         finally:
