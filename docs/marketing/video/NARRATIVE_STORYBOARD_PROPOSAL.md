@@ -1,13 +1,13 @@
 # Sonic Rift | “A World in Sound” cinematic product walkthrough
 
 **Status:** proposed editorial direction, **not owner-approved or released**.
-**Prepared:** 2026-10-30. Related work: #118 (website media), draft #119 (Studio page), draft #120 (sonic-wave backgrounds), #61 (exact-head Windows acceptance).
+**Prepared:** 2026-10-30. Related work: #118 (website media), closed #119 (Studio UI superseded by consolidated draft #120), draft #120 (Studio-first UI + sonic-wave backgrounds), #61 (exact-head Windows acceptance).
 
 ## Objective
 
 Replace the existing ~67-second button-by-button capture with a cohesive **approximately 95–105-second, narrator-led micro-story**. The audience should hear a small scene come alive, understand why Sonic Rift exists, and see **real UI evidence** of generating two genuinely distinct voices, creating ocean ambience, optionally cloning a consenting synthetic voice, arranging a scene, auditioning the mix, and exporting.
 
-**Non-negotiable order:** implement and visually qualify the new UI first (Studio-first navigation, page-specific acoustic backgrounds and distinct voice modes); only then recapture screenshots/video in the real Windows app. This document is **not a Claude production prompt** and authorizes neither recording nor publication.
+**Non-negotiable order:** implement and visually qualify the new UI first (Studio-first navigation, page-specific acoustic backgrounds and distinct voice modes); only then recapture screenshots/video in the real Windows app. **The film's visual spine is the growing Studio timeline, NOT a tour of generators: each feature's result must arrive visibly in Studio before the next feature.** This document is **not a Claude production prompt** and authorizes neither recording nor publication.
 
 ## Creative concept
 
@@ -28,19 +28,30 @@ Choose **genuine emotional simplicity over faux-cinematic complexity**. No film 
 
 Keep a small evidence table of the actual engines/preset names, source paths, licenses, durations and output SHA-256 in the revised manifest. Model names in the initial demo (Kokoro Heart and VoxCPM2) are examples, **not preapproval of their audio quality**. Choose a second genuinely distinct voice by listening and checking actual model availability, rather than inventing a label.
 
-## Proposed storyboard (~100 seconds)
+## Proposed storyboard (~100–110 seconds; flexible to actual performances)
 
-| Time | Narrative beat | Real on-screen action | Sound / speech |
+**Editorial invariant: the narrator speaks while the viewer watches the work taking shape.** Studio is the recurring home base; show the empty project, then visually return to that same project after *every* creation step. A generator is a brief source for an ingredient, never the visual endpoint of a segment. Transition cuts are allowed to shorten genuine generation wait time, but **never** fabricate a clip appearing, create fake waveforms or imply an import the real app cannot perform. If a capability is missing, expose that honestly and adapt the creative plan.
+
+| Time | Narrative beat | Real on-screen action (show genuine state transitions) | Audio and visual payoff |
 | --- | --- | --- | --- |
-| **00:00–00:09** | **Hook: an idea waiting to be heard.** | Open the redesigned Studio page with new acoustic background, optionally a clean fictional project title, then move to Speech. Avoid a dashboard montage. | Guide: “A world can begin with just a few words.” No music or unrelated sound effects. |
-| **00:09–00:25** | **Give the scene its first voice.** | Speech, Keeper voice clearly selected, type a short line, generate, audition and keep. Show readable take metadata and Add to Studio. | Keeper: “The beacon is still burning. Follow it toward shore.” Let the generated voice finish without guide overlap. |
-| **00:25–00:37** | **A second character answers.** | In Speech, deliberately change voice selection to a **different preset/voice ID**, generate a second take and audition; add it to Studio. The change must be unmistakable on screen and by ear. | Guide: “Now someone answers from across the water.” Traveler: “I see it now. Keep the light on.” |
-| **00:37–00:51** | **Build the place.** | Sounds > Ocean waves; render several takes only if the actual controls support it, audition, keep the selected ambience, and Add to Studio. Show the Sounds-specific page texture. | Guide: “Give their conversation a shoreline.” Bring up genuine locally generated surf, then allow 3–4 seconds of unmasked waves. |
-| **00:51–01:05** | **A voice returns.** | Voices > New voice > Clone; use the **consenting synthetic Keeper** as reference, generate a new line, audition, and save if legitimately supported. Show Clone-specific wave background. | Guide: “And keep a character’s voice consistent as the story grows.” Keeper clone: “I’ll keep it burning until you’re home.” |
-| **01:05–01:29** | **The creative payoff.** | Studio: show waveforms for two distinct speakers and the ocean bed. If app supports inserting the newly cloned take using a verified path, include it; otherwise don't imply it is in the mix. Arrange and balance, save the fictional project, then play the **real, synchronized Studio preview**. No unsaved-changes warnings in finished hero footage. | Guide: “Bring the voices and the atmosphere together.” Then **guide stays silent** while the actual mixed scene plays: ocean underneath the Keeper and Traveler, optionally including the cloned line. |
-| **01:29–01:40** | **Completion, not a feature dump.** | Export a genuine mastered output from the saved project. Hold briefly on the complete Studio page and Sonic Rift identity, not on an explorer path or modal. | Guide: “From a few lines to a world you can hear. Sonic Rift.” Finish with the official tagline **“Make worlds you can hear.”** |
+| **00:00–00:09** | **An empty world.** | Open the redesigned Studio on a clearly named, saved **empty** fictional project, atmospheric wave background visibly behind UI. Empty track space is intentional, not an unfinished screenshot. | Guide: “A world can begin with just a few words.” Hold on the real Studio before moving. |
+| **00:09–00:25** | **Give it a keeper.** | Cut to Speech: a deliberately chosen Keeper voice, script, Generate, audition. Click **Add to Studio**, then **return immediately to Studio** and let the audience see the first real Narration clip appear on the timeline. | Keeper: “The beacon is still burning. Follow it toward shore.” The guide stays quiet during the actual voice sample. |
+| **00:25–00:39** | **Someone answers.** | Cut briefly to Speech and switch to a **visibly different voice preset/ID**. Generate the Traveler take and use **Add to Studio**. Return to Studio; visibly reveal the **second distinct clip** joining the evolving composition. | Guide: “Then someone answers from across the water.” Traveler: “I see it now. Keep the light on.” |
+| **00:39–00:54** | **Give the world a shoreline.** | Sounds: choose **Ocean waves**, generate and audition, keep the real take. Click **Add to Studio** and return; show the long ambience waveform under the already-visible two dialogue clips. If mix controls support actual adjustment, balance the bed live. | Guide: “The place comes alive when the sound has somewhere to live.” Allow 3–4 seconds of authentic unobstructed waves. |
+| **00:54–01:09** | **Keep a character's voice.** | Voices > New voice > Clone; show real synthetic Keeper source and cloned third line. Audition. If the supported workflow can add it to Studio, **return and show the new clip**. If not, show a truthful library result and do **not** imply the clone participates in the later mix. | Guide: “A character can return without losing their voice.” Keeper clone: “I’ll keep it burning until you’re home.” |
+| **01:09–01:35** | **Assemble, save, hear.** | Stay in Studio as clips are **actually positioned, trimmed or balanced where supported**, with visible track/timeline changes in sync with ongoing brief guide narration; save and eliminate all unsaved-state warnings. Show real playhead moving through the genuine mix. Avoid a hard cut to a static “completed” screenshot. | Guide: “A voice. An answer. The sound of the sea. Together, they become a scene.” **Then the guide stops** for an uninterrupted genuine Keeper + Traveler + ocean mixed sequence; add clone only if verifiably included. |
+| **01:35–01:45** | **Result and identity.** | Export a real mix from that saved project; show export confirmation briefly, return to the fully built Studio project, end on Sonic Rift branding and tagline. | Guide: “Make worlds you can hear. Sonic Rift.” No false export or staged filesystem path. |
 
-**Timing is an editorial target, not a requirement to speed up or cut across a spoken word.** Adjust with measured render/playback and breathing room. Condensing long model waits is allowed **only when explicitly disclosed**; never replace generated takes or app screens with fabricated output.
+**Runtime is a hypothesis, not a forced cut.** Extend or contract the edit so there is sufficient dwell time to understand each new clip, no speech overlaps, and the resulting scene feels like a miniature creative production. Condense long model waits with disclosed editing, but never cut across a spoken word.
+
+### Capture/edit rules for the Studio-first visual journey
+
+1. Use **one real project instance** across all scenes. Capture the same genuine saved project after every add, not disconnected fixtures or synthetic composited UI layers.
+2. At each generator step: show **source choice → render/audition → Add to Studio → newly added real clip**. The return is the story's recurring visual motif.
+3. The **Guide** is a voice-over with its own generated voice and identity, not an onscreen speech track presented as one of the characters. Character voices must be **two genuinely different synth/preset identities**, and the Keeper clone is deliberately the Keeper again.
+4. Voice-over, generated dialogue and sound preview must be **edited without masking one another**. Give the Studio full-screen priority during the climax. The wavefield is an ambient UI identity, not animated audio visualization.
+5. For the website, ship captioned, sound-on product-film version plus a **deliberately legible silent cut** with descriptive text overlays/captions. Those overlays belong in the video edit, never fabricated into screenshots of the app.
+6. Film only after the **new page-specific wave backgrounds, revised Studio navigation and take-history UI have been visually qualified** in Windows and source version pinned. The older historical #119 footage and logos are reference material, not final publication assets.
 
 ## Editorial and audio-mix constraints
 
