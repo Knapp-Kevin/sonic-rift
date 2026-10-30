@@ -54,14 +54,17 @@ def envelope(pcm, sample_rate, per_second=PEAKS_PER_SECOND):
     if len(audio) == 0:
         return np.zeros(1, dtype=np.float32)
 
-    step = max(1, sample_rate // per_second)
-    complete = len(audio) // step
-    parts = []
-    if complete:
-        parts.append(audio[:complete * step].reshape(complete, step).max(axis=1))
-    if len(audio) % step:
-        parts.append(np.array([audio[complete * step:].max()], dtype=np.float32))
-    peaks = np.concatenate(parts)
+    # Fixed-width floor division drifts for rates such as 22050 Hz / 50 buckets:
+    # 441-frame buckets are exact there, but 11025 Hz / 50 needs alternating
+    # 220/221-frame buckets. Use integer boundaries in the source timebase.
+    # A bucket never starts twice, even when asked for more peaks than samples.
+    bucket_rate = min(sample_rate, per_second)
+    count = (len(audio) * bucket_rate + sample_rate - 1) // sample_rate
+    starts = np.fromiter(
+        ((i * sample_rate + bucket_rate - 1) // bucket_rate for i in range(count)),
+        dtype=np.intp, count=count,
+    )
+    peaks = np.maximum.reduceat(audio, starts)
     maximum = float(peaks.max())
     if maximum <= 0:
         return np.zeros(len(peaks), dtype=np.float32)

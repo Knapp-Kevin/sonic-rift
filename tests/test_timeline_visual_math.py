@@ -63,6 +63,28 @@ class WaveformEnvelope(unittest.TestCase):
         with self.assertRaises(ValueError):
             mathlib.envelope(np.ones(8), 48000, per_second=0)
 
+    def test_nondivisible_sample_rate_is_time_aligned(self):
+        # 11025 / 50 = 220.5 samples per bucket: floor-based buckets
+        # previously produced 51 peaks for exactly one second of audio.
+        audio = np.zeros(11025, dtype=np.float32)
+        audio[-1] = 1.0
+        peaks = mathlib.envelope(audio, 11025)
+        self.assertEqual(len(peaks), 50)
+        self.assertEqual(float(peaks[-1]), 1.0)
+        self.assertEqual(float(peaks[:-1].max()), 0.0)
+
+    def test_requested_peak_rate_cannot_create_duplicate_empty_buckets(self):
+        audio = np.array([0.1, 0.7, 0.2], dtype=np.float32)
+        peaks = mathlib.envelope(audio, 3, per_second=50)
+        np.testing.assert_allclose(peaks, [1 / 7, 1, 2 / 7], atol=1e-6)
+
+    def test_nondivisible_partial_duration_uses_correct_bucket_count(self):
+        samples = np.zeros(11026, dtype=np.float32)
+        samples[-1] = 0.8
+        peaks = mathlib.envelope(samples, 11025)
+        self.assertEqual(len(peaks), 51)
+        self.assertEqual(float(peaks[-1]), 1.0)
+
 
 if __name__ == '__main__':
     unittest.main()
