@@ -221,6 +221,37 @@ class AcousticBackground(unittest.TestCase):
                             theme.contrast_ratio(colors[foreground], colors[background]),
                             4.5)
 
+    def test_cards_show_the_page_wave_field(self):
+        """Opaque cards used to hide the field almost entirely; each card now shows it, faintly,
+        so the page's scene is visible and differs between workflows."""
+        from PySide6.QtWidgets import QApplication, QScrollArea, QVBoxLayout, QWidget
+        from this_voice_thing.ui import theme
+        QApplication.instance() or QApplication([])
+        area = theme.TexturedArea()
+        area.resize(1000, 700)
+        scroll = QScrollArea(area)
+        scroll.setGeometry(0, 0, 1000, 700)
+        scroll.setWidgetResizable(True)
+        page = QWidget()
+        QVBoxLayout(page).addWidget(card := theme.CardFrame())
+        card.setMinimumHeight(600)
+        scroll.setWidget(page)
+        area.show()
+        QApplication.processEvents()
+
+        def grab(scene):
+            area.set_scene(scene)
+            QApplication.processEvents()
+            return card.grab().toImage()
+        plain = grab("speech")
+        self.assertNotEqual(plain, grab("sounds"))
+        self.assertEqual(grab("speech"), plain)          # stable between paints
+        area.close()
+
+    def test_window_minimum_fits_a_1366_by_768_screen_at_125_percent(self):
+        from this_voice_thing.ui import main_window
+        self.assertLessEqual(main_window.SonicRiftApp.MIN_WINDOW.height(), (768 - 40) / 1.25)
+
     def test_scene_contract_and_no_random_grain(self):
         from PySide6.QtWidgets import QApplication
         from this_voice_thing.ui import theme

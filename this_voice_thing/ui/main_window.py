@@ -476,7 +476,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
 
     # The window never has to be larger than this: pages scroll inside it instead.
     # 960 x 600 fits a 1366 x 768 laptop at 125% scaling with the taskbar showing.
-    MIN_WINDOW = QSize(960, 600)
+    MIN_WINDOW = QSize(960, 560)   # fits 1366 x 768 at 125 % (about 582 px tall above the taskbar)
 
     def _make_pages_scroll(self):
         """Put every page in a scroll area, so the tallest or widest page sets no window

@@ -16,7 +16,7 @@ import os
 
 
 from this_voice_thing import paths
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt
+from PySide6.QtCore import QPoint, QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPainterPath, QPalette, QPen
 from PySide6.QtWidgets import QApplication, QFrame, QWidget
 
@@ -227,12 +227,44 @@ class CardFrame(QFrame):
             painter.drawRoundedRect(body.adjusted(-spread, -spread + 3, spread, spread + 3),
                                     CARD_RADIUS + spread, CARD_RADIUS + spread)
         painter.setBrush(_vertical(body, c["surface_top"], c["surface_bottom"]))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(body.adjusted(0.5, 0.5, -0.5, -0.5), CARD_RADIUS, CARD_RADIUS)
+        self._paint_scene(painter, body, c)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(QPen(_color(c["border"]), 1))
         painter.drawRoundedRect(body.adjusted(0.5, 0.5, -0.5, -0.5), CARD_RADIUS, CARD_RADIUS)
         painter.setPen(QPen(_color(c["edge_highlight"]), 1))
         painter.drawLine(QPointF(body.left() + CARD_RADIUS, body.top() + 1.5),
                          QPointF(body.right() - CARD_RADIUS, body.top() + 1.5))
         painter.end()
+
+    def _paint_scene(self, painter, body, colors):
+        """The page's wave field, faint, on this card's surface. It is anchored to the page's
+        content (so it lines up across cards and scrolls with them) and sized to the visible
+        page area. Inputs, lists and the timeline paint over it, so it never sits under text
+        you edit."""
+        area, page = None, None
+        widget = self.parentWidget()
+        while widget is not None:
+            if page is None and widget.parentWidget() is not None \
+                    and widget.parentWidget().objectName() == "qt_scrollarea_viewport":
+                page = widget
+            if isinstance(widget, TexturedArea):
+                area = widget
+                break
+            widget = widget.parentWidget()
+        if area is None:
+            return
+        anchor = page or area
+        offset = self.mapTo(anchor, QPoint(0, 0))
+        clip = QPainterPath()
+        clip.addRoundedRect(body.adjusted(1, 1, -1, -1), CARD_RADIUS, CARD_RADIUS)
+        painter.save()
+        painter.setClipPath(clip)
+        painter.translate(-offset.x(), -offset.y())
+        _paint_sonic_waves(painter, QRectF(0, 0, area.width(), area.height()), colors, area.scene,
+                           CARD_WAVE_STRENGTH)
+        painter.restore()
 
 
 SONIC_SCENES = {
@@ -245,8 +277,12 @@ SONIC_SCENES = {
 }
 
 
-def _paint_sonic_waves(painter, rect, colors, scene):
-    """Stable, subtle wave contours: no grain, timers, external files or image effects."""
+CARD_WAVE_STRENGTH = 0.55     # the field as seen on a card's surface, relative to the page
+
+
+def _paint_sonic_waves(painter, rect, colors, scene, strength=1.0):
+    """Stable, subtle wave contours: no grain, timers, external files or image effects.
+    `strength` scales every line's opacity (cards show the field fainter than the page)."""
     from math import pi, sin
 
     frequency, phase, center = SONIC_SCENES[scene]
@@ -259,39 +295,37 @@ def _paint_sonic_waves(painter, rect, colors, scene):
     cyan = _color(colors["accent"])
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.setClipRect(rect)
-    # Broad rings near the edges read as sound propagation and echo.
-    for side, tint in ((-0.06, blue), (1.09, violet)):
-        for ring in range(9):
-            radius = (0.11 + 0.083 * ring) * min(width, height) * 1.6
-            ink = QColor(tint)
-            ink.setAlpha(max(3, (15 if dark else 19) - ring))
-            painter.setPen(QPen(ink, 0.8))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawEllipse(QPointF(width * side, height * (center + 0.015)),
-                                radius, radius * 0.91)
+    painter.setClipRect(rect, Qt.ClipOperation.IntersectClip)
+    # A few faint rings off one edge: sound spreading out. Sparse, so they never form a mesh.
+    for ring in range(4):
+        radius = (0.32 + 0.21 * ring) * min(width, height)
+        ink = QColor(violet if ring % 2 else blue)
+        ink.setAlpha(round((9 if dark else 12) * strength))
+        painter.setPen(QPen(ink, 1.0))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(QPointF(width * 1.04, height * center), radius, radius * 0.9)
 
-    # Layered harmonic paths. Profiles change the composition, not the app palette.
+    # Long, gentle, well-spaced contours like the brand banner: three families of four lines.
+    # Each page's profile (frequency, phase, centreline) changes the composition; the palette
+    # stays the app's.
     for layer in range(3):
-        count = 12 if layer == 1 else 9
         tint = (cyan, blue, violet)[layer]
-        for track in range(count):
+        for track in range(4):
             path = QPainterPath()
-            offset = (track - (count - 1) / 2) * 0.012
-            for step in range(85):
-                t = step / 84.0
-                wave = sin(2 * pi * (frequency * 1.18 * t + phase + layer * 0.21))
-                overtone = 0.28 * sin(2 * pi * (t * (2.3 + layer * 0.34) + phase * 0.7))
-                y = height * (center + (layer - 1) * 0.097 + offset +
-                              (0.032 + 0.024 * frequency) * (wave + overtone))
-                x = width * t
+            offset = (track - 1.5) * 0.026
+            for step in range(121):
+                t = step / 120.0
+                wave = sin(2 * pi * (frequency * 0.9 * t + phase + layer * 0.17 + track * 0.035))
+                overtone = 0.22 * sin(2 * pi * (t * (1.7 + layer * 0.3) + phase * 0.7))
+                y = height * (center + (layer - 1) * 0.11 + offset +
+                              (0.045 + 0.025 * frequency) * (wave + overtone))
                 if step == 0:
-                    path.moveTo(x, y)
+                    path.moveTo(width * t, y)
                 else:
-                    path.lineTo(x, y)
+                    path.lineTo(width * t, y)
             ink = QColor(tint)
-            ink.setAlpha(max(5, (22 if dark else 27) - abs(track - count / 2) * 2 - layer * 2))
-            painter.setPen(QPen(ink, 0.85))
+            ink.setAlpha(round(((34 if dark else 40) - abs(track - 1.5) * 7 - layer * 3) * strength))
+            painter.setPen(QPen(ink, 1.0))
             painter.drawPath(path)
     painter.restore()
 
@@ -309,6 +343,8 @@ class TexturedArea(QWidget):
         if self.scene != scene:
             self.scene = scene
             self.update()
+            for card in self.findChildren(CardFrame):     # cards show the field too
+                card.update()
 
     def paintEvent(self, _event):
         c = _current

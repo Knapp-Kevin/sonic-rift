@@ -10,8 +10,9 @@ cyan → blue → violet brand stroke appears sparingly on progress and the thin
 ## Layout
 - **Page** = title (`PageTitle`), one-line subtitle (`PageSubtitle`), then cards. Every page sits in a
   scroll area (`main_window._make_pages_scroll`) except the embedded Studio timeline, which manages its own splitter and scroll regions. A page never sets the window's size.
-- **Window minimum** is fixed at 960 × 600 (`SonicRiftApp.MIN_WINDOW`), so the app fits a 1366 × 768
-  laptop and 1920 × 1080 at 150 %. A saved size is clamped to the screen on start.
+- **Window minimum** is fixed at 960 × 560 (`SonicRiftApp.MIN_WINDOW`), so the app fits a 1366 × 768
+  laptop at 100 % and 125 %, and 1920 × 1080 at 150 %. 1366 × 768 at 150 % (910 × 472 usable) is below
+  what the layout supports. A saved size is clamped to the screen on start.
 - **Card** = one job, a short bold title (`CardTitle`), its controls, and **one action row** at the bottom.
 - **Studio** is a permanent page at the top of the navigation (not a popup). Speech/Sounds are generators; Add to Studio returns the user to their growing project. The embedded editor follows page-header and action-row rules.
 
