@@ -112,7 +112,7 @@ class Library:
             title = {"": "All", "clip": "Clips", "preset": "Presets", "design": "Designed"}[key]
             self.voice_filter_tabs.setTabText(index, f"{title}  {counts[key]}" if counts[key] else title)
         empty = ("No voices match." if query or kind else
-                 "No voices yet. Record one, add a file, or save the voice you're using.")
+                 "No voices yet. Record one or add a file here, or make one under New voice.")
         self.voice_tiles.set_tiles([self.voice_tile(voice) for voice in voices], empty)
 
     def voice_tile(self, voice):

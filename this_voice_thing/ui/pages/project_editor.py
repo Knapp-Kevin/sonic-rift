@@ -17,7 +17,7 @@ import soundfile as sf
 from PySide6.QtCore import QUrl, Qt, Slot
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import (
-    QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout, QHBoxLayout,
+    QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout, QHBoxLayout, QHeaderView,
     QInputDialog, QLabel, QMessageBox, QPushButton, QSplitter, QTreeWidget,
     QTreeWidgetItem, QVBoxLayout, QDialogButtonBox,
 )
@@ -164,14 +164,20 @@ class ProjectEditorDialog(QDialog):
         set_empty_text(self.tree, "Add a saved sound or narration to start. Each kind gets its own track.")
         self.tree.setHeaderLabels(["Track / clip", "Starts", "Length", "Gain", "Source"])
         self.tree.setRootIsDecorated(True)
+        header = self.tree.header()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)       # names were cut to "Evenin..."
+        for column in range(1, 5):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
         self.tree.setAlternatingRowColors(True)
         self.tree.itemDoubleClicked.connect(lambda *_: self.edit_selected())
         self.tree.currentItemChanged.connect(self._tree_selection_changed)
         split = QSplitter(Qt.Orientation.Vertical)
         split.addWidget(self.timeline)
         split.addWidget(self.tree)
-        split.setStretchFactor(0, 3)
-        split.setStretchFactor(1, 2)
+        split.setStretchFactor(0, 1)      # a few tracks no longer leave half the page empty
+        split.setStretchFactor(1, 1)
+        split.setSizes([360, 300])        # the timeline's size hint otherwise takes most of the height
         split.setChildrenCollapsible(False)
         layout.addWidget(split, 1)
 
@@ -610,9 +616,14 @@ class ProjectEditorDialog(QDialog):
             QMessageBox.information(self, "Narration", "Generate narration in Create first. This editor "
                                     "can stay open while you do.")
             return
-        self.add_voice_take(latest)
+        self.add_voice_take(latest, text=getattr(self.owner, "take_texts", {}).get(os.path.abspath(latest), ""))
 
-    def add_voice_take(self, filename=None):
+    def add_voice_take(self, filename=None, text=""):
+        """Import a narration take. `text`: what it says (from Speech), shown on its clip."""
+        self._pending_take_text = text if isinstance(text, str) else ""
+        self._add_voice_take(filename)
+
+    def _add_voice_take(self, filename=None):
         if self.import_worker is not None or self.worker is not None:
             QMessageBox.information(self, "Project", "Finish the current media operation first.")
             return
@@ -658,14 +669,21 @@ class ProjectEditorDialog(QDialog):
             applied = self._mutate(lambda: self.session.attach_narration_take(
                 existing.id, asset_id, frames), existing.id)
         else:
-            clip = Clip(new_id(), "voice", 0, frames, asset_id=asset_id)
+            clip = Clip(new_id(), "voice", 0, frames, asset_id=asset_id,
+                        text=getattr(self, "_pending_take_text", "").strip())
             selected_track_id = self._track_for_selection(selection, "voice")
+            if selected_track_id is None:
+                # Nothing (or something else) selected: the narration track, not a new track per take.
+                selected_track_id = next((t.id for t in self.session.project.tracks if t.kind == "voice"), None)
+            gap = self.session.project.sample_rate          # one second after the last line
             def change(project):
                 from this_voice_thing.core.audio_project import Track
                 track = next((track for track in project.tracks if track.id == selected_track_id), None)
                 if track is None:
-                    project.tracks.append(Track(new_id(), "voice", Path(filename).stem, clips=[clip]))
+                    project.tracks.append(Track(new_id(), "voice", "Narration", clips=[clip]))
                 else:
+                    if track.clips:     # after what's there, instead of on top of it at 0:00
+                        clip.start_frame = max(c.start_frame + c.frame_count for c in track.clips) + gap
                     track.clips.append(clip)
             applied = self._mutate(lambda: self.session.apply(change))
         if applied:
@@ -852,7 +870,7 @@ class ProjectEditorDialog(QDialog):
         self.worker.done.connect(self._export_done)
         self.worker.finished.connect(self._export_finished)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.note.setText("Exporting project. Keep this editor open until completion.")
+        self.note.setText("Exporting the mix and one stem per track… You can keep using the other pages.")
         self.worker.start()
 
     def cancel_export(self):
@@ -868,7 +886,12 @@ class ProjectEditorDialog(QDialog):
             self.note.setText("Export failed. Source files were not modified.")
             self._error(error)
         else:
-            self.note.setText(f"Export complete: {Path(result).parent}")
+            folder = Path(result).parent
+            # The folder's name, not its whole path (which carries the user's home folder); the
+            # full path is in the tooltip and the dialog.
+            self.note.setText(f"Export complete: “{folder.name}” — the master, one stem per track "
+                              "and a manifest.")
+            self.note.setToolTip(str(folder))
             QMessageBox.information(self, "Project exported",
                                     f"Master WAV, premaster stems and manifest saved to:\n{Path(result).parent}")
 

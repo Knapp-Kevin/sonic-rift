@@ -21,7 +21,7 @@ class TimelineView(QWidget):
     clipPlaced = Signal(str, int, int, int)   # drag finished: clip id, start, length, source offset (frames)
 
     RULER = 26
-    LANE = 56
+    LANE = 72
     HEADER = 148
     MIN_SECONDS = 10.0
     EDGE = 7                          # px at each end of a clip that trims instead of moving

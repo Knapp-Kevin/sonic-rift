@@ -1,6 +1,8 @@
 """The output list and audio player under the Generate page."""
 
+from datetime import datetime
 import os
+import re
 
 from PySide6.QtCore import QUrl
 from PySide6.QtCore import Qt
@@ -17,6 +19,29 @@ from PySide6.QtWidgets import QSlider
 
 from this_voice_thing.core import audio_effects
 from this_voice_thing.ui.widgets import set_empty_text, set_role
+
+_TAKE_NAME = re.compile(r"^(?P<prefix>.+?)_(?P<date>\d{8})_(?P<time>\d{6})_seed\d+(?P<suffix>_partial|_full_stitched)?"
+                        r"\.(?P<ext>\w+)$")
+
+
+def take_label(filename):
+    """A readable name for a generated file: "Take · 30 Oct, 02:45:05" (a document's name instead
+    of "Take" when it has one). Files keep their names on disk; other files show as they are."""
+    match = _TAKE_NAME.match(filename)
+    if not match:
+        return filename
+    try:
+        when = datetime.strptime(match["date"] + match["time"], "%Y%m%d%H%M%S")
+    except ValueError:
+        return filename
+    prefix = match["prefix"]
+    name = "Take" if prefix in ("chatterbox", "narration") else prefix
+    label = f"{name} \u00b7 {when.day} {when:%b}, {when:%H:%M:%S}"
+    if match["suffix"] == "_partial":
+        label += " \u00b7 stopped early"
+    if match["ext"].lower() != "wav":
+        label += f" \u00b7 {match['ext'].upper()}"
+    return label
 
 
 class Player:
@@ -84,7 +109,8 @@ class Player:
             files = sorted([os.path.join(self.output_directory, f)for f in os.listdir(
                 self.output_directory)if f.lower().endswith(audio_effects.AUDIO_EXTENSIONS)], key=os.path.getmtime, reverse=True)
             for f_path in files:
-                item = QListWidgetItem(os.path.basename(f_path))
+                item = QListWidgetItem(take_label(os.path.basename(f_path)))
+                item.setToolTip(os.path.basename(f_path))       # the file name, for finding it on disk
                 item.setData(Qt.ItemDataRole.UserRole, f_path)
                 self.output_log_listwidget.addItem(item)
         except Exception as e:

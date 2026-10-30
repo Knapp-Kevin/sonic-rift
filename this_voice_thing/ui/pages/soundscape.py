@@ -1,4 +1,4 @@
-"""The Soundscape page: ambience and sound effects, kept in the Asset Library."""
+"""The Sounds page: ambience and sound effects, kept in the Sound library."""
 
 import os
 import random
@@ -620,7 +620,7 @@ class SoundscapePage:
         asset = self.sound_library.add(candidate.audio, candidate.sample_rate, name, engine.key,
                                        "seam" in candidate.metrics, **provenance)
         self.refresh_sound_assets(select=asset.id)
-        self.set_status_message(f"Status: Kept “{asset.name}” in the Asset Library.")
+        self.set_status_message(f"Status: Kept “{asset.name}” in the Sound library.")
 
     def ask_sound_export_path(self, stem):
         path, chosen = QFileDialog.getSaveFileName(

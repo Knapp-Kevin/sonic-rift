@@ -92,6 +92,7 @@ class StudioPage(unittest.TestCase):
         t = np.arange(24000) / 24000
         sf.write(path, (0.2 * np.sin(2 * np.pi * 220 * t)).astype("float32"), 24000)
         w.current_audio_file = path
+        w.take_texts = {os.path.abspath(path): "Breathe in slowly."}     # what Speech rendered
         w.output_log_listwidget.clear()
         w.add_take_to_studio()
         editor = w.project_editor
@@ -100,8 +101,26 @@ class StudioPage(unittest.TestCase):
         clips = [c for t in editor.session.project.tracks for c in t.clips]
         self.assertEqual(len(clips), 1)
         self.assertEqual((clips[0].kind, clips[0].frame_count), ("voice", 48000))
+        self.assertEqual(clips[0].text, "Breathe in slowly.")             # the clip shows its words
+        # A second take joins the same Narration track, one second after the first (not on top of it)
+        editor.tree.setCurrentItem(None)
+        w.add_take_to_studio()
+        self.assertTrue(self.pump(lambda: editor.import_worker is None))
+        tracks = [t for t in editor.session.project.tracks if t.kind == "voice"]
+        self.assertEqual([t.name for t in tracks], ["Narration"])
+        self.assertEqual([c.start_frame for c in tracks[0].clips], [0, 48000 + 48000])
+        editor.undo()
         editor.undo()
         editor._mark_clean()
+
+    def test_the_export_note_names_the_folder_not_the_home_path(self):
+        from PySide6.QtWidgets import QMessageBox
+        editor = self.window.open_project_editor()
+        with patch.object(QMessageBox, "information", lambda *a, **k: None):
+            editor._export_done(os.path.join("C:\\", "Users", "someone", "Exports", "Evening Tide", "master.wav"), "")
+        self.assertIn("Evening Tide", editor.note.text())
+        self.assertNotIn("someone", editor.note.text())
+        self.assertIn("someone", editor.note.toolTip())
 
     def test_sounds_needs_a_selection(self):
         from PySide6.QtWidgets import QMessageBox
@@ -116,6 +135,17 @@ class StudioPage(unittest.TestCase):
         source = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                    "this_voice_thing", "ui", "pages", "project_editor.py"), encoding="utf-8").read()
         self.assertNotIn('f"{a.name}  |  {a.id}"', source)
+
+
+class TakeNames(unittest.TestCase):
+    def test_generated_files_get_readable_names(self):
+        from this_voice_thing.ui.pages.player import take_label
+        self.assertEqual(take_label("chatterbox_20261030_024505_seed903277_full_stitched.wav"),
+                         "Take · 30 Oct, 02:45:05")
+        self.assertEqual(take_label("chatterbox_20261030_024505_seed1_partial.mp3"),
+                         "Take · 30 Oct, 02:45:05 · stopped early · MP3")
+        self.assertEqual(take_label("Chapter one_20261030_024505_seed7.wav"), "Chapter one · 30 Oct, 02:45:05")
+        self.assertEqual(take_label("ocean.wav"), "ocean.wav")
 
 
 class StatusBarKeepsWholeMessages(unittest.TestCase):

@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QMessageBox
 from this_voice_thing.core import documents
 from this_voice_thing.ui.common import preview_cut
 from this_voice_thing.ui.threads import AudioGeneratorThread
+from this_voice_thing.ui.pages.player import take_label
 
 
 class Generation:
@@ -248,12 +249,16 @@ class Generation:
         else:
             captions = f" + {os.path.basename(thread.subtitle_path)}" if thread.subtitle_path else ""
             self.set_status_message(
-                f"Status: Full audio generated: {os.path.basename(output_path)}{captions}{total_generation_time_str}")
+                f"Status: Full audio generated: {take_label(os.path.basename(output_path))}{captions}{total_generation_time_str}")
 
         self.current_audio_file = output_path
+        if not thread.preview:
+            # What the take says, for its clip in the Studio (Add to Studio).
+            self.take_texts = getattr(self, "take_texts", {})
+            self.take_texts[os.path.abspath(output_path)] = thread.original_text
         # ... (rest of the method same as your working version)
         self.current_file_label.setText(
-            f"Last generated: {os.path.basename(output_path)}")
+            f"Last generated: {take_label(os.path.basename(output_path))}")
         self.media_player.setSource(QUrl.fromLocalFile(output_path))
         self.play_pause_button.setEnabled(True)
         self.stop_button.setEnabled(True)

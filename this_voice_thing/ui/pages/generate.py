@@ -116,7 +116,8 @@ class GeneratePage:
         if not path or not os.path.isfile(path):
             QMessageBox.information(self, "Studio", "Generate a take first, or select one in the list.")
             return
-        self.open_project_editor().add_voice_take(path)
+        text = getattr(self, "take_texts", {}).get(os.path.abspath(path), "")
+        self.open_project_editor().add_voice_take(path, text=text)
 
     def add_sound_to_studio(self):
         """Sounds -> Studio: the selected kept sound goes onto the timeline."""
