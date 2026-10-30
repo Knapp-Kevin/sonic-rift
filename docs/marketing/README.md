@@ -1,6 +1,6 @@
 # Sonic Rift: website media handoff
 
-Everything the web developer needs for the Sonic Rift page, from issue [#118](https://github.com/Knapp-Kevin/sonic-rift/issues/118). Checksums, provenance, voices and rights are in [MANIFEST.md](MANIFEST.md). **These are review candidates: owner approval is required before public use.**
+Everything the web developer needs for the Sonic Rift page, from issue [#118](https://github.com/Knapp-Kevin/sonic-rift/issues/118). Checksums, provenance, voices and rights are in [MANIFEST.md](MANIFEST.md). **Approved by the owner on 2026-10-30: ready to use on the site.**
 
 ## Product description (suggested, 44 words)
 

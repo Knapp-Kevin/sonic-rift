@@ -1,7 +1,7 @@
 # Marketing media manifest
 
 Media for the MythologIQ Labs site, issue [#118](https://github.com/Knapp-Kevin/sonic-rift/issues/118).
-**Status: review candidates, not approved for public use.** Owner listening review and sign-off come first.
+**Status: approved by the owner (Kevin Knapp) on 2026-10-30 for use on the website.**
 
 The first media pass (build `4ea641f`) is archived, unchanged, in [archive/2026-10-30-v1](archive/2026-10-30-v1/README.md).
 
@@ -85,7 +85,7 @@ No real person's voice, likeness, account, credential, private URL or personal f
 - The exported master and the Studio preview mix fade in from silence and out to silence.
 - The build passes its full test suite on Windows (see PR #120 for the exact count and SHA).
 
-## Outstanding before public use
+## Approval
 
-1. Owner listening review and approval of every asset, including the derived logo variants.
-2. No public release, website deployment or announcement is part of this work.
+- 2026-10-30: the owner watched the film and reviewed the set, and approved it (“approved 1,000 times approved”, in chat with Claude), recorded on [#118](https://github.com/Knapp-Kevin/sonic-rift/issues/118).
+- Website deployment and any announcement are separate steps for the web developer and the owner.

@@ -1,6 +1,6 @@
 # Listening review package
 
-Every voice and sound in “A World in Sound: Evening Tide, The Beacon”, exactly as the app produced it (the Guide lines and the tagline were made before filming; everything else was made on camera). **Review candidates, not approved.**
+Every voice and sound in “A World in Sound: Evening Tide, The Beacon”, exactly as the app produced it (the Guide lines and the tagline were made before filming; everything else was made on camera). **Approved by the owner on 2026-10-30.**
 
 Please listen for: does each character sound like the same person each time; are the emotions right (calm narrator, weathered keeper, hopeful traveler); any clicks, breaths or artefacts; does the sea sit under the voices; does the tagline land.
 
