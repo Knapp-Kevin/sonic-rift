@@ -34,7 +34,7 @@ from this_voice_thing.core.soundscape import catalog, mastering, procedural, ren
 from this_voice_thing.engines import sound_models
 from this_voice_thing.ui import tiles as model_tiles
 from this_voice_thing.ui.threads import SoundRenderThread, TaskThread
-from this_voice_thing.ui.widgets import set_empty_text
+from this_voice_thing.ui.widgets import set_empty_text, set_role
 
 EXPORT_FILTER = "WAV master (*.wav);;OGG Vorbis (*.ogg);;MP3 (*.mp3)"
 
@@ -215,7 +215,7 @@ class SoundscapePage:
         takes_layout.addLayout(take_row)
         layout.addWidget(takes_card)
 
-        library_card, library_layout = self._make_card("Asset Library")
+        library_card, library_layout = self._make_card("Sound library")
         self.sound_asset_list = QListWidget()
         set_empty_text(self.sound_asset_list, "Sounds you keep are stored here with how they were made, "
                                                "ready to use in projects.")
@@ -228,13 +228,17 @@ class SoundscapePage:
         rename_asset = QPushButton("Rename...")
         rename_asset.clicked.connect(self.rename_sound_asset)
         asset_row.addWidget(rename_asset)
-        delete_asset = QPushButton("Delete")
+        delete_asset = set_role(QPushButton("Delete"), "destructive")
         delete_asset.clicked.connect(self.delete_sound_asset)
         asset_row.addWidget(delete_asset)
         asset_row.addStretch(1)
         export_asset = QPushButton("Export...")
         export_asset.clicked.connect(self.export_sound_asset)
         asset_row.addWidget(export_asset)
+        to_studio = set_role(QPushButton("Add to Studio"), "primary")
+        to_studio.setToolTip("Put the selected sound on the Studio timeline.")
+        to_studio.clicked.connect(self.add_sound_to_studio)
+        asset_row.addWidget(to_studio)
         library_layout.addLayout(asset_row)
         layout.addWidget(library_card, 1)
         self.pages.addWidget(page)

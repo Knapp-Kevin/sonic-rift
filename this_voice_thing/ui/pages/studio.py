@@ -755,7 +755,7 @@ class StudioPage:
         voice.clip = self.voice_library.to_stored(path)
         self.voice_library.add(voice)
         self.render_voice_tiles()
-        self.set_status_message(f"Status: Saved {voice.name}. It's frozen: pick it in Voices or on Create "
+        self.set_status_message(f"Status: Saved {voice.name}. It's frozen: pick it in Voices or on Speech "
                                 "and it sounds the same every time.")
 
     def _voxcpm_design_entry(self):

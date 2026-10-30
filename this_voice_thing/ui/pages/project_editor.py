@@ -1,4 +1,4 @@
-"""Opt-in project editor for Create; legacy single-text generation stays intact.
+"""The Studio: arrange speech, sounds and narration on one timeline and export the mix.
 
 A visual timeline (lanes, clip blocks with waveforms, playhead, mix preview) above the
 track list; clips are still edited through the list and the properties dialog, not dragged.
@@ -88,12 +88,18 @@ def describe_error(message, project=None):
 
 
 class ProjectEditorDialog(QDialog):
-    """Save, arrange and export tracks without changing ordinary Create settings."""
+    """Save, arrange and export tracks without changing Speech's settings.
 
-    def __init__(self, owner):
+    embedded=True: it is the Studio page of the main window (a child widget, not a window);
+    Esc then doesn't close it, and the main window asks it to close when the app closes."""
+
+    def __init__(self, owner, embedded=False):
         super().__init__(owner)
         self.owner = owner
-        self.setWindowTitle("Sonic Rift | Create project")
+        self.embedded = embedded
+        if embedded:
+            self.setWindowFlags(Qt.WindowType.Widget)
+        self.setWindowTitle("Sonic Rift | Studio")
         self.resize(1000, 720)
         self.session = ProjectSession(AudioProject(new_id(), "Untitled project"))
         self.saved_revision = None
@@ -109,7 +115,8 @@ class ProjectEditorDialog(QDialog):
         self.preview_file = None
         self.media = ProjectMedia(owner.script_dir, owner.sound_library)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 14, 18, 14)
+        # As a page, line up with every other page's title and card edges.
+        layout.setContentsMargins(*((24, 14, 24, 12) if embedded else (18, 14, 18, 14)))
         layout.setSpacing(8)
         # Same page header as the main window: title, then a muted state line.
         title_row = QHBoxLayout()
@@ -172,7 +179,7 @@ class ProjectEditorDialog(QDialog):
         add_actions = QHBoxLayout()
         add_actions.addWidget(MenuButton("Add", [
             ("Saved sound\u2026", self.add_sound),
-            ("Latest Create take", self.add_latest_take),
+            ("Latest Speech take", self.add_latest_take),
             ("Narration file\u2026", lambda: self.add_voice_take()),
             ("Narration script\u2026", self.add_text_block),
             None,
@@ -196,8 +203,8 @@ class ProjectEditorDialog(QDialog):
                                       "in a new folder.")
         layout.addLayout(add_actions)
 
-        self.note = QLabel("Narration scripts need audio before export: generate them in Create (this window "
-                           "can stay open), then use Add \u203a Latest Create take with the script selected.")
+        self.note = QLabel("Narration scripts need audio before export: generate them on Speech, then use "
+                           "Add \u203a Latest Speech take with the script selected.")
         self.note.setObjectName("Muted")
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
@@ -244,7 +251,7 @@ class ProjectEditorDialog(QDialog):
         else:
             state = "New project"
         self.title_label.setText(project.title)
-        self.heading.setText(state)
+        self.heading.setText(f"Studio · {state}" if self.embedded else state)
         self.undo_button.setEnabled(self.session.can_undo)
         self.redo_button.setEnabled(self.session.can_redo)
         self.timeline.set_project(project)
@@ -263,7 +270,7 @@ class ProjectEditorDialog(QDialog):
                     length if clip.asset_id else "\u2014",
                     f"{clip.gain_db:+.1f} dB", self._clip_source(clip),
                 ])
-                item.setToolTip(4, clip.asset_id or "Generate this script in Create, then attach the take.")
+                item.setToolTip(4, clip.asset_id or "Generate this script on Speech, then attach the take.")
                 item.setData(0, Qt.ItemDataRole.UserRole, ("clip", clip.id))
                 row.addChild(item)
                 if selected == clip.id:
@@ -498,19 +505,25 @@ class ProjectEditorDialog(QDialog):
         if ok and name.strip():
             self._mutate(lambda: self.session.add_track(kind, name.strip()))
 
-    def add_sound(self):
+    def add_sound(self, asset=None):
+        """Add a kept sound; with no `asset`, pick one (Sounds' Add to Studio passes it)."""
         if self.import_worker is not None or self.worker is not None:
             QMessageBox.information(self, "Project", "Finish the current media operation first.")
             return
-        assets = self.owner.sound_library.assets
-        if not assets:
-            QMessageBox.information(self, "Sounds", "Keep a sound on the Sounds page first.")
-            return
-        labels = [f"{a.name}  |  {a.id}" for a in assets]
-        label, ok = QInputDialog.getItem(self, "Add saved sound", "Sound", labels, 0, False)
-        if not ok:
-            return
-        asset = assets[labels.index(label)]
+        if asset is None:
+            assets = self.owner.sound_library.assets
+            if not assets:
+                QMessageBox.information(self, "Sounds", "Keep a sound on the Sounds page first.")
+                return
+            # Names only (no internal ids); a repeated name gets a number.
+            labels, seen = [], {}
+            for a in assets:
+                seen[a.name] = seen.get(a.name, 0) + 1
+                labels.append(a.name if seen[a.name] == 1 else f"{a.name} ({seen[a.name]})")
+            label, ok = QInputDialog.getItem(self, "Add saved sound", "Sound", labels, 0, False)
+            if not ok:
+                return
+            asset = assets[labels.index(label)]
         selection = self._selected()
         project_id = self.session.project.id
         revision = self.session.project.revision
@@ -591,7 +604,7 @@ class ProjectEditorDialog(QDialog):
         self._mutate(lambda: self.session.apply(change))
 
     def add_latest_take(self):
-        """Attach the take Create made most recently (to the selected script clip, if any)."""
+        """Attach the take Speech made most recently (to the selected script clip, if any)."""
         latest = self.owner.current_audio_file
         if not latest or not os.path.isfile(latest):
             QMessageBox.information(self, "Narration", "Generate narration in Create first. This editor "
@@ -873,6 +886,12 @@ class ProjectEditorDialog(QDialog):
         for job in (self.peak_worker, self.preview_worker):
             if job is not None:
                 job.wait(10000)
+
+    def keyPressEvent(self, event):
+        if self.embedded and event.key() == Qt.Key.Key_Escape:
+            event.ignore()          # a page doesn't close on Esc
+            return
+        super().keyPressEvent(event)
 
     def reject(self):
         if self.worker is not None or self.import_worker is not None:

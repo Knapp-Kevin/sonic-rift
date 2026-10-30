@@ -53,7 +53,7 @@ class Library:
         self.voice_search.textChanged.connect(lambda _text: self.render_voice_tiles())
         library_header.addWidget(self.voice_search)
         library_layout.addLayout(library_header)
-        library_hint = QLabel("Click a voice to use it on Create. New voices start under New voice: "
+        library_hint = QLabel("Click a voice to use it on Speech. New voices start under New voice: "
                               "record, add a file, or design one.")
         library_hint.setObjectName("Muted")
         library_hint.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)

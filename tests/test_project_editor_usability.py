@@ -66,8 +66,8 @@ class WindowBehaviour(unittest.TestCase):
     def test_editor_is_not_modal_and_the_app_closes_it_first(self):
         generate = (ROOT / "this_voice_thing/ui/pages/generate.py").read_text(encoding="utf-8")
         opener = generate[generate.index("def open_project_editor"):generate.index("def _project_editor_closed")]
-        self.assertNotIn(".exec()", opener)          # Create must stay usable while a project is open
-        self.assertIn("setModal(False)", opener)
+        self.assertNotIn(".exec()", opener)          # Speech must stay usable while a project is open
+        self.assertIn("self.show_page(self.PAGE_PROJECT)", opener)   # the Studio is a page, not a modal
         window = (ROOT / "this_voice_thing/ui/main_window.py").read_text(encoding="utf-8")
         close = window[window.index("def closeEvent"):]
         self.assertLess(close.index("close_project_editor()"), close.index("save_app_settings()"))

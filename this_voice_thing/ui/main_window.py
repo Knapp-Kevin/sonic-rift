@@ -5,7 +5,7 @@ import os
 import sys
 
 import torch
-from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
 from PySide6.QtWidgets import (
@@ -76,7 +76,7 @@ from this_voice_thing.ui.widgets import install_wheel_guard
 
 
 class SidebarDelegate(QStyledItemDelegate):
-    """Paints sidebar group headings (TOOLS, SETUP) as small accent-coloured labels; the
+    """Paints sidebar group headings (MAKE, PERFORM, SETUP) as small muted labels; the
     stylesheet colours every item the same, so headings are drawn here instead."""
 
     def paint(self, painter, option, index):
@@ -84,7 +84,7 @@ class SidebarDelegate(QStyledItemDelegate):
             return super().paint(painter, option, index)
         painter.save()
         painter.setFont(index.data(Qt.ItemDataRole.FontRole) or option.font)
-        painter.setPen(QColor(ui_theme.current()["accent"]))
+        painter.setPen(QColor(ui_theme.current()["muted"]))
         rect = option.rect.adjusted(14, 0, -8, -6)
         painter.drawText(rect, int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom), index.data())
         painter.restore()
@@ -205,14 +205,17 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
                 "the Models page.")
         QTimer.singleShot(0, self.restart_api_server)
 
-    # Pages in the stack, in sidebar order. The sidebar is grouped by what you're doing:
-    # make things (Create, Voices, Sounds), perform them (Live), tools, then setup.
-    PAGE_GENERATE, PAGE_VOICE, PAGE_SOUNDSCAPE, PAGE_LIVE_VOICE, PAGE_TRANSCRIBE, PAGE_MODEL, PAGE_ADVANCED = range(7)
-    PAGE_STUDIO = "studio"        # the New voice tab of Voices
+    # Pages in the stack (build order). The sidebar is grouped by what you're doing: the Studio
+    # brings everything together; MAKE holds the generators (each keeps its own page); PERFORM
+    # plays live; SETUP is models and settings.
+    PAGE_GENERATE, PAGE_VOICE, PAGE_SOUNDSCAPE, PAGE_LIVE_VOICE, PAGE_TRANSCRIBE, PAGE_MODEL, PAGE_ADVANCED, \
+        PAGE_PROJECT = range(8)
+    PAGE_STUDIO = "studio"        # the New voice tab of Voices (the voice studio), not the Studio page
     PAGE_LOG = PAGE_ADVANCED      # the log is a card on Settings
-    SIDEBAR = (("Create", PAGE_GENERATE), ("Voices", PAGE_VOICE), ("Sounds", PAGE_SOUNDSCAPE),
-               ("Live", PAGE_LIVE_VOICE),
-               ("Tools", None), ("Transcribe", PAGE_TRANSCRIBE),
+    SIDEBAR = (("Studio", PAGE_PROJECT),
+               ("Make", None), ("Speech", PAGE_GENERATE), ("Sounds", PAGE_SOUNDSCAPE), ("Voices", PAGE_VOICE),
+               ("Transcribe", PAGE_TRANSCRIBE),
+               ("Perform", None), ("Live", PAGE_LIVE_VOICE),
                ("Setup", None), ("Models", PAGE_MODEL), ("Settings", PAGE_ADVANCED))
 
     def _make_card(self, title=None):
@@ -283,9 +286,9 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             if page is None:      # a group heading: not selectable, skipped by the arrow keys
                 item.setFlags(Qt.ItemFlag.NoItemFlags)
                 heading = QFont(self.sidebar.font())
-                heading.setPointSizeF(7.5)
+                heading.setPointSizeF(8)
                 heading.setBold(True)
-                heading.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 150)
+                heading.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 112)
                 item.setFont(heading)
                 # Taller row with the label at the bottom: space above separates the groups.
                 item.setSizeHint(QSize(0, 42))
@@ -326,6 +329,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self._build_transcribe_page()
         self._build_model_page()
         self._build_advanced_page()
+        self._build_project_page()     # the Studio: its own splitter, so it isn't wrapped in a scroll area
 
         self._make_pages_scroll()
         # Tab moves to the next control everywhere: in a text box it used to type a tab, so
@@ -347,6 +351,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             QSizePolicy.Policy.Fixed,
         )
         self.status_bar.setMinimumWidth(120)
+        self.status_bar.installEventFilter(self)     # re-elide when the bar is resized
         self.status_bar.setFixedHeight(self.status_bar.sizeHint().height() + 4)
         qt_status_bar.addWidget(self.status_bar, 1)
         self.model_load_progress = QProgressBar()
@@ -466,7 +471,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         minimum (Live alone needed 1560 x 1489 and pushed the window off the screen)."""
         for index in range(self.pages.count()):
             page = self.pages.widget(index)
-            if isinstance(page, QScrollArea):
+            if isinstance(page, QScrollArea) or page.property("noScroll"):
                 continue
             self.pages.removeWidget(page)
             scroll = QScrollArea()
@@ -552,6 +557,12 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         if compact_message.startswith("Status: "):
             compact_message = compact_message[len("Status: "):]
         self.status_bar.setToolTip(compact_message)
+        self._elide_status()
+
+    def _elide_status(self):
+        """Fit the whole message (kept in the tooltip) to the bar's current width. Eliding only
+        when a message arrived left it cut short if the window grew afterwards."""
+        compact_message = self.status_bar.toolTip()
         metrics = self.status_bar.fontMetrics()
         elided_message = metrics.elidedText(
             compact_message,
@@ -560,9 +571,16 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         )
         self.status_bar.setText(elided_message)
 
+    def eventFilter(self, watched, event):
+        if watched is getattr(self, "status_bar", None) and event.type() == QEvent.Type.Resize:
+            self._elide_status()
+        return super().eventFilter(watched, event)
+
     OPENAI_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"}
 
     def on_page_changed(self, page):
+        if page == self.PAGE_PROJECT:
+            self.ensure_project_editor()      # the Studio's editor is made on first visit
         if page == self.PAGE_LIVE_VOICE:
             self.refresh_live_voice_summary()
             self.refresh_live_audio_devices()

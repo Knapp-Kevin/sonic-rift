@@ -1,0 +1,150 @@
+"""The Studio: the project editor as a page of the main window, where output from Speech and
+Sounds comes together; plus the status bar keeping whole messages when the window grows."""
+
+import os
+import shutil
+import sys
+import tempfile
+import time
+import unittest
+from unittest.mock import patch
+
+import numpy as np
+import soundfile as sf
+
+sys.argv = ["main.py"]
+
+
+class StudioPage(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from PySide6.QtWidgets import QApplication
+        from this_voice_thing import paths
+        from this_voice_thing.ui import main_window
+        cls.app = QApplication.instance() or QApplication([])
+        cls.tmp = tempfile.mkdtemp()
+        with patch.object(paths, "ROOT", cls.tmp), \
+                patch.object(main_window.SonicRiftApp, "start_default_model_load", lambda self: None), \
+                patch.object(main_window.SonicRiftApp, "restart_api_server", lambda self: None):
+            cls.window = main_window.SonicRiftApp()
+        cls.window.output_directory = cls.tmp
+
+    @classmethod
+    def tearDownClass(cls):
+        editor = getattr(cls.window, "project_editor", None)
+        if editor is not None:
+            editor._mark_clean()
+        cls.window.close()
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def pump(self, condition, timeout=10):
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            self.app.processEvents()
+            if condition():
+                return True
+            time.sleep(0.01)
+        return False
+
+    def test_the_editor_is_a_page_not_a_window(self):
+        w = self.window
+        editor = w.open_project_editor()
+        self.assertEqual(w.pages.currentIndex(), w.PAGE_PROJECT)
+        self.assertFalse(editor.isWindow())
+        self.assertTrue(w.pages.widget(w.PAGE_PROJECT).isAncestorOf(editor))
+        self.assertIs(w.open_project_editor(), editor)               # one Studio
+
+    def test_the_sidebar_opens_a_working_studio(self):
+        w = self.window
+        w.show_page(w.PAGE_PROJECT)
+        self.assertIsNotNone(getattr(w, "project_editor", None))
+        self.assertTrue(w.pages.widget(w.PAGE_PROJECT).isAncestorOf(w.project_editor))
+
+    def test_esc_does_not_close_the_studio(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        w = self.window
+        editor = w.open_project_editor()
+        QTest.keyClick(editor, Qt.Key.Key_Escape)
+        self.app.processEvents()
+        self.assertIs(w.project_editor, editor)
+        self.assertFalse(editor.isHidden())
+
+    def test_unsaved_studio_edits_are_asked_about_even_from_another_page(self):
+        from PySide6.QtWidgets import QMessageBox
+        w = self.window
+        editor = w.open_project_editor()
+        editor.session.add_track("sound", "Ambience")
+        editor.refresh()
+        w.show_page(w.PAGE_GENERATE)                                   # Studio not showing
+        asked = []
+        with patch.object(QMessageBox, "question",
+                          lambda *a, **k: (asked.append(a[2]), QMessageBox.StandardButton.No)[1]):
+            self.assertFalse(w.close_project_editor())
+        self.assertTrue(asked)
+        self.assertIs(w.project_editor, editor)
+        editor.undo()
+        editor._mark_clean()
+
+    def test_speech_take_goes_to_the_studio(self):
+        w = self.window
+        path = os.path.join(self.tmp, "take.wav")
+        t = np.arange(24000) / 24000
+        sf.write(path, (0.2 * np.sin(2 * np.pi * 220 * t)).astype("float32"), 24000)
+        w.current_audio_file = path
+        w.output_log_listwidget.clear()
+        w.add_take_to_studio()
+        editor = w.project_editor
+        self.assertEqual(w.pages.currentIndex(), w.PAGE_PROJECT)
+        self.assertTrue(self.pump(lambda: editor.import_worker is None))
+        clips = [c for t in editor.session.project.tracks for c in t.clips]
+        self.assertEqual(len(clips), 1)
+        self.assertEqual((clips[0].kind, clips[0].frame_count), ("voice", 48000))
+        editor.undo()
+        editor._mark_clean()
+
+    def test_sounds_needs_a_selection(self):
+        from PySide6.QtWidgets import QMessageBox
+        w = self.window
+        shown = []
+        with patch.object(QMessageBox, "information", lambda *a, **k: shown.append(a[2])):
+            w.sound_asset_list.setCurrentItem(None)
+            w.add_sound_to_studio()
+        self.assertIn("Select a sound", shown[-1])
+
+    def test_picking_a_saved_sound_shows_names_not_ids(self):
+        source = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                   "this_voice_thing", "ui", "pages", "project_editor.py"), encoding="utf-8").read()
+        self.assertNotIn('f"{a.name}  |  {a.id}"', source)
+
+
+class StatusBarKeepsWholeMessages(unittest.TestCase):
+    def test_a_message_cut_short_is_shown_whole_when_the_bar_grows(self):
+        from PySide6.QtWidgets import QApplication
+        from this_voice_thing import paths
+        from this_voice_thing.ui import main_window
+        QApplication.instance() or QApplication([])
+        tmp = tempfile.mkdtemp()
+        try:
+            with patch.object(paths, "ROOT", tmp), \
+                    patch.object(main_window.SonicRiftApp, "start_default_model_load", lambda self: None), \
+                    patch.object(main_window.SonicRiftApp, "restart_api_server", lambda self: None):
+                w = main_window.SonicRiftApp()
+            from PySide6.QtCore import Qt
+            w.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)   # resize events need a shown window
+            w.show()
+            QApplication.processEvents()
+            message = "Kokoro voices is ready on the GPU, and this sentence is long enough to be cut short."
+            w.status_bar.resize(160, w.status_bar.height())
+            w.set_status_message(message)
+            self.assertNotEqual(w.status_bar.text(), message)
+            w.status_bar.resize(1400, w.status_bar.height())
+            QApplication.processEvents()
+            self.assertEqual(w.status_bar.text(), message)
+            w.close()
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    unittest.main()

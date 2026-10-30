@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtWidgets import QSlider
 
 from this_voice_thing.core import audio_effects
-from this_voice_thing.ui.widgets import set_empty_text
+from this_voice_thing.ui.widgets import set_empty_text, set_role
 
 
 class Player:
@@ -60,9 +60,15 @@ class Player:
         player_controls_layout.addWidget(self.playhead_slider, 1)
         player_controls_layout.addWidget(self.duration_label)
         player_layout.addLayout(player_controls_layout)
+        history_row = QHBoxLayout()
         history_label = QLabel("Generated files (double-click to play)")
         history_label.setObjectName("Muted")
-        player_layout.addWidget(history_label)
+        history_row.addWidget(history_label, 1)
+        to_studio = set_role(QPushButton("Add to Studio"), "tertiary")
+        to_studio.setToolTip("Put the selected take (or the latest one) on the Studio timeline.")
+        to_studio.clicked.connect(self.add_take_to_studio)
+        history_row.addWidget(to_studio)
+        player_layout.addLayout(history_row)
         self.output_log_listwidget = QListWidget()
         set_empty_text(self.output_log_listwidget, "Audio you generate appears here. Double-click to play it.")
         self.output_log_listwidget.itemDoubleClicked.connect(

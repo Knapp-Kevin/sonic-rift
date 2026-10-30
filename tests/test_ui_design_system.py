@@ -43,6 +43,8 @@ class WindowFits(unittest.TestCase):
         from PySide6.QtWidgets import QScrollArea
         w = self.window
         for index in range(w.pages.count()):
+            if index == w.PAGE_PROJECT:      # the Studio fits itself: a splitter, its timeline scrolls
+                continue
             self.assertIsInstance(w.pages.widget(index), QScrollArea, index)
 
     def test_status_bar_drops_the_status_prefix(self):

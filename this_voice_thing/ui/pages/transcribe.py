@@ -89,8 +89,8 @@ class TranscribePage:
         self.save_subtitles_button.clicked.connect(self.save_transcript_subtitles)
         result_row.addWidget(self.save_subtitles_button)
         result_row.addStretch(1)
-        send_button = self._link(QPushButton("Send to Create"))
-        send_button.setToolTip("Put this text on Create, to speak it with any voice.")
+        send_button = self._link(QPushButton("Send to Speech"))
+        send_button.setToolTip("Put this text on Speech, to speak it with any voice.")
         send_button.clicked.connect(self.send_transcript_to_generate)
         result_row.addWidget(send_button)
         text_layout_t.addLayout(result_row)
@@ -215,7 +215,7 @@ class TranscribePage:
         self.current_document_name = None
         self.document_label.setText("From Transcribe")
         self.show_page(self.PAGE_GENERATE)
-        self.set_status_message("Status: Transcript sent to Create.")
+        self.set_status_message("Status: Transcript sent to Speech.")
 
     def transcribe_voice_clip(self, voice):
         """Fill in a library clip's transcript (cloning models such as OmniVoice need one)."""
