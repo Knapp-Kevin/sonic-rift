@@ -1,7 +1,7 @@
 """The Studio: arrange speech, sounds and narration on one timeline and export the mix.
 
 A visual timeline (lanes, clip blocks with waveforms, playhead, mix preview) above the
-track list. Narration scripts can be rendered in place with the voice chosen in Create.
+track list. Narration scripts can be rendered in place with the voice chosen on Speech.
 Qt widgets only hold inputs; versioned project state lives in ProjectSession.
 """
 from copy import deepcopy
@@ -207,7 +207,7 @@ class ProjectEditorDialog(QDialog):
         self._button(add_actions, "Edit\u2026", self.edit_selected)
         self.narrate_button = self._button(add_actions, "Generate narration", self.generate_narration)
         self.narrate_button.setToolTip("Render the selected narration script with the voice and settings "
-                                       "chosen in Create, and put the take on that clip.")
+                                       "chosen on Speech, and put the take on that clip.")
         add_actions.addWidget(MenuButton("Selection", [
             ("Mute / unmute track", self.toggle_track_mute),
             ("Edit narration script\u2026", self.edit_narration),
@@ -630,8 +630,8 @@ class ProjectEditorDialog(QDialog):
         """Attach the take Speech made most recently (to the selected script clip, if any)."""
         latest = self.owner.current_audio_file
         if not latest or not os.path.isfile(latest):
-            QMessageBox.information(self, "Narration", "Generate narration in Create first. This editor "
-                                    "can stay open while you do.")
+            QMessageBox.information(self, "Narration", "Make a take on Speech first, or select a script "
+                                    "here and use Generate narration.")
             return
         self.add_voice_take(latest, text=getattr(self.owner, "take_texts", {}).get(os.path.abspath(latest), ""))
 
@@ -766,7 +766,7 @@ class ProjectEditorDialog(QDialog):
         thread.start()
         self.narrate_button.setText("Cancel narration")
         self.note.setText(f"Generating narration for \u201c{self._clip_label(clip)}\u201d with the voice chosen "
-                          "in Create. You can keep editing; Cancel narration stops it.")
+                          "on Speech. You can keep editing; Cancel narration stops it.")
 
     def cancel_narration(self):
         job = self.narration_job
@@ -796,6 +796,15 @@ class ProjectEditorDialog(QDialog):
         if job["cancelled"] or (thread is not None and thread.partial_info):
             job["cancelled"] = True
             self.note.setText("Narration cancelled. Nothing was attached.")
+            _remove_render(output_path)
+            return
+        stale = ("A different project was opened while it was generating, so the new take wasn't attached."
+                 if job["serial"] != self.session_serial else
+                 generated_take_target(self.session.project, job["project_id"], job["clip_id"],
+                                       job["text"], job["previous_asset_id"])[1])
+        if stale:                                # nothing to attach it to: don't import it at all
+            job["cancelled"] = True
+            self.note.setText(stale)
             _remove_render(output_path)
             return
         project_rate = self.session.project.sample_rate
@@ -1099,8 +1108,8 @@ class ProjectEditorDialog(QDialog):
     def _narration_running(self):
         if self.narration_job is None:
             return False
-        QMessageBox.information(self, "Project", "Narration is still generating. Use Cancel narration, "
-                                "then close this editor.")
+        QMessageBox.information(self, "Studio", "Narration is still generating. Use Cancel narration "
+                                "and wait for it to stop first.")
         return True
 
     def reject(self):

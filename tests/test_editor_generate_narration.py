@@ -1,4 +1,4 @@
-"""#71: narration rendered in place from the project editor.
+"""#71: narration rendered in place in the Studio.
 
 The take must land on the same clip (same id, same start) as one undoable edit, never
 replace a take or script that changed meanwhile, attach nothing when cancelled, and keep
@@ -88,6 +88,83 @@ class NarrationProblem(unittest.TestCase):
         self.assertIn("no longer in the Voice Library", self.problem(self.owner(), "gone"))
 
 
+class CrossPathExclusivity(unittest.TestCase):
+    """#113 x #114: Studio narration and Voices > Make clip never share the model, and while
+    the Studio renders, Speech, Live, the local API, Voices and model switching all wait.
+    Uses the app's real gate methods on one owner, holding the lock the way the Studio does."""
+
+    def owner(self, clip_running=False):
+        from unittest import mock
+        from this_voice_thing.ui.pages.generation import Generation
+        from this_voice_thing.ui.pages.live_voice import LiveVoicePage
+        from this_voice_thing.ui.pages.models import ModelPage
+        from this_voice_thing.ui.pages.voice_use import VoiceUse
+        cls = type("Owner", (Generation, VoiceUse), {})
+        owner = cls.__new__(cls)
+        clip = mock.Mock(isRunning=mock.Mock(return_value=clip_running)) if clip_running else None
+        owner.__dict__.update(
+            is_generating=False, model=object(), model_is_loading=False, api_busy=False, studio_busy=False,
+            live_voice_busy=False, speak_thread=None, clip_thread=clip, active_voice_id="", messages=[],
+            update_model_details=lambda: None, voice_library=SimpleNamespace(get=lambda _id: None))
+        owner.set_status_message = owner.messages.append
+        owner.model_busy = lambda: ModelPage.model_busy(owner)
+        owner.model_busy_outside_live = lambda: LiveVoicePage.model_busy_outside_live(owner)
+        for name in ("generate_button", "preview_button", "open_document_button", "model_repo_combo"):
+            setattr(owner, name, _Control())
+        return owner
+
+    def test_make_clip_running_refuses_studio_narration(self):
+        owner = self.owner(clip_running=True)
+        self.assertIn("busy", owner.narration_generation_problem(""))
+
+    def test_studio_narration_refuses_make_clip(self):
+        from unittest import mock
+        from this_voice_thing.ui.pages.voice_use import VoiceUse
+        owner = self.owner()
+        owner.begin_editor_generation()
+        owner.voice_is_active = lambda _v: True
+        with mock.patch("this_voice_thing.ui.pages.voice_use.QMessageBox") as box,                 mock.patch("this_voice_thing.ui.pages.voice_use.MakeClipThread") as thread:
+            VoiceUse.make_voice_clip(owner, SimpleNamespace(name="Keeper"))
+        thread.assert_not_called()
+        self.assertIn("busy", box.information.call_args[0][2])
+
+    def test_studio_narration_refuses_speech_live_api_voices_and_model_switching(self):
+        from unittest import mock
+        from this_voice_thing.integrations import local_api
+        from this_voice_thing.ui.pages.api_server import ApiServer
+        from this_voice_thing.ui.pages.models import ModelPage
+        from this_voice_thing.ui.pages.studio import StudioPage
+        owner = self.owner()
+        owner.begin_editor_generation()
+        # Speech: Generate is disabled, and a click anyway leaves the lock alone
+        self.assertFalse(owner.generate_button.isEnabled())
+        owner.handle_generate_stop_toggle()
+        self.assertTrue(owner.is_generating)
+        self.assertIn("Studio", owner.messages[-1])
+        # Live
+        self.assertTrue(owner.model_busy_outside_live())
+        # local API
+        with self.assertRaises(local_api.ApiError) as raised:
+            ApiServer.api_begin(owner, {"model": None, "voice": None})
+        self.assertEqual(raised.exception.status, 503)
+        # Voices > New voice (clone / design / remix all start through studio_with_model)
+        started = []
+        owner.is_active_entry = lambda _e: True
+        StudioPage.studio_with_model(owner, {"label": "Qwen3 voice cloning"}, lambda: started.append(1))
+        self.assertEqual(started, [])
+        # model switching: the picker is disabled and Models' Load waits
+        self.assertFalse(owner.model_repo_combo.isEnabled())
+        owner.is_active_entry = lambda _e: False
+        owner.engine_installed = mock.Mock(return_value=True)
+        ModelPage.load_entry(owner, {"label": "Kokoro"})
+        owner.engine_installed.assert_not_called()
+        self.assertIn("Wait", owner.messages[-1])
+        # and everything is free again afterwards
+        owner.end_editor_generation()
+        self.assertFalse(owner.model_busy())
+        self.assertIsNone(owner.narration_generation_problem(""))
+
+
 class _Control:
     def __init__(self):
         self.enabled = True
@@ -124,7 +201,7 @@ class ModelLock(unittest.TestCase):
         owner.generate_button.setEnabled(True)          # whatever re-enables it ...
         owner.handle_generate_stop_toggle()             # ... a click doesn't touch the lock
         self.assertTrue(owner.is_generating)
-        self.assertIn("project editor", owner.messages[-1])
+        self.assertIn("Studio", owner.messages[-1])
         owner.end_editor_generation()
         self.assertFalse(owner.is_generating)
         self.assertTrue(owner.generate_button.isEnabled())
@@ -345,6 +422,31 @@ class EditorGeneratesNarration(unittest.TestCase):
         self.run_render()
         self.assertEqual(self.clip().asset_id, "")
         self.assertIn("different project", self.editor.note.text())
+
+    def test_a_project_switch_meanwhile_imports_nothing_and_cleans_up(self):
+        self.editor.generate_narration()
+        render = self.owner.renders[-1]
+        self.editor.session_serial += 1                               # New / Open while rendering
+        self.run_render()
+        media = Path(self.tmp.name) / "project_media" / "voice"
+        self.assertEqual(list(media.glob("*.wav")) if media.exists() else [], [])
+        self.assertEqual(list(Path(render.output_dir).glob("*.wav")), [])
+        self.assertEqual(self.owner.busy, ["begin", "end"])
+
+    def test_a_dragged_or_trimmed_clip_still_gets_its_take(self):
+        self.editor.generate_narration()
+        self.editor.session.update_clip("c1", start_frame=2 * 48000)  # moved on the timeline meanwhile
+        self.run_render()
+        self.assertEqual((self.clip().start_frame, self.clip().frame_count), (2 * 48000, 72000))
+        self.assertTrue(self.clip().asset_id)
+
+    def test_redo_after_undo_restores_the_generated_take(self):
+        self.editor.generate_narration()
+        self.run_render()
+        take = self.clip().asset_id
+        self.editor.undo()
+        self.editor.redo()
+        self.assertEqual(self.clip().asset_id, take)
 
     def test_missing_model_is_explained_and_nothing_starts(self):
         self.owner.problem = "Load a speech model in Models first (this window can stay open)."

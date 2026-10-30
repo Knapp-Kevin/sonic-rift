@@ -19,7 +19,7 @@ class Generation:
 
     def handle_generate_stop_toggle(self):
         if getattr(self, "editor_generation_active", False):
-            self.set_status_message("Status: The project editor is generating narration; cancel it there "
+            self.set_status_message("Status: The Studio is generating narration; cancel it there "
                                     "or wait for it to finish.")
             return
         if not self.is_generating:
@@ -113,7 +113,7 @@ class Generation:
         self.audio_generator_thread.start()
 
     def _generator_thread(self, text, output_dir, finishing, output_name=None, preview=False):
-        """A render of `text` with the voice and settings currently chosen in Create."""
+        """A render of `text` with the voice and settings currently chosen on Speech."""
         thread = AudioGeneratorThread(
             self.model, text,
             self.reference_path,
@@ -133,9 +133,9 @@ class Generation:
         thread.pronunciations = self.pronunciations
         return thread
 
-    # ---- narration for the project editor ----
+    # ---- narration for the Studio ----
     def narration_generation_problem(self, voice_id=""):
-        """Why the project editor can't render narration right now (None: it can).
+        """Why the Studio can't render narration right now (None: it can).
 
         `voice_id` is the voice a script was written for ("" = any): the take must not
         silently come out in a different voice."""
@@ -143,20 +143,20 @@ class Generation:
             return ("Load a speech model in Models first (this window can stay open)."
                     if self.model is None else "A model is still loading; try again when it's ready.")
         if self.model_busy_outside_live() or getattr(self, "live_voice_busy", False):
-            return "The voice model is busy (Create, Live, the local API or a preview). Try again when it's free."
+            return "The voice model is busy (Speech, Live, the local API, Voices or a preview). Try again when it's free."
         if voice_id and voice_id != (self.active_voice_id or ""):
             voice = self.voice_library.get(voice_id)
             if voice is None:
                 return ("This script was written for a voice that is no longer in the Voice Library. "
                         "Edit the script to use the current voice, or restore that voice.")
             return (f"This script was written for the voice “{voice.name}”. "
-                    "Pick that voice in Create, then generate again.")
+                    "Pick that voice on Speech, then generate again.")
         return None
 
     def narration_generator(self, text, output_dir):
-        """A ready (not started) render of one narration script for the project editor.
+        """A ready (not started) render of one narration script for the Studio.
 
-        Uses Create's voice and settings but never changes Create's text, last take or player.
+        Uses Speech's voice and settings but never changes Speech's text, last take or player.
         Always WAV and no captions: the take is imported into project media afterwards."""
         problem = self.prepare_qwen_generation(text)
         if problem:
@@ -165,14 +165,14 @@ class Generation:
         return self._generator_thread(text, output_dir, finishing, output_name="narration")
 
     def begin_editor_generation(self):
-        """The model is in use by the project editor: Create, Live, the API and model
-        switching all see `is_generating` and wait."""
+        """The model is in use by the Studio: Speech, Live, the API, Voices (Make clip and New
+        voice) and model switching all see `is_generating` and wait."""
         self.is_generating = True
         self.editor_generation_active = True
         for control in (self.generate_button, self.preview_button, self.open_document_button,
                         self.model_repo_combo):
             control.setEnabled(False)
-        self.set_status_message("Status: Generating narration for the project editor…")
+        self.set_status_message("Status: Generating narration in the Studio…")
 
     def end_editor_generation(self):
         if not getattr(self, "editor_generation_active", False):
