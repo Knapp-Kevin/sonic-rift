@@ -1431,7 +1431,7 @@ class LiveVoicePage:
         )
 
     def model_busy_outside_live(self):
-        """Another job is using the model (load, Speech, the API, New voice, Hear it, Make clip).
+        """Another job is using the model (load, Generate, the API, the Studio, Hear it, Make clip).
         Live's own run doesn't count, so lines can still queue while it speaks."""
         speak = getattr(self, "speak_thread", None)
         clip = getattr(self, "clip_thread", None)

@@ -191,7 +191,7 @@ Windows remains the primary maintained path. Installer decisions are written to 
 
 ## Screenshots
 
-Captured from the running app (build `cd9e030`, Windows 11) during one demo session with fictional content and built-in voices. Details, alt text and checksums: [docs/marketing](docs/marketing/README.md).
+Captured from the running app (build `4ea641f`, Windows 11) during one demo session with fictional content and built-in voices. Details, alt text and checksums: [docs/marketing](docs/marketing/README.md).
 
 ![The Studio: an ocean bed from Sounds and two narration takes from Speech arranged on one timeline](docs/marketing/screenshots/sonic-rift-studio-dark.png)
 
