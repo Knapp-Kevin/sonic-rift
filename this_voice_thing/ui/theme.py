@@ -7,7 +7,7 @@ deep navy; amber is reserved for warnings and caution (uncertain licenses,
 tight hardware, things needing attention), red for errors, green for success.
 
 Depth and texture are painted by a few small widgets (cards with soft
-shadows, a grained page background, a gradient sidebar) instead of
+shadows, sound-wave page backgrounds, a gradient sidebar) instead of
 QGraphicsDropShadowEffect, which renders whole subtrees offscreen and makes
 text fields and lists slow and glitchy.
 """
@@ -18,7 +18,7 @@ import numpy as np
 
 from this_voice_thing import paths
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
-from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPalette, QPen, QPixmap
+from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QFrame, QWidget
 
 APP_NAME = "Sonic Rift"
@@ -255,15 +255,87 @@ class CardFrame(QFrame):
         painter.end()
 
 
+SONIC_SCENES = {
+    # frequency, phase, centreline. One visual family, subtle differences per workflow.
+    "studio": (1.0, 0.0, 0.46), "speech": (0.77, -0.35, 0.49),
+    "sounds": (1.14, 0.48, 0.56), "voices": (0.69, 0.12, 0.46),
+    "clone": (0.86, 0.65, 0.50), "design": (1.16, 0.90, 0.46),
+    "remix": (1.27, -0.65, 0.51), "transcribe": (0.70, -0.40, 0.44),
+    "live": (1.40, 0.20, 0.50), "neutral": (0.48, 0.05, 0.51),
+}
+
+
+def _paint_sonic_waves(painter, rect, colors, scene):
+    """Stable, subtle wave contours: no grain, timers, external files or image effects."""
+    from math import pi, sin
+
+    frequency, phase, center = SONIC_SCENES[scene]
+    width, height = rect.width(), rect.height()
+    if width <= 0 or height <= 0:
+        return
+    dark = colors is DARK
+    blue = _color(colors["brand_blue"])
+    violet = _color(colors["brand_secondary"])
+    cyan = _color(colors["accent"])
+    painter.save()
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setClipRect(rect)
+    # Broad rings near the edges read as sound propagation and echo.
+    for side, tint in ((-0.06, blue), (1.09, violet)):
+        for ring in range(9):
+            radius = (0.11 + 0.083 * ring) * min(width, height) * 1.6
+            ink = QColor(tint)
+            ink.setAlpha(max(3, (15 if dark else 19) - ring))
+            painter.setPen(QPen(ink, 0.8))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(QPointF(width * side, height * (center + 0.015)),
+                                radius, radius * 0.91)
+
+    # Layered harmonic paths. Profiles change the composition, not the app palette.
+    for layer in range(3):
+        count = 12 if layer == 1 else 9
+        tint = (cyan, blue, violet)[layer]
+        for track in range(count):
+            path = QPainterPath()
+            offset = (track - (count - 1) / 2) * 0.012
+            for step in range(85):
+                t = step / 84.0
+                wave = sin(2 * pi * (frequency * 1.18 * t + phase + layer * 0.21))
+                overtone = 0.28 * sin(2 * pi * (t * (2.3 + layer * 0.34) + phase * 0.7))
+                y = height * (center + (layer - 1) * 0.097 + offset +
+                              (0.032 + 0.024 * frequency) * (wave + overtone))
+                x = width * t
+                if step == 0:
+                    path.moveTo(x, y)
+                else:
+                    path.lineTo(x, y)
+            ink = QColor(tint)
+            ink.setAlpha(max(5, (22 if dark else 27) - abs(track - count / 2) * 2 - layer * 2))
+            painter.setPen(QPen(ink, 0.85))
+            painter.drawPath(path)
+    painter.restore()
+
+
 class TexturedArea(QWidget):
-    """Page background: soft gradient, fine grain, and the sidebar's cast shadow."""
+    """Paint a low-contrast acoustic field behind pages, without static noise."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.scene = "neutral"
+
+    def set_scene(self, scene):
+        if scene not in SONIC_SCENES:
+            raise ValueError(f"Unknown sonic background scene: {scene}")
+        if self.scene != scene:
+            self.scene = scene
+            self.update()
 
     def paintEvent(self, _event):
         c = _current
         painter = QPainter(self)
         rect = QRectF(self.rect())
         painter.fillRect(rect, _vertical(rect, c["page_top"], c["page_bottom"]))
-        painter.drawTiledPixmap(self.rect(), _grain(c))
+        _paint_sonic_waves(painter, rect, c, self.scene)
         edge = QLinearGradient(QPointF(0, 0), QPointF(12, 0))
         shade = _color(c["shadow"])
         shade.setAlphaF(c["shadow_strength"] * 0.45)
@@ -283,7 +355,7 @@ class SidebarPanel(QWidget):
         painter = QPainter(self)
         rect = QRectF(self.rect())
         painter.fillRect(rect, _vertical(rect, c["sidebar_top"], c["sidebar_bottom"]))
-        painter.drawTiledPixmap(self.rect(), _grain(c))
+        # Clean gradient; the former noise tile resembled television static.
         stroke = brand_gradient(0, 0, rect.width(), 0, c)
         stroke.setColorAt(1, _color(c["brand_tertiary"]))
         painter.fillRect(QRectF(0, 0, rect.width(), 2), stroke)
