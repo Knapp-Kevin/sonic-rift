@@ -3,10 +3,11 @@ design-system pieces every page shares (button roles, menu buttons, empty states
 
 from collections import deque
 
-from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import (QAbstractScrollArea, QAbstractSpinBox, QApplication, QComboBox, QDialog,
-                               QHBoxLayout, QLabel, QMenu, QSizePolicy, QSlider, QToolButton, QWidget)
+                               QHBoxLayout, QLabel, QMenu, QSizePolicy, QSlider, QToolButton, QVBoxLayout,
+                               QWidget)
 
 from this_voice_thing.ui import theme as ui_theme
 
@@ -196,7 +197,12 @@ class _EmptyState(QObject):
         for signal in self.signals:
             signal.connect(self.sync)
         view.destroyed.connect(self._detach)   # the model outlives the view while both are torn down
-        view.viewport().installEventFilter(self)
+        # A layout keeps the hint the viewport's size in C++. It used to be a Python event filter
+        # on the viewport, called for every paint and mouse event; a model-loading thread
+        # importing modules at the same moment crashed the app there (PySide's import hook).
+        layout = QVBoxLayout(view.viewport())
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.label)
         self.sync()
 
     def _detach(self, *_args):
@@ -207,14 +213,8 @@ class _EmptyState(QObject):
                 pass
         self.signals = ()
 
-    def eventFilter(self, watched, event):
-        if event.type() == QEvent.Type.Resize:
-            self.label.resize(watched.size())
-        return False
-
     def sync(self, *_args):
         try:
-            self.label.resize(self.view.viewport().size())
             self.label.setVisible(self.view.model().rowCount() == 0)
         except RuntimeError:   # the view is already gone (application shutdown)
             self._detach()
@@ -223,25 +223,37 @@ class _EmptyState(QObject):
 class WheelGuard(QObject):
     """Pages scroll with the wheel. Without this, wheeling over a combo box, spin box or slider
     that isn't focused changes its value (e.g. Live's Source) instead of scrolling the page.
-    Those controls take the wheel only once clicked or tabbed into."""
+    Those controls take the wheel only once clicked or tabbed into.
 
-    def eventFilter(self, watched, event):
-        if event.type() != QEvent.Type.Wheel or not isinstance(watched, (QComboBox, QAbstractSpinBox, QSlider)):
-            return False
-        if watched.hasFocus():
-            return False
-        parent = watched.parentWidget()
+    It overrides wheelEvent on those control classes, so Python runs only for wheel events. It
+    used to be an application-wide event filter: Python for every event in the app. With an
+    engine rendering on another thread, that filter is where the app crashed (access violation),
+    reproducibly in voice renders; without it the same renders complete."""
+
+
+_GUARDED_CONTROLS = (QComboBox, QAbstractSpinBox, QSlider)
+
+
+def _guarded_wheel(original):
+    def wheelEvent(self, event):
+        if self.hasFocus():
+            return original(self, event)
+        parent = self.parentWidget()
         while parent is not None and not isinstance(parent, QAbstractScrollArea):
             parent = parent.parentWidget()
         if parent is not None:
             QApplication.sendEvent(parent.viewport(), event)
-        return True
+        else:
+            event.ignore()
+    wheelEvent.sonic_rift_guard = True
+    return wheelEvent
 
 
 def install_wheel_guard(app):
-    guard = WheelGuard(app)
-    app.installEventFilter(guard)
-    return guard
+    for control in _GUARDED_CONTROLS:
+        if not getattr(control.wheelEvent, "sonic_rift_guard", False):
+            control.wheelEvent = _guarded_wheel(control.wheelEvent)
+    return WheelGuard(app)
 
 
 def set_empty_text(view, text):

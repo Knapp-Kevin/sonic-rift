@@ -1,16 +1,20 @@
 """The Generate page: the text and delivery cards, sliders and language options."""
 
+import os
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QComboBox
 from PySide6.QtWidgets import QGridLayout
 from PySide6.QtWidgets import QHBoxLayout
 from PySide6.QtWidgets import QLabel
 from PySide6.QtWidgets import QMenu
+from PySide6.QtWidgets import QMessageBox
 from PySide6.QtWidgets import QProgressBar
 from PySide6.QtWidgets import QPushButton
 from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtWidgets import QSpinBox
 from PySide6.QtWidgets import QTextEdit
+from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtWidgets import QWidget
 
 from this_voice_thing.ui import theme as ui_theme
@@ -36,7 +40,7 @@ class GeneratePage:
 
     def _build_generate_page(self):
         generate_page, generate_layout = self._make_page(
-            "Create", "Write or open your text, pick a voice and delivery, then generate.")
+            "Speech", "Write or open your text, pick a voice and delivery, then generate.")
 
         voice_row = QHBoxLayout()
         voice_row.setContentsMargins(ui_theme.SHADOW, 0, ui_theme.SHADOW, 2)
@@ -58,35 +62,39 @@ class GeneratePage:
         voice_row.addWidget(self.model_repo_combo)
         generate_layout.addLayout(voice_row)
 
-        # Project mode is opt-in: keep the established single-text Create flow.
-        project_row = QHBoxLayout()
-        project_hint = QLabel("Layer narration and sounds in a saved project")
-        project_hint.setObjectName("Muted")
-        project_row.addWidget(project_hint, 1)
-        project_button = self._link(QPushButton("Project…"))
-        project_button.setToolTip("Arrange saved voice takes and sounds, then export a layered mix.")
-        project_button.clicked.connect(self.open_project_editor)
-        project_row.addWidget(project_button)
-        generate_layout.addLayout(project_row)
-
         generate_layout.addWidget(self._build_text_card(), 3)
         self._build_engine_rows()
         generate_layout.addWidget(self._build_delivery_card())
         generate_layout.addWidget(self._build_player_card(), 2)
         self.pages.addWidget(generate_page)
 
-    def open_project_editor(self):
-        """One editor window, not modal: Create stays usable to generate narration for it."""
-        from this_voice_thing.ui.pages.project_editor import ProjectEditorDialog
+    def _build_project_page(self):
+        """The Studio: where speech, sounds and voices from every page come together on one
+        timeline. The project editor lives here as a page (it used to be a separate window)."""
+        page = QWidget()
+        page.setProperty("noScroll", True)
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.project_page_layout = layout
+        self.pages.addWidget(page)
+
+    def ensure_project_editor(self):
+        """The Studio's editor, made the first time it's needed (or again after it closed)."""
         editor = getattr(self, "project_editor", None)
         if editor is None:
-            editor = ProjectEditorDialog(self)
-            editor.setModal(False)
+            from this_voice_thing.ui.pages.project_editor import ProjectEditorDialog
+            editor = ProjectEditorDialog(self, embedded=True)
             editor.finished.connect(self._project_editor_closed)
+            self.project_page_layout.addWidget(editor)
             self.project_editor = editor
-        editor.show()
-        editor.raise_()
-        editor.activateWindow()
+            editor.show()
+        return editor
+
+    def open_project_editor(self):
+        """Go to the Studio. Speech, Sounds and the rest stay usable meanwhile."""
+        self.ensure_project_editor()
+        self.show_page(self.PAGE_PROJECT)
+        return self.project_editor
 
     def _project_editor_closed(self, _result=0):
         editor, self.project_editor = getattr(self, "project_editor", None), None
@@ -94,12 +102,32 @@ class GeneratePage:
             editor.deleteLater()
 
     def close_project_editor(self):
-        """Ask an open project editor to close (it prompts for unsaved edits); False if it stays."""
+        """Ask the Studio to close (it prompts for unsaved edits and waits for running jobs);
+        False if it stays. It asks even when another page is showing."""
         editor = getattr(self, "project_editor", None)
-        if editor is None or not editor.isVisible():
+        if editor is None:
             return True
-        editor.close()
-        return not editor.isVisible()
+        return editor.close()
+
+    def add_take_to_studio(self):
+        """Speech -> Studio: the selected (or latest) take goes onto the timeline."""
+        item = self.output_log_listwidget.currentItem()
+        if item is None and self.output_log_listwidget.count():
+            item = self.output_log_listwidget.item(0)  # newest visible result, not a stale player path
+        path = item.data(Qt.ItemDataRole.UserRole) if item is not None else self.current_audio_file
+        if not path or not os.path.isfile(path):
+            QMessageBox.information(self, "Studio", "Generate a take first, or select one in the list.")
+            return
+        text = getattr(self, "take_texts", {}).get(os.path.abspath(path), "")
+        self.open_project_editor().add_voice_take(path, text=text)
+
+    def add_sound_to_studio(self):
+        """Sounds -> Studio: the selected kept sound goes onto the timeline."""
+        asset = self.selected_sound_asset()
+        if asset is None:
+            QMessageBox.information(self, "Studio", "Select a sound in the Sound library first.")
+            return
+        self.open_project_editor().add_sound(asset)
 
     def _build_text_card(self):
         text_card, text_card_layout = self._make_card()

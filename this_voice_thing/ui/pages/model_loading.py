@@ -102,6 +102,22 @@ class ModelLoading:
             self.model_repo_combo.setCurrentIndex(selected_index)
         self.model_repo_combo.blockSignals(False)
 
+    def show_loaded_model_in_picker(self):
+        """Speech's Model picker names the model that is loaded, however it was loaded (a voice
+        pick, the Models page, Voices), not the last one picked there."""
+        key = self.loaded_entry_key()
+        for index, entry in enumerate(self.get_visible_model_entries()):
+            if self.entry_key(entry) == key:
+                found = self.model_repo_combo.findData(index)
+                if found >= 0 and found != self.model_repo_combo.currentIndex():
+                    self.model_repo_combo.blockSignals(True)  # already loaded: nothing to load
+                    self.model_repo_combo.setCurrentIndex(found)
+                    self.model_repo_combo.blockSignals(False)
+                    self.selected_model_repo = entry["repo_id"]
+                    self.refresh_model_repo_tooltip()
+                    self.refresh_language_options()
+                return
+
     def get_selected_model_entry(self):
         visible_entries = self.get_visible_model_entries()
         selected_index = self.model_repo_combo.currentData()
@@ -240,6 +256,7 @@ class ModelLoading:
         self.refresh_models_page()
         self.update_engine_controls()
         self.after_voice_model_ready()
+        self.show_loaded_model_in_picker()  # last: the steps above rebuild the picker's list
         if self.system_has_nvidia_gpu and self.device_used == "cpu":
             details = self.cuda_runtime_issue or (
                 "This Python environment is using a CPU-only PyTorch build."

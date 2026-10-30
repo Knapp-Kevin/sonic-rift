@@ -1,4 +1,4 @@
-"""The Studio page: make a voice once (clone, design or remix), refine it, and save it
+"""Voices › New voice (the voice studio): make a voice once (clone, design or remix), refine it, and save it
 frozen to the library, so every later render uses exactly that voice."""
 
 import os
@@ -48,7 +48,7 @@ ACTION_LABELS = {"clone": "Clone", "design": "Design", "remix": "Remix"}
 
 
 class StudioPage:
-    """The voice Studio. Mixed into ChatterboxApp."""
+    """The voice studio (Voices › New voice). Mixed into SonicRiftApp."""
 
     # ---------- layout ----------
 
@@ -337,6 +337,10 @@ class StudioPage:
             "e.g. a gruff old harbor master, low raspy voice, slow and deliberate")
         self.studio_action_button.setText(ACTION_LABELS[mode])
         self._fill_studio_engines()
+        if (hasattr(self, "background_area") and
+                self.pages.currentIndex() == self.PAGE_VOICE and
+                self.voices_tabs.currentIndex() == 1):
+            self.background_area.set_scene(mode)
 
     def studio_entries(self, mode=None):
         """Model entries that can do the mode: cloning, designing, or styled cloning (VoxCPM)."""
@@ -447,7 +451,7 @@ class StudioPage:
     def open_voice_in_studio(self, voice):
         path = self.voice_library.clip_path(voice)
         if not path or not os.path.exists(path):
-            QMessageBox.information(self, "Studio", f"{voice.name} has no clip to start from.")
+            QMessageBox.information(self, "New voice", f"{voice.name} has no clip to start from.")
             return
         self.studio_set_source(path, name=voice.name)
 
@@ -462,7 +466,7 @@ class StudioPage:
 
     def studio_transcribe_source(self):
         if self.studio_source is None:
-            QMessageBox.information(self, "Studio", "Record or open a clip first.")
+            QMessageBox.information(self, "New voice", "Record or open a clip first.")
             return
         path = self.studio_source.path
 
@@ -540,7 +544,7 @@ class StudioPage:
     def studio_with_model(self, entry, then):
         """Run `then` once `entry` is the loaded model, loading it first if needed."""
         if entry is None:
-            QMessageBox.information(self, "Studio", "There's no model for this yet. Add one on the Models page.")
+            QMessageBox.information(self, "New voice", "There's no model for this yet. Add one on the Models page.")
             return
         if self.model_busy():
             self.set_status_message("Status: Wait for the current load or generation to finish.")
@@ -580,7 +584,7 @@ class StudioPage:
             if error:
                 self.set_status_message("Status: New voice couldn't finish. See the log (Settings).")
                 print(f"Studio: {error}")
-                QMessageBox.warning(self, "Studio", error)
+                QMessageBox.warning(self, "New voice", error)
                 return
             on_result(result)
 
@@ -603,20 +607,20 @@ class StudioPage:
         description = self.studio_description_input.text().strip()
         source = self.studio_source
         if mode in ("design", "remix") and not description:
-            QMessageBox.information(self, "Studio", "Describe the voice first." if mode == "design" else
+            QMessageBox.information(self, "New voice", "Describe the voice first." if mode == "design" else
                                     "Say how to change the voice, e.g. older, slower and warmer.")
             return
         if mode in ("clone", "remix") and source is None:
-            QMessageBox.information(self, "Studio", "Record, open or pick a clip to start from first.")
+            QMessageBox.information(self, "New voice", "Record, open or pick a clip to start from first.")
             return
         if entry is not None and entry.get("backend") == "omnivoice":
             if mode == "design":
                 problem = omnivoice_engine.check_description(description)
                 if problem:
-                    QMessageBox.information(self, "Studio", problem)
+                    QMessageBox.information(self, "New voice", problem)
                     return
             elif not source.text:
-                QMessageBox.information(self, "Studio", "OmniVoice needs the clip's words: fill in Says "
+                QMessageBox.information(self, "New voice", "OmniVoice needs the clip's words: fill in Says "
                                         "(Transcribe does it for you).")
                 return
         directory = self.studio_dir
@@ -755,7 +759,7 @@ class StudioPage:
         voice.clip = self.voice_library.to_stored(path)
         self.voice_library.add(voice)
         self.render_voice_tiles()
-        self.set_status_message(f"Status: Saved {voice.name}. It's frozen: pick it in Voices or on Create "
+        self.set_status_message(f"Status: Saved {voice.name}. It's frozen: pick it in Voices or on Speech "
                                 "and it sounds the same every time.")
 
     def _voxcpm_design_entry(self):

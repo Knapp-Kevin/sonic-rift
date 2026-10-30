@@ -21,7 +21,7 @@ class TimelineView(QWidget):
     clipPlaced = Signal(str, int, int, int)   # drag finished: clip id, start, length, source offset (frames)
 
     RULER = 26
-    LANE = 56
+    LANE = 72
     HEADER = 148
     MIN_SECONDS = 10.0
     EDGE = 7                          # px at each end of a clip that trims instead of moving
@@ -96,7 +96,9 @@ class TimelineView(QWidget):
         c = ui_theme.current()
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.fillRect(self.rect(), QColor(c["surface_alt"]))
+        # The card surface with a frame, like the track list below it: on the light theme the
+        # timeline's old fill matched the page, so it had no visible edge.
+        painter.fillRect(self.rect(), QColor(c["surface"]))
         self._hits = []
         self._paint_ruler(painter, c)
         if self.project:
@@ -108,8 +110,12 @@ class TimelineView(QWidget):
             painter.drawLine(QPointF(x, 0), QPointF(x, self.height()))
         if self.project is None or not self.project.tracks:
             painter.setPen(QColor(c["muted"]))
+            painter.setFont(self.font())            # the ruler's small font was still set
             painter.drawText(self.rect().adjusted(self.HEADER, self.RULER, 0, 0), Qt.AlignmentFlag.AlignCenter,
                              "Tracks appear here as you add sounds and narration.")
+        painter.setPen(QColor(c["border"]))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 7, 7)
         painter.end()
 
     def _paint_ruler(self, painter, c):

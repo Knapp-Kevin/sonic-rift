@@ -255,7 +255,7 @@ class ModelPage:
             f"{entry['label']}  ({repo})",
             engine.description,
             entry.get("notes", ""),
-            "" if entry.get("enabled", True) else "Hidden from the model switcher on Create.",
+            "" if entry.get("enabled", True) else "Hidden from the model switcher on Speech.",
             f"Speed {'measured from your runs' if measured else 'estimated until you generate with it'}.",
             "" if active else "Click to load. Right-click for more.") if line)
         needs = self.hardware_line(entry.get("backend"), repo)

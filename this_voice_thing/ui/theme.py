@@ -7,18 +7,17 @@ deep navy; amber is reserved for warnings and caution (uncertain licenses,
 tight hardware, things needing attention), red for errors, green for success.
 
 Depth and texture are painted by a few small widgets (cards with soft
-shadows, a grained page background, a gradient sidebar) instead of
+shadows, sound-wave page backgrounds, a gradient sidebar) instead of
 QGraphicsDropShadowEffect, which renders whole subtrees offscreen and makes
 text fields and lists slow and glitchy.
 """
 
 import os
 
-import numpy as np
 
 from this_voice_thing import paths
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt
-from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPalette, QPen, QPixmap
+from PySide6.QtCore import QPoint, QPointF, QRectF, QSize, Qt
+from PySide6.QtGui import QColor, QIcon, QImage, QLinearGradient, QPainter, QPainterPath, QPalette, QPen
 from PySide6.QtWidgets import QApplication, QFrame, QWidget
 
 APP_NAME = "Sonic Rift"
@@ -72,7 +71,6 @@ DARK = {
     "button_top": "#1d2642", "button_bottom": "#172038",
     "shadow": "#000000", "shadow_strength": 0.6,
     "edge_highlight": "#ffffff12",
-    "grain_color": "#ffffff", "grain_alpha": 5,
 }
 
 LIGHT = {
@@ -103,14 +101,12 @@ LIGHT = {
     "button_top": "#ffffff", "button_bottom": "#eef2f8",
     "shadow": "#1b2a4a", "shadow_strength": 0.14,
     "edge_highlight": "#ffffff",
-    "grain_color": "#1b2a4a", "grain_alpha": 8,
 }
 
 ASSETS_DIR = paths.ASSETS_DIR
 SHADOW = 7          # pixels around each card reserved for its painted shadow
 CARD_RADIUS = 10
 _current = DARK
-_grain_cache = {}
 
 
 def _asset(name):
@@ -199,22 +195,6 @@ def contrast_ratio(foreground, background):
     return (lighter + 0.05) / (darker + 0.05)
 
 
-def _grain(colors):
-    """A small tile of random, very faint specks for a matte texture."""
-    key = (colors["grain_color"], colors["grain_alpha"])
-    if key not in _grain_cache:
-        size = 160
-        rng = np.random.default_rng(7)
-        alpha = (rng.random((size, size)) ** 3 * colors["grain_alpha"] * 2).astype(np.uint8)
-        base = _color(colors["grain_color"])
-        argb = np.zeros((size, size, 4), dtype=np.uint8)
-        argb[..., 0], argb[..., 1], argb[..., 2] = base.blue(), base.green(), base.red()
-        argb[..., 3] = alpha
-        image = QImage(argb.data, size, size, size * 4, QImage.Format.Format_ARGB32).copy()
-        _grain_cache[key] = QPixmap.fromImage(image)
-    return _grain_cache[key]
-
-
 def _vertical(rect, top, bottom):
     gradient = QLinearGradient(QPointF(rect.left(), rect.top()), QPointF(rect.left(), rect.bottom()))
     gradient.setColorAt(0, _color(top))
@@ -247,6 +227,10 @@ class CardFrame(QFrame):
             painter.drawRoundedRect(body.adjusted(-spread, -spread + 3, spread, spread + 3),
                                     CARD_RADIUS + spread, CARD_RADIUS + spread)
         painter.setBrush(_vertical(body, c["surface_top"], c["surface_bottom"]))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(body.adjusted(0.5, 0.5, -0.5, -0.5), CARD_RADIUS, CARD_RADIUS)
+        self._paint_scene(painter, body, c)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(QPen(_color(c["border"]), 1))
         painter.drawRoundedRect(body.adjusted(0.5, 0.5, -0.5, -0.5), CARD_RADIUS, CARD_RADIUS)
         painter.setPen(QPen(_color(c["edge_highlight"]), 1))
@@ -254,16 +238,120 @@ class CardFrame(QFrame):
                          QPointF(body.right() - CARD_RADIUS, body.top() + 1.5))
         painter.end()
 
+    def _paint_scene(self, painter, body, colors):
+        """The page's wave field, faint, on this card's surface. It is anchored to the page's
+        content (so it lines up across cards and scrolls with them) and sized to the visible
+        page area. Inputs, lists and the timeline paint over it, so it never sits under text
+        you edit."""
+        area, page = None, None
+        widget = self.parentWidget()
+        while widget is not None:
+            if page is None and widget.parentWidget() is not None \
+                    and widget.parentWidget().objectName() == "qt_scrollarea_viewport":
+                page = widget
+            if isinstance(widget, TexturedArea):
+                area = widget
+                break
+            widget = widget.parentWidget()
+        if area is None:
+            return
+        anchor = page or area
+        offset = self.mapTo(anchor, QPoint(0, 0))
+        clip = QPainterPath()
+        clip.addRoundedRect(body.adjusted(1, 1, -1, -1), CARD_RADIUS, CARD_RADIUS)
+        painter.save()
+        painter.setClipPath(clip)
+        painter.translate(-offset.x(), -offset.y())
+        _paint_sonic_waves(painter, QRectF(0, 0, area.width(), area.height()), colors, area.scene,
+                           CARD_WAVE_STRENGTH)
+        painter.restore()
+
+
+SONIC_SCENES = {
+    # frequency, phase, centreline. One visual family, subtle differences per workflow.
+    "studio": (1.0, 0.0, 0.46), "speech": (0.77, -0.35, 0.49),
+    "sounds": (1.14, 0.48, 0.56), "voices": (0.69, 0.12, 0.46),
+    "clone": (0.86, 0.65, 0.50), "design": (1.16, 0.90, 0.46),
+    "remix": (1.27, -0.65, 0.51), "transcribe": (0.70, -0.40, 0.44),
+    "live": (1.40, 0.20, 0.50), "neutral": (0.48, 0.05, 0.51),
+}
+
+
+CARD_WAVE_STRENGTH = 0.55     # the field as seen on a card's surface, relative to the page
+
+
+def _paint_sonic_waves(painter, rect, colors, scene, strength=1.0):
+    """Stable, subtle wave contours: no grain, timers, external files or image effects.
+    `strength` scales every line's opacity (cards show the field fainter than the page)."""
+    from math import pi, sin
+
+    frequency, phase, center = SONIC_SCENES[scene]
+    width, height = rect.width(), rect.height()
+    if width <= 0 or height <= 0:
+        return
+    dark = colors is DARK
+    blue = _color(colors["brand_blue"])
+    violet = _color(colors["brand_secondary"])
+    cyan = _color(colors["accent"])
+    painter.save()
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setClipRect(rect, Qt.ClipOperation.IntersectClip)
+    # A few faint rings off one edge: sound spreading out. Sparse, so they never form a mesh.
+    for ring in range(4):
+        radius = (0.32 + 0.21 * ring) * min(width, height)
+        ink = QColor(violet if ring % 2 else blue)
+        ink.setAlpha(round((9 if dark else 12) * strength))
+        painter.setPen(QPen(ink, 1.0))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(QPointF(width * 1.04, height * center), radius, radius * 0.9)
+
+    # Long, gentle, well-spaced contours like the brand banner: three families of four lines.
+    # Each page's profile (frequency, phase, centreline) changes the composition; the palette
+    # stays the app's.
+    for layer in range(3):
+        tint = (cyan, blue, violet)[layer]
+        for track in range(4):
+            path = QPainterPath()
+            offset = (track - 1.5) * 0.026
+            for step in range(121):
+                t = step / 120.0
+                wave = sin(2 * pi * (frequency * 0.9 * t + phase + layer * 0.17 + track * 0.035))
+                overtone = 0.22 * sin(2 * pi * (t * (1.7 + layer * 0.3) + phase * 0.7))
+                y = height * (center + (layer - 1) * 0.11 + offset +
+                              (0.045 + 0.025 * frequency) * (wave + overtone))
+                if step == 0:
+                    path.moveTo(width * t, y)
+                else:
+                    path.lineTo(width * t, y)
+            ink = QColor(tint)
+            ink.setAlpha(round(((34 if dark else 40) - abs(track - 1.5) * 7 - layer * 3) * strength))
+            painter.setPen(QPen(ink, 1.0))
+            painter.drawPath(path)
+    painter.restore()
+
 
 class TexturedArea(QWidget):
-    """Page background: soft gradient, fine grain, and the sidebar's cast shadow."""
+    """Paint a low-contrast acoustic field behind pages, without static noise."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.scene = "neutral"
+
+    def set_scene(self, scene):
+        if scene not in SONIC_SCENES:
+            raise ValueError(f"Unknown sonic background scene: {scene}")
+        if self.scene != scene:
+            self.scene = scene
+            self.update()
+            for card in self.findChildren(CardFrame):     # cards show the field too
+                card.update()
 
     def paintEvent(self, _event):
         c = _current
         painter = QPainter(self)
         rect = QRectF(self.rect())
         painter.fillRect(rect, _vertical(rect, c["page_top"], c["page_bottom"]))
-        painter.drawTiledPixmap(self.rect(), _grain(c))
+        _paint_sonic_waves(painter, rect, c, self.scene)
         edge = QLinearGradient(QPointF(0, 0), QPointF(12, 0))
         shade = _color(c["shadow"])
         shade.setAlphaF(c["shadow_strength"] * 0.45)
@@ -275,7 +363,7 @@ class TexturedArea(QWidget):
 
 
 class SidebarPanel(QWidget):
-    """Sidebar: darker gradient with grain, a crisp right edge, and a thin brand
+    """Sidebar: clean dark gradient, a crisp right edge, and a thin brand
     stroke along its top as the one decorative use of the full brand gradient."""
 
     def paintEvent(self, _event):
@@ -283,7 +371,7 @@ class SidebarPanel(QWidget):
         painter = QPainter(self)
         rect = QRectF(self.rect())
         painter.fillRect(rect, _vertical(rect, c["sidebar_top"], c["sidebar_bottom"]))
-        painter.drawTiledPixmap(self.rect(), _grain(c))
+        # Clean gradient; the former noise tile resembled television static.
         stroke = brand_gradient(0, 0, rect.width(), 0, c)
         stroke.setColorAt(1, _color(c["brand_tertiary"]))
         painter.fillRect(QRectF(0, 0, rect.width(), 2), stroke)

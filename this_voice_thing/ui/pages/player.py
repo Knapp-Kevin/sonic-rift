@@ -1,6 +1,8 @@
 """The output list and audio player under the Generate page."""
 
+from datetime import datetime
 import os
+import re
 
 from PySide6.QtCore import QUrl
 from PySide6.QtCore import Qt
@@ -16,7 +18,50 @@ from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtWidgets import QSlider
 
 from this_voice_thing.core import audio_effects
-from this_voice_thing.ui.widgets import set_empty_text
+from this_voice_thing.ui.widgets import set_empty_text, set_role
+
+_TAKE_NAME = re.compile(r"^(?P<prefix>.+?)_(?P<date>\d{8})_(?P<time>\d{6})_seed\d+(?P<suffix>_partial|_full_stitched)?"
+                        r"\.(?P<ext>\w+)$")
+
+
+def take_label(filename):
+    """A readable name for a generated file: "Take · 30 Oct, 02:45:05" (a document's name instead
+    of "Take" when it has one). Files keep their names on disk; other files show as they are."""
+    match = _TAKE_NAME.match(filename)
+    if not match:
+        return filename
+    try:
+        when = datetime.strptime(match["date"] + match["time"], "%Y%m%d%H%M%S")
+    except ValueError:
+        return filename
+    prefix = match["prefix"]
+    name = "Take" if prefix in ("chatterbox", "narration") else prefix
+    label = f"{name} \u00b7 {when.day} {when:%b}, {when:%H:%M:%S}"
+    if match["suffix"] == "_partial":
+        label += " \u00b7 stopped early"
+    if match["ext"].lower() != "wav":
+        label += f" \u00b7 {match['ext'].upper()}"
+    return label
+
+
+def history_take_labels(paths):
+    """Readable labels that distinguish renders created within the same second.
+
+    Assign a stable variation index by filename, independent of filesystem
+    enumeration order or modification times. Original filenames remain in tooltips.
+    """
+    groups = {}
+    for path in paths:
+        groups.setdefault(take_label(os.path.basename(path)), []).append(path)
+    labels = {}
+    for label, group in groups.items():
+        if len(group) == 1:
+            labels[group[0]] = label
+        else:
+            ordered = sorted(group, key=lambda p: (os.path.basename(p).casefold(), p.casefold()))
+            for number, path in enumerate(ordered, 1):
+                labels[path] = f"{label} · variation {number}/{len(group)}"
+    return labels
 
 
 class Player:
@@ -33,8 +78,12 @@ class Player:
         self.autoplay_checkbox.setChecked(True)
         player_header.addWidget(self.autoplay_checkbox)
         player_header.addStretch(1)
-        self.current_file_label = QLabel("Currently playing: None")
+        self.current_file_label = QLabel("No take selected")
         self.current_file_label.setObjectName("Muted")
+        self.current_file_label.setWordWrap(False)
+        # Long output/document names cannot widen the entire window.
+        self.current_file_label.setMinimumWidth(0)
+        self.current_file_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         player_header.addWidget(self.current_file_label)
         player_layout.addLayout(player_header)
         player_controls_layout = QHBoxLayout()
@@ -60,12 +109,19 @@ class Player:
         player_controls_layout.addWidget(self.playhead_slider, 1)
         player_controls_layout.addWidget(self.duration_label)
         player_layout.addLayout(player_controls_layout)
-        history_label = QLabel("Generated files (double-click to play)")
+        history_row = QHBoxLayout()
+        history_label = QLabel("Recent takes (Enter or double-click to play)")
         history_label.setObjectName("Muted")
-        player_layout.addWidget(history_label)
+        history_row.addWidget(history_label, 1)
+        to_studio = set_role(QPushButton("Add to Studio"), "tertiary")
+        to_studio.setToolTip("Add the selected take, or the newest result, to the Studio timeline.")
+        to_studio.clicked.connect(self.add_take_to_studio)
+        history_row.addWidget(to_studio)
+        player_layout.addLayout(history_row)
         self.output_log_listwidget = QListWidget()
         set_empty_text(self.output_log_listwidget, "Audio you generate appears here. Double-click to play it.")
-        self.output_log_listwidget.itemDoubleClicked.connect(
+        # Activated by Enter as well as a mouse double-click, unlike itemDoubleClicked.
+        self.output_log_listwidget.itemActivated.connect(
             self.play_selected_from_log)
         self.output_log_listwidget.setMinimumHeight(70)
         self.output_log_listwidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
@@ -73,14 +129,23 @@ class Player:
         return player_card
 
     def update_output_log(self):
+        selected = self.output_log_listwidget.currentItem()
+        selected_path = selected.data(Qt.ItemDataRole.UserRole) if selected is not None else None
         self.output_log_listwidget.clear()
         try:
-            files = sorted([os.path.join(self.output_directory, f)for f in os.listdir(
-                self.output_directory)if f.lower().endswith(audio_effects.AUDIO_EXTENSIONS)], key=os.path.getmtime, reverse=True)
+            files = sorted(
+                (os.path.join(self.output_directory, name)
+                 for name in os.listdir(self.output_directory)
+                 if name.lower().endswith(audio_effects.AUDIO_EXTENSIONS)),
+                key=lambda path: (-os.path.getmtime(path), path.casefold()))
+            labels = history_take_labels(files)
             for f_path in files:
-                item = QListWidgetItem(os.path.basename(f_path))
+                item = QListWidgetItem(labels[f_path])
+                item.setToolTip(os.path.basename(f_path))
                 item.setData(Qt.ItemDataRole.UserRole, f_path)
                 self.output_log_listwidget.addItem(item)
+                if f_path == selected_path:
+                    self.output_log_listwidget.setCurrentItem(item)
         except Exception as e:
             print(f"Error updating output log: {e}")
 
@@ -89,8 +154,8 @@ class Player:
         if file_path and os.path.exists(file_path):
             self.current_audio_file = file_path
             self.media_player.setSource(QUrl.fromLocalFile(file_path))
-            self.current_file_label.setText(
-                f"Playing from log: {os.path.basename(file_path)}")
+            self.current_file_label.setText(f"Playing: {item.text()}")
+            self.current_file_label.setToolTip(os.path.basename(file_path))
             self.play_pause_button.setText("Pause")
             self.media_player.play()
             self.play_pause_button.setEnabled(True)

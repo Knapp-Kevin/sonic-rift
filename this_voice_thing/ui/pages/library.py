@@ -53,7 +53,7 @@ class Library:
         self.voice_search.textChanged.connect(lambda _text: self.render_voice_tiles())
         library_header.addWidget(self.voice_search)
         library_layout.addLayout(library_header)
-        library_hint = QLabel("Click a voice to use it on Create. New voices start under New voice: "
+        library_hint = QLabel("Click a voice to use it on Speech. New voices start under New voice: "
                               "record, add a file, or design one.")
         library_hint.setObjectName("Muted")
         library_hint.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
@@ -112,7 +112,7 @@ class Library:
             title = {"": "All", "clip": "Clips", "preset": "Presets", "design": "Designed"}[key]
             self.voice_filter_tabs.setTabText(index, f"{title}  {counts[key]}" if counts[key] else title)
         empty = ("No voices match." if query or kind else
-                 "No voices yet. Record one, add a file, or save the voice you're using.")
+                 "No voices yet. Record one or add a file here, or make one under New voice.")
         self.voice_tiles.set_tiles([self.voice_tile(voice) for voice in voices], empty)
 
     def voice_tile(self, voice):

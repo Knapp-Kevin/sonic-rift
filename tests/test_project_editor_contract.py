@@ -51,8 +51,7 @@ class ProjectEditorContractTests(unittest.TestCase):
         path = ROOT / "this_voice_thing/ui/pages/generate.py"
         source = path.read_text(encoding="utf-8")
         ast.parse(source, filename=str(path))
-        self.assertIn("Project…", source)
-        self.assertIn("open_project_editor", source)
+        self.assertIn("def open_project_editor", source)     # the Studio page; Speech keeps its own flow
         self.assertIn("self._build_text_card()", source)
         self.assertIn("self._build_player_card()", source)
 

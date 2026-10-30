@@ -24,6 +24,8 @@ class WindowFits(unittest.TestCase):
                 patch.object(main_window.SonicRiftApp, "restart_api_server", lambda self: None):
             cls.window = main_window.SonicRiftApp()
         cls.window.output_directory = cls.tmp
+        # Opening Models starts a Hugging Face search; tests stay off the network.
+        cls.window.start_discover = lambda: None
 
     @classmethod
     def tearDownClass(cls):
@@ -43,7 +45,32 @@ class WindowFits(unittest.TestCase):
         from PySide6.QtWidgets import QScrollArea
         w = self.window
         for index in range(w.pages.count()):
+            if index == w.PAGE_PROJECT:      # the Studio fits itself: a splitter, its timeline scrolls
+                continue
             self.assertIsInstance(w.pages.widget(index), QScrollArea, index)
+
+    def test_audio_wave_background_tracks_navigation_and_voice_mode(self):
+        """The page-specific acoustic texture follows navigation without replacing the UI."""
+        w = self.window
+        w.show_page(w.PAGE_GENERATE)
+        self.assertEqual(w.background_area.scene, "speech")
+        w.show_page(w.PAGE_SOUNDSCAPE)
+        self.assertEqual(w.background_area.scene, "sounds")
+        w.show_page(w.PAGE_VOICE)
+        self.assertEqual(w.background_area.scene, "voices")
+        w.show_page(w.PAGE_STUDIO)  # Voices › New voice
+        w.set_studio_mode("clone")
+        self.assertEqual(w.background_area.scene, "clone")
+        w.set_studio_mode("design")
+        self.assertEqual(w.background_area.scene, "design")
+        w.show_page(w.PAGE_LIVE_VOICE)
+        self.assertEqual(w.background_area.scene, "live")
+        w.show_page(w.PAGE_MODEL)
+        self.assertEqual(w.background_area.scene, "neutral")
+        w.show_page(w.PAGE_PROJECT)
+        self.assertEqual(w.background_area.scene, "studio")
+        w.show_page(w.PAGE_GENERATE)
+
 
     def test_status_bar_drops_the_status_prefix(self):
         self.window.set_status_message("Status: Kokoro voices is ready on the GPU.")
@@ -159,3 +186,87 @@ class KeyboardReach(unittest.TestCase):
         finally:
             window.close()
             app.processEvents()
+
+
+class AcousticBackground(unittest.TestCase):
+    def test_sonic_profiles_render_distinct_pixels_without_animation(self):
+        """The named scenes must differ in Qt output, not just in metadata."""
+        from PySide6.QtCore import QRectF
+        from PySide6.QtGui import QColor, QImage, QPainter
+        from this_voice_thing.ui import theme
+
+        def capture(scene):
+            image = QImage(400, 260, QImage.Format.Format_ARGB32)
+            image.fill(QColor(theme.DARK["window"]))
+            painter = QPainter(image)
+            theme._paint_sonic_waves(painter, QRectF(0, 0, 400, 260), theme.DARK, scene)
+            painter.end()
+            return image.bits().tobytes()
+
+        studio = capture("studio")
+        self.assertEqual(studio, capture("studio"))  # deterministic on repeated paints
+        self.assertNotEqual(studio, capture("speech"))
+        self.assertNotEqual(capture("clone"), capture("design"))
+
+
+    def test_primary_and_secondary_copy_contrast_in_both_themes(self):
+        """The acoustic backgrounds must not compromise useful text contrast."""
+        from this_voice_thing.ui import theme
+        for colors in (theme.DARK, theme.LIGHT):
+            for foreground in ("text", "muted"):
+                for background in ("window", "surface", "page_top"):
+                    with self.subTest(theme=colors["window"], foreground=foreground,
+                                      background=background):
+                        self.assertGreaterEqual(
+                            theme.contrast_ratio(colors[foreground], colors[background]),
+                            4.5)
+
+    def test_cards_show_the_page_wave_field(self):
+        """Opaque cards used to hide the field almost entirely; each card now shows it, faintly,
+        so the page's scene is visible and differs between workflows."""
+        from PySide6.QtWidgets import QApplication, QScrollArea, QVBoxLayout, QWidget
+        from this_voice_thing.ui import theme
+        QApplication.instance() or QApplication([])
+        area = theme.TexturedArea()
+        area.resize(1000, 700)
+        scroll = QScrollArea(area)
+        scroll.setGeometry(0, 0, 1000, 700)
+        scroll.setWidgetResizable(True)
+        page = QWidget()
+        QVBoxLayout(page).addWidget(card := theme.CardFrame())
+        card.setMinimumHeight(600)
+        scroll.setWidget(page)
+        area.show()
+        QApplication.processEvents()
+
+        def grab(scene):
+            area.set_scene(scene)
+            QApplication.processEvents()
+            return card.grab().toImage()
+        plain = grab("speech")
+        self.assertNotEqual(plain, grab("sounds"))
+        self.assertEqual(grab("speech"), plain)          # stable between paints
+        area.close()
+
+    def test_window_minimum_fits_a_1366_by_768_screen_at_125_percent(self):
+        from this_voice_thing.ui import main_window
+        self.assertLessEqual(main_window.SonicRiftApp.MIN_WINDOW.height(), (768 - 40) / 1.25)
+
+    def test_scene_contract_and_no_random_grain(self):
+        from PySide6.QtWidgets import QApplication
+        from this_voice_thing.ui import theme
+        QApplication.instance() or QApplication([])
+        area = theme.TexturedArea()
+        self.assertIn("studio", theme.SONIC_SCENES)
+        self.assertIn("speech", theme.SONIC_SCENES)
+        for mode in ("clone", "design", "remix", "sounds", "live", "transcribe"):
+            area.set_scene(mode)
+            self.assertEqual(area.scene, mode)
+        with self.assertRaises(ValueError):
+            area.set_scene("unknown")
+        self.assertEqual(area.scene, "transcribe")
+        # The sidebar and canvas no longer draw the old speckled grain tile.
+        import inspect
+        self.assertNotIn("drawTiledPixmap", inspect.getsource(theme.TexturedArea))
+        self.assertNotIn("drawTiledPixmap", inspect.getsource(theme.SidebarPanel))
+

@@ -118,7 +118,7 @@ class EngineControls:
             self.qwen_speaker_label.setText("Voice" if mode == "preset" else "Speaker")
             for widget in (self.qwen_speaker_label, self.qwen_speaker_combo):
                 widget.setVisible(mode in ("custom_voice", "preset"))
-            # Voices are designed in the Studio; Generate only takes a style where a model has one.
+            # Voices are designed under New voice; Speech only takes a style where a model has one.
             for widget in (self.qwen_instruct_label, self.qwen_instruct_input):
                 widget.setVisible(mode == "custom_voice" or (voxcpm and mode == "base"))
             for widget in (self.qwen_transcript_label, self.qwen_transcript_input):
@@ -286,7 +286,7 @@ class EngineControls:
         # Kokoro's voice names are long ("Heart (US English, female)"); the list opens wide
         # anyway, so the box itself stays compact instead of widening the window.
         self.qwen_speaker_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        self.qwen_speaker_combo.setMinimumContentsLength(14)
+        self.qwen_speaker_combo.setMinimumContentsLength(26)   # "Heart (US English, female)" whole
         self.qwen_speaker_combo.view().setMinimumWidth(260)
         self.qwen_speaker_combo.setToolTip("Built-in Qwen speaker.")
         self.qwen_speaker_combo.currentIndexChanged.connect(lambda _i: self.refresh_voice_chip())
@@ -338,6 +338,7 @@ class EngineControls:
         qwen_row_layout.addWidget(self.cast_title)
         qwen_row_layout.addWidget(self.cast_label, 1)
         qwen_row_layout.addWidget(self.cast_button)
+        qwen_row_layout.addStretch(0)
         self.qwen_watermark_checkbox = QCheckBox("Add AI watermark")
         self.qwen_watermark_checkbox.setChecked(bool(qwen_settings.get("watermark", True)))
         self.qwen_watermark_checkbox.setToolTip(

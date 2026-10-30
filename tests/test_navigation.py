@@ -25,6 +25,8 @@ class NavigationTests(unittest.TestCase):
                 patch.object(main_window.ChatterboxApp, "restart_api_server", lambda self: None):
             cls.window = main_window.ChatterboxApp()
         cls.window.output_directory = cls.tmp
+        # Opening Models starts a Hugging Face search; tests stay off the network.
+        cls.window.start_discover = lambda: None
 
     @classmethod
     def tearDownClass(cls):
@@ -40,12 +42,14 @@ class NavigationTests(unittest.TestCase):
         return [self.window.sidebar.item(i).text() for i in range(self.window.sidebar.count())]
 
     def test_sidebar_is_grouped_by_task(self):
+        """The Studio brings everything together; MAKE holds the generators; then live; then setup."""
         self.assertEqual(self.sidebar_labels(),
-                         ["Create", "Voices", "Sounds", "Live", "TOOLS", "Transcribe", "SETUP", "Models", "Settings"])
+                         ["Studio", "MAKE", "Speech", "Sounds", "Voices", "Transcribe", "PERFORM", "Live",
+                          "SETUP", "Models", "Settings"])
         from PySide6.QtCore import Qt
         for i, label in enumerate(self.sidebar_labels()):
             selectable = bool(self.window.sidebar.item(i).flags() & Qt.ItemFlag.ItemIsSelectable)
-            self.assertEqual(selectable, label not in ("TOOLS", "SETUP"), label)
+            self.assertEqual(selectable, label not in ("MAKE", "PERFORM", "SETUP"), label)
 
     def test_live_page_sits_at_its_index(self):
         w = self.window
@@ -55,10 +59,10 @@ class NavigationTests(unittest.TestCase):
     def test_show_page_reaches_every_page_and_the_new_voice_tab(self):
         w = self.window
         for page in (w.PAGE_GENERATE, w.PAGE_VOICE, w.PAGE_SOUNDSCAPE, w.PAGE_LIVE_VOICE, w.PAGE_TRANSCRIBE,
-                     w.PAGE_MODEL, w.PAGE_ADVANCED):
+                     w.PAGE_MODEL, w.PAGE_ADVANCED, w.PAGE_PROJECT):
             w.show_page(page)
             self.assertEqual(w.pages.currentIndex(), page)
-        self.assertEqual(w.pages.count(), w.PAGE_ADVANCED + 1)   # one stack page per sidebar page, in order
+        self.assertEqual(w.pages.count(), w.PAGE_PROJECT + 1)    # one stack page per sidebar page
         w.show_page(w.PAGE_STUDIO)
         self.assertEqual(w.pages.currentIndex(), w.PAGE_VOICE)
         self.assertEqual(w.voices_stack.currentIndex(), 1)
