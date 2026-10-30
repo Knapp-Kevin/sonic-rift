@@ -327,7 +327,7 @@ class TexturedArea(QWidget):
 
 
 class SidebarPanel(QWidget):
-    """Sidebar: darker gradient with grain, a crisp right edge, and a thin brand
+    """Sidebar: clean dark gradient, a crisp right edge, and a thin brand
     stroke along its top as the one decorative use of the full brand gradient."""
 
     def paintEvent(self, _event):
