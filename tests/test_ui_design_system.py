@@ -47,6 +47,29 @@ class WindowFits(unittest.TestCase):
                 continue
             self.assertIsInstance(w.pages.widget(index), QScrollArea, index)
 
+    def test_audio_wave_background_tracks_navigation_and_voice_mode(self):
+        """The page-specific acoustic texture follows navigation without replacing the UI."""
+        w = self.window
+        w.show_page(w.PAGE_GENERATE)
+        self.assertEqual(w.background_area.scene, "speech")
+        w.show_page(w.PAGE_SOUNDSCAPE)
+        self.assertEqual(w.background_area.scene, "sounds")
+        w.show_page(w.PAGE_VOICE)
+        self.assertEqual(w.background_area.scene, "voices")
+        w.show_page(w.PAGE_STUDIO)  # Voices › New voice
+        w.set_studio_mode("clone")
+        self.assertEqual(w.background_area.scene, "clone")
+        w.set_studio_mode("design")
+        self.assertEqual(w.background_area.scene, "design")
+        w.show_page(w.PAGE_LIVE_VOICE)
+        self.assertEqual(w.background_area.scene, "live")
+        w.show_page(w.PAGE_MODEL)
+        self.assertEqual(w.background_area.scene, "neutral")
+        w.show_page(w.PAGE_PROJECT)
+        self.assertEqual(w.background_area.scene, "studio")
+        w.show_page(w.PAGE_GENERATE)
+
+
     def test_status_bar_drops_the_status_prefix(self):
         self.window.set_status_message("Status: Kokoro voices is ready on the GPU.")
         self.assertEqual(self.window.status_bar.toolTip(), "Kokoro voices is ready on the GPU.")
@@ -161,3 +184,24 @@ class KeyboardReach(unittest.TestCase):
         finally:
             window.close()
             app.processEvents()
+
+
+class AcousticBackground(unittest.TestCase):
+    def test_scene_contract_and_no_random_grain(self):
+        from PySide6.QtWidgets import QApplication
+        from this_voice_thing.ui import theme
+        QApplication.instance() or QApplication([])
+        area = theme.TexturedArea()
+        self.assertIn("studio", theme.SONIC_SCENES)
+        self.assertIn("speech", theme.SONIC_SCENES)
+        for mode in ("clone", "design", "remix", "sounds", "live", "transcribe"):
+            area.set_scene(mode)
+            self.assertEqual(area.scene, mode)
+        with self.assertRaises(ValueError):
+            area.set_scene("unknown")
+        self.assertEqual(area.scene, "transcribe")
+        # The sidebar and canvas no longer draw the old speckled grain tile.
+        import inspect
+        self.assertNotIn("drawTiledPixmap", inspect.getsource(theme.TexturedArea))
+        self.assertNotIn("drawTiledPixmap", inspect.getsource(theme.SidebarPanel))
+
