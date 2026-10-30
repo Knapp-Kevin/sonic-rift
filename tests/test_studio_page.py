@@ -175,8 +175,8 @@ class TakeHistoryRefinement(unittest.TestCase):
         from this_voice_thing.ui import main_window
         app = QApplication.instance() or QApplication([])
         with tempfile.TemporaryDirectory() as tmp:
-            with patch.object(paths, "ROOT", tmp), \\
-                    patch.object(main_window.SonicRiftApp, "start_default_model_load", lambda self: None), \\
+            with patch.object(paths, "ROOT", tmp), \
+                    patch.object(main_window.SonicRiftApp, "start_default_model_load", lambda self: None), \
                     patch.object(main_window.SonicRiftApp, "restart_api_server", lambda self: None):
                 w = main_window.SonicRiftApp()
             try:
@@ -207,8 +207,8 @@ class TakeHistoryRefinement(unittest.TestCase):
         from this_voice_thing.ui import main_window
         app = QApplication.instance() or QApplication([])
         with tempfile.TemporaryDirectory() as tmp:
-            with patch.object(paths, "ROOT", tmp), \\
-                    patch.object(main_window.SonicRiftApp, "start_default_model_load", lambda self: None), \\
+            with patch.object(paths, "ROOT", tmp), \
+                    patch.object(main_window.SonicRiftApp, "start_default_model_load", lambda self: None), \
                     patch.object(main_window.SonicRiftApp, "restart_api_server", lambda self: None):
                 w = main_window.SonicRiftApp()
             try:
@@ -231,6 +231,16 @@ class TakeHistoryRefinement(unittest.TestCase):
             finally:
                 w.close()
                 app.processEvents()
+
+
+class ClosingDuringDiscovery(unittest.TestCase):
+    def test_close_waits_for_a_running_hugging_face_search(self):
+        """Closing while Models' search ran destroyed a running QThread: exit code 127."""
+        src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "this_voice_thing", "ui", "main_window.py"), encoding="utf-8").read()
+        close = src[src.index("def closeEvent"):]
+        self.assertIn('discover = getattr(self, "discover_thread", None)', close)
+        self.assertIn("discover.wait(", close)
 
 
 class StatusBarKeepsWholeMessages(unittest.TestCase):

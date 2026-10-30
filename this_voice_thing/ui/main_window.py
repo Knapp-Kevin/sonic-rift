@@ -645,6 +645,11 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         if self.sound_render_thread is not None and self.sound_render_thread.isRunning():
             self.sound_render_thread.stop()
             self.sound_render_thread.wait()
+        discover = getattr(self, "discover_thread", None)
+        if discover is not None and discover.isRunning():
+            # A Hugging Face search can't be interrupted. Destroying its thread while it ran
+            # ended the process with an error at exit; it normally finishes within seconds.
+            discover.wait(5000)
         self.release_sound_model()
         if isinstance(self.model, WORKER_MODEL_TYPES):
             self.model.close()

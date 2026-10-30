@@ -25,6 +25,8 @@ class NavigationTests(unittest.TestCase):
                 patch.object(main_window.ChatterboxApp, "restart_api_server", lambda self: None):
             cls.window = main_window.ChatterboxApp()
         cls.window.output_directory = cls.tmp
+        # Opening Models starts a Hugging Face search; tests stay off the network.
+        cls.window.start_discover = lambda: None
 
     @classmethod
     def tearDownClass(cls):
