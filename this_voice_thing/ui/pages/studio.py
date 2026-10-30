@@ -337,6 +337,10 @@ class StudioPage:
             "e.g. a gruff old harbor master, low raspy voice, slow and deliberate")
         self.studio_action_button.setText(ACTION_LABELS[mode])
         self._fill_studio_engines()
+        if (hasattr(self, "background_area") and
+                self.pages.currentIndex() == self.PAGE_VOICE and
+                self.voices_tabs.currentIndex() == 1):
+            self.background_area.set_scene(mode)
 
     def studio_entries(self, mode=None):
         """Model entries that can do the mode: cloning, designing, or styled cloning (VoxCPM)."""
