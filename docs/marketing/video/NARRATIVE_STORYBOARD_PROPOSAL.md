@@ -1,6 +1,6 @@
 # Sonic Rift | “A World in Sound” cinematic product walkthrough
 
-**Status:** proposed editorial direction, **not owner-approved or released**.
+**Status:** executed 2026-10-30 as [`sonic-rift-beacon.mp4`](sonic-rift-beacon.mp4) (see [transcript](transcript.md) and [MANIFEST](../MANIFEST.md)); the result is a review candidate, **not owner-approved or released**. Voices chosen by the owner during production: Qwen3-TTS designs for the Guide, Keeper and Traveler, and a separate resonant baritone brand narrator for the tagline.
 **Prepared:** 2026-10-30. Related work: #118 (website media), closed #119 (Studio UI superseded by consolidated draft #120), draft #120 (Studio-first UI + sonic-wave backgrounds), #61 (exact-head Windows acceptance).
 
 ## Objective

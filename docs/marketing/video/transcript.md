@@ -1,53 +1,77 @@
-# Sonic Rift walkthrough: transcript and text alternative
+# “A World in Sound: Evening Tide, The Beacon”: transcript and text alternative
 
-About 67 seconds. Real app (build `4ea641f`), one demo session; waits for renders are shortened. Audio is the app's own output: a narration take (Kokoro voice Heart), an ocean take from Sounds, the Studio's preview mix and a cloned voice (VoxCPM2). There is no voice-over.
+About 103 seconds. The real Sonic Rift app (build `d9e8179`, Windows 11) in one session, in a fresh demo profile; waits for renders are shortened. Every voice and sound is the app's own output. A narrator (the Guide) speaks over the picture; the Keeper and the Traveler are characters in the scene; a brand narrator says the closing line.
 
-**Short description:** Sonic Rift turns a short script into narration, generates an ocean bed, arranges both on the Studio timeline, plays the mix and exports it, then clones a voice from the narration.
+**Short description:** a small scene is built in the Sonic Rift Studio, from an empty project to a saved, exported mix: two characters' lines from Speech, an ocean bed from Sounds, and a cloned voice that keeps the Keeper's character for a new line.
 
-## 00:00: Speech: write a line and generate it
+## 00:00: An empty world
 
-The script is typed into Speech with the built-in voice Heart selected, Generate Audio is clicked, and the new take plays; it appears in the list as “Take” with its date and time.
+The Studio opens on a new, empty project, “Evening Tide: The Beacon”, with one empty Dialogue track. It is already saved.
 
-> Welcome to Evening Tide.
-> Let your shoulders soften, and let the sound of the waves carry you.
-> Breathe in slowly... and out.
+> **Guide:** A world can begin with just a few words.  
 
-## 00:15: Add the take to the Studio
+## 00:06: Give it a keeper
 
-Add to Studio opens the Studio with the take on a Narration track, labelled with its first words.
+On Speech, the saved voice “Keeper” is picked, the line is typed and generated, and Add to Studio places the take on the Dialogue track.
 
-## 00:18: Sounds: generate an ocean bed and keep it
+> **Keeper:** The beacon is still burning.  
+> **Keeper:** Follow it toward shore.  
 
-On Sounds, the Ocean waves preset renders three 60-second takes with loudness metrics; the second is played, kept in the Sound library as “Evening tide waves”, and added to the Studio.
+## 00:21: Someone answers
 
-> [gentle ocean waves]
+Still on Speech, the voice changes to “Traveler”; the answer is generated and added to the Studio after the Keeper's line.
 
-## 00:28: Arrange both in the Studio
+> **Guide:** Then someone answers from across the water.  
+> **Traveler:** I see it now.  
+> **Traveler:** Keep the light on.  
 
-The project is renamed “Evening Tide” and the narration clip is dragged to start at three seconds.
+## 00:35: Give it a shoreline
 
-## 00:33: Play the mix
+On Sounds, the procedural Ocean waves preset renders two 20-second takes with loudness figures. One is kept in the Sound library as “Shoreline waves” and added to the Studio on its own track.
 
-Play mix plays the arrangement; the playhead moves across the ocean bed and the narration.
+> **Guide:** Give their conversation a shoreline.  
+> [Ocean waves]  
 
-> [ocean waves]
-> Welcome to Evening Tide.
-> Let your shoulders soften, and let the sound of the waves carry you.
-> Breathe in slowly... and out.
-> There is nowhere else you need to be.
+## 00:48: Keep a character's voice
 
-## 00:49: Export the mix
+On Voices, New voice, Clone, the Keeper's take is the source; VoxCPM2 makes two clone takes, the test line is tried, and the result is saved as “Keeper (cloned)”. Back on Speech, the cloned voice speaks a new line, which goes to the Studio.
 
-Export mix saves the project and writes a mastered WAV, one stem per track and a manifest; the note confirms the export folder.
+> **Guide:** A character can return without losing their voice.  
+> **Keeper (clone):** I'll keep it burning until you're home.  
 
-## 00:52: Voices: clone a voice and keep it
+## 01:07: Arrange, balance and save
 
-Voices, New voice clones the narration's voice with VoxCPM2 into three takes; one plays, then it is saved as “Evening narrator”.
+In the Studio the three lines are dragged into place (the Keeper at 2 s, the Traveler after a short pause, the cloned Keeper last), the Shoreline waves track is lowered by 6 dB, and the project is saved.
 
-> Would you hand me the yellow measuring cup before the soup boils over?
-> The quick thinker judged each chance, then sighed with real pleasure.
+> **Guide:** Place every line where it belongs, and let the sea sit underneath.  
+> **Guide:** A voice... an answer... the sound of the sea.  
+> **Guide:** Together, they become a scene.  
+> [Ocean waves under the scene]  
 
-## 01:04: Back to the Studio
+## 01:19: Hear the scene
 
-The finished Studio project.
+Play mix plays the whole arranged scene, uninterrupted: both voices over the sea.
 
+> **Keeper:** The beacon is still burning.  
+> **Keeper:** Follow it toward shore.  
+> **Traveler:** I see it now.  
+> **Traveler:** Keep the light on.  
+> **Keeper (clone):** I'll keep it burning until you're home.  
+
+## 01:33: Export the mix
+
+Export mix writes a mastered WAV, one stem per track and a manifest; the confirmation names the export folder.
+
+
+## 01:36: Sonic Rift
+
+End card: the Sonic Rift logo, “Make worlds you can hear.” and the words Voice, Soundscapes, Audio Studio.
+
+> **Brand narrator:** Sonic Rift.  
+> **Brand narrator:** Make worlds you can hear.  
+
+## Voices
+
+- **Guide** (narrator), **Keeper** and **Traveler**: synthetic voices designed with Qwen3-TTS VoiceDesign from written descriptions (no real person's voice), saved in the app's voice library; their lines were spoken with Qwen3-TTS voice cloning from those designs.
+- **Keeper (cloned)**: VoxCPM2 cloning the Keeper's own take, shown in the film.
+- **Brand narrator**: a separate Qwen3-TTS VoiceDesign voice for the closing line only.

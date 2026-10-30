@@ -191,19 +191,19 @@ Windows remains the primary maintained path. Installer decisions are written to 
 
 ## Screenshots
 
-Captured from the running app (build `4ea641f`, Windows 11) during one demo session with fictional content and built-in voices. Details, alt text and checksums: [docs/marketing](docs/marketing/README.md).
+Captured from the running app (build `d9e8179`, Windows 11) while making the short film below, with fictional content and synthetic voices. Details, alt text and checksums: [docs/marketing](docs/marketing/README.md).
 
-![The Studio: an ocean bed from Sounds and two narration takes from Speech arranged on one timeline](docs/marketing/screenshots/sonic-rift-studio-dark.png)
+![The Studio: a saved scene with three dialogue lines over a Shoreline waves track](docs/marketing/screenshots/sonic-rift-studio-dark.png)
 
 | Speech | Sounds |
 | --- | --- |
-| ![Speech page: a script, the Kokoro voice Heart, and two generated takes with Add to Studio](docs/marketing/screenshots/sonic-rift-speech-dark.png) | ![Sounds page: a procedural ocean preset, three takes with loudness metrics, and the Sound library](docs/marketing/screenshots/sonic-rift-sounds-dark.png) |
+| ![Speech page: the saved voice Traveler, a line of dialogue and its takes](docs/marketing/screenshots/sonic-rift-speech-dark.png) | ![Sounds page: a procedural ocean preset, two takes with loudness figures, and the Sound library](docs/marketing/screenshots/sonic-rift-sounds-dark.png) |
 
-| Voices: clone a voice | Studio (light theme) |
+| Voices: keep a character's voice | Studio (light theme) |
 | --- | --- |
-| ![New voice: three VoxCPM2 clone takes made from a synthetic narration clip](docs/marketing/screenshots/sonic-rift-voices-clone-dark.png) | ![The same Studio project in the light theme](docs/marketing/screenshots/sonic-rift-studio-light.png) |
+| ![New voice, Clone: two VoxCPM2 takes made from the Keeper's line](docs/marketing/screenshots/sonic-rift-voices-clone-dark.png) | ![The same Studio scene in the light theme](docs/marketing/screenshots/sonic-rift-studio-light.png) |
 
-**Walkthrough (about a minute, with sound):** [MP4](docs/marketing/video/sonic-rift-walkthrough.mp4) · [captions](docs/marketing/video/sonic-rift-walkthrough.en.vtt) · [transcript](docs/marketing/video/transcript.md). Waiting for renders is shortened; everything shown is the real app.
+**Film, “A World in Sound” (about 1:43, with sound):** [MP4](docs/marketing/video/sonic-rift-beacon.mp4) · [captions](docs/marketing/video/sonic-rift-beacon.en.vtt) · [transcript](docs/marketing/video/transcript.md). A narrator, two characters and the sea become one scene in the Studio; waits for renders are shortened and everything shown is the real app.
 
 <details>
 <summary>Earlier screenshots (older builds, before the Studio and the new sidebar)</summary>

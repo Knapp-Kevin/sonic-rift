@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340"><defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0B1020"/><stop offset=".54" stop-color="#111B35"/><stop offset="1" stop-color="#090D1B"/></linearGradient>
+  <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22D3EE"/><stop offset=".48" stop-color="#4F7BFF"/><stop offset="1" stop-color="#A78BFA"/></linearGradient>
+  <linearGradient id="line" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22D3EE" stop-opacity="0"/><stop offset=".45" stop-color="#22D3EE" stop-opacity=".75"/><stop offset="1" stop-color="#A78BFA" stop-opacity="0"/></linearGradient>
+  <radialGradient id="glow"><stop offset="0" stop-color="#3954CB" stop-opacity=".32"/><stop offset=".65" stop-color="#203D7F" stop-opacity=".12"/><stop offset="1" stop-color="#1B2D5F" stop-opacity="0"/></radialGradient>
+  <radialGradient id="core"><stop offset="0" stop-color="#223A79"/><stop offset=".66" stop-color="#121F3F"/><stop offset="1" stop-color="#0B1125"/></radialGradient>
+  <pattern id="grain" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="8" r=".7" fill="#A9B9E3" opacity=".17"/><circle cx="17" cy="3" r=".6" fill="#B9C5EC" opacity=".13"/></pattern>
+ </defs><g transform="translate(172 170) scale(0.6896551724137931)">
+ <circle r="225" fill="url(#glow)"/>
+ <circle r="134" fill="url(#core)" stroke="#1A2F5C" stroke-width="1.5"/>
+ <circle r="115" fill="none" stroke="#5B86FF" stroke-width="1" opacity=".22"/>
+ <circle r="143" fill="none" stroke="#1D3C75" stroke-width="3" opacity=".55"/>
+ <circle r="143" fill="none" stroke="url(#grad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="505 140 160 93" transform="rotate(-105)"/>
+ <circle r="156" fill="none" stroke="url(#grad)" stroke-width="2" opacity=".27" stroke-dasharray="120 90 190 520" transform="rotate(35)"/>
+ <path d="M-112 0 H 112" stroke="url(#grad)" stroke-width="1.5" opacity=".32"/>
+ <rect x="-95" y="-7.5" width="9" height="15" rx="4.5" fill="url(#grad)"/><rect x="-78" y="-12.0" width="9" height="24" rx="4.5" fill="url(#grad)"/><rect x="-61" y="-19.5" width="9" height="39" rx="4.5" fill="url(#grad)"/><rect x="-44" y="-28.5" width="9" height="57" rx="4.5" fill="url(#grad)"/><rect x="-27" y="-40.0" width="9" height="80" rx="4.5" fill="url(#grad)"/><rect x="-10" y="-50.5" width="9" height="101" rx="4.5" fill="url(#grad)"/><rect x="7" y="-39.0" width="9" height="78" rx="4.5" fill="url(#grad)"/><rect x="24" y="-26.0" width="9" height="52" rx="4.5" fill="url(#grad)"/><rect x="41" y="-35.0" width="9" height="70" rx="4.5" fill="url(#grad)"/><rect x="58" y="-19.5" width="9" height="39" rx="4.5" fill="url(#grad)"/><rect x="75" y="-11.5" width="9" height="23" rx="4.5" fill="url(#grad)"/><rect x="92" y="-7.0" width="9" height="14" rx="4.5" fill="url(#grad)"/>
+ <circle cx="105" cy="-94" r="5" fill="#82A7FF"/><circle cx="-123" cy="85" r="3" fill="#22D3EE" opacity=".65"/>
+ </g><text x="342" y="175" fill="#F2F5FF" font-family="Inter Display, Inter, Arial, sans-serif" font-weight="800" font-size="101" letter-spacing="-3">SONIC RIFT</text><text x="349" y="229" fill="#B5C8E3" font-family="Inter, Arial, sans-serif" font-size="29" letter-spacing=".3">Make worlds you can hear.</text></svg>

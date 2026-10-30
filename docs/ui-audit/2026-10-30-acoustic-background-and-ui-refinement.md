@@ -29,7 +29,23 @@
 
 **Marketing truth:** the prior Studio screenshots show an unsaved project; the Speech screenshots show duplicate take labels; the first video uses a single seed voice and its clone rather than a distinct narrator and two distinct characters. #118 now holds a proposed narrative storyboard. Final media needs recapture with the qualified new backgrounds, all real application screenshots, accurate voice provenance, soundtrack/listening review, captions, rights and manifest hashes.
 
+## Windows qualification, 2026-10-30 (follow-up)
+
+Run by Claude in the real app on Windows 11 Pro 10.0.26300, Python 3.11.9, PySide6 6.9.0 (Qt 6.9.0), off-screen in disposable profiles, after merging `main` `1662d9d` (#115, #117) into this branch without conflicts.
+
+- **Matrix:** 132 captures: Studio, Speech, Sounds, Voices Library, Clone, Design, Remix, Transcribe, Live, Models and Settings, in dark and light, at 1366x768 and 1920x1080, at 100/125/150%. Every page shows its own wave scene, behind the controls, with no crashes. 1366x768 at 150% (911x512 logical) is below the window minimum and is **not supported**; 125% now fits (`MIN_WINDOW` 960x560).
+- **Take list (real window):** same-second takes get distinct names (“variation 1/2”, “2/2”); Enter and double-click both play the row; refreshing keeps the selection; Add to Studio adds the selected take, or the newest when none is selected, never a stale player path.
+- **Defects found and fixed (each with tests):**
+  - `tests/test_studio_page.py` had a syntax error (doubled line continuations), so 14 Studio tests never ran; fixed (`e83edd5`).
+  - Closing while a Hugging Face model search ran destroyed a running thread at exit (exit code 127); the window now waits for it (`e83edd5`).
+  - The wave backgrounds were invisible on cards and mesh-like; redrawn as long, spaced contours that also show faintly through cards (`b9c76b7`).
+  - Access violations during voice renders traced to Python event filters running alongside engine threads; the empty-list hint and the wheel guard no longer use them (`a68a48d`, `0f59896`). Before: 2 crashes in 2 runs; after: none in every later session. The exact root cause inside PySide is not proven.
+  - Speech's Model picker kept naming the last model picked there when a model was loaded another way (voice pick, Models, Voices); it now shows the loaded model (`d9e8179`).
+- **Media:** the #118 set was recaptured on this build as the narrated film *A World in Sound: Evening Tide, The Beacon*; see `docs/marketing/MANIFEST.md`.
+
 ## Exact-head Windows acceptance checklist
+
+Status after the follow-up above: items 1 to 5 and 7 done (see PR #120 for the exact-head suite run); item 6 done for Speech and Sounds import into the Studio with real media in disposable profiles.
 
 - [ ] On the new exact PR head, run `python -m unittest discover -s tests -v`; record interpreter, PySide6 and Qt versions, pass/fail/skip counts.
 - [ ] Verify no crashes on initial startup and successive navigation Studio → Speech → Sounds → Voices/Library → New voice/Clone → Design → Remix → Live → Models → Settings.
