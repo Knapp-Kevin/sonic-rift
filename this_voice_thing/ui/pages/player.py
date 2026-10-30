@@ -110,7 +110,7 @@ class Player:
         player_controls_layout.addWidget(self.duration_label)
         player_layout.addLayout(player_controls_layout)
         history_row = QHBoxLayout()
-        history_label = QLabel("Recent takes (double-click to play)")
+        history_label = QLabel("Recent takes (Enter or double-click to play)")
         history_label.setObjectName("Muted")
         history_row.addWidget(history_label, 1)
         to_studio = set_role(QPushButton("Add to Studio"), "tertiary")
@@ -120,7 +120,8 @@ class Player:
         player_layout.addLayout(history_row)
         self.output_log_listwidget = QListWidget()
         set_empty_text(self.output_log_listwidget, "Audio you generate appears here. Double-click to play it.")
-        self.output_log_listwidget.itemDoubleClicked.connect(
+        # Activated by Enter as well as a mouse double-click, unlike itemDoubleClicked.
+        self.output_log_listwidget.itemActivated.connect(
             self.play_selected_from_log)
         self.output_log_listwidget.setMinimumHeight(70)
         self.output_log_listwidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
