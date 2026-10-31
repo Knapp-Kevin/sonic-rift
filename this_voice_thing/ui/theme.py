@@ -270,7 +270,7 @@ class CardFrame(QFrame):
 SONIC_SCENES = {
     # frequency, phase, centreline. One visual family, subtle differences per workflow.
     "studio": (1.0, 0.0, 0.46), "speech": (0.77, -0.35, 0.49),
-    "sounds": (1.14, 0.48, 0.56), "voices": (0.69, 0.12, 0.46),
+    "sounds": (1.14, 0.48, 0.56), "voices": (0.69, 0.12, 0.46), "music": (0.94, 0.28, 0.52),
     "clone": (0.86, 0.65, 0.50), "design": (1.16, 0.90, 0.46),
     "remix": (1.27, -0.65, 0.51), "transcribe": (0.70, -0.40, 0.44),
     "live": (1.40, 0.20, 0.50), "neutral": (0.48, 0.05, 0.51),

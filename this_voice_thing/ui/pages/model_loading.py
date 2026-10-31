@@ -171,6 +171,12 @@ class ModelLoading:
         if getattr(self, "live_voice_busy", False):
             QMessageBox.information(self, "Live Voice", "Stop Live Voice before switching models.")
             return
+        if getattr(self, "music_model", None) is not None:
+            if self.music_busy():
+                QMessageBox.information(self, "Music", "Music is being composed. Load the voice model when it finishes.")
+                return
+            self.release_music_model()          # one big model on the GPU at a time
+            self.refresh_music_controls()
         selected_entry = selected_entry or self.get_selected_model_entry()
         if needs_chatterbox(selected_entry.get("backend", BACKEND_MULTILINGUAL)) and not CHATTERBOX_AVAILABLE:
             QMessageBox.critical(

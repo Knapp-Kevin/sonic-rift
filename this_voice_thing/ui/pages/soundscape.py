@@ -440,6 +440,12 @@ class SoundscapePage:
     def free_gpu_for(self, engine):
         """A big sound model and a loaded voice model don't fit on one 16 GB GPU together.
         Returns False if the user would rather not start it."""
+        if getattr(self, "music_model", None) is not None:
+            if self.music_busy():
+                QMessageBox.information(self, "Sounds", "Music is being composed. Start the sound model when it finishes.")
+                return False
+            self.release_music_model()          # one big model on the GPU at a time
+            self.refresh_music_controls()
         if engine.vram_gb < 8 or self.model is None or getattr(self, "device_used", "cpu") == "cpu":
             return True
         answer = QMessageBox.question(

@@ -62,6 +62,7 @@ from this_voice_thing.ui.pages.library import Library
 from this_voice_thing.ui.pages.live_voice import LiveVoicePage
 from this_voice_thing.ui.pages.model_loading import ModelLoading
 from this_voice_thing.ui.pages.model_settings import ModelSettings
+from this_voice_thing.ui.pages.music import MusicPage
 from this_voice_thing.ui.pages.models import ModelPage
 from this_voice_thing.ui.pages.player import Player
 from this_voice_thing.ui.pages.pronunciations import Pronunciations
@@ -91,7 +92,7 @@ class SidebarDelegate(QStyledItemDelegate):
 
 
 class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, EngineControls, Player,
-                    LiveVoicePage, StudioPage, SoundscapePage, VoicePage, VoicePicker, Library, VoiceUse, Recording, TranscribePage, ModelPage, Discover, ModelLoading, ModelSettings,
+                    LiveVoicePage, StudioPage, SoundscapePage, MusicPage, VoicePage, VoicePicker, Library, VoiceUse, Recording, TranscribePage, ModelPage, Discover, ModelLoading, ModelSettings,
                     AdvancedPage, ApiServer, Pronunciations, QMainWindow):
     log_message_signal = Signal(str)
 
@@ -209,11 +210,12 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
     # brings everything together; MAKE holds the generators (each keeps its own page); PERFORM
     # plays live; SETUP is models and settings.
     PAGE_GENERATE, PAGE_VOICE, PAGE_SOUNDSCAPE, PAGE_LIVE_VOICE, PAGE_TRANSCRIBE, PAGE_MODEL, PAGE_ADVANCED, \
-        PAGE_PROJECT = range(8)
+        PAGE_PROJECT, PAGE_MUSIC = range(9)
     PAGE_STUDIO = "studio"        # the New voice tab of Voices (the voice studio), not the Studio page
     PAGE_LOG = PAGE_ADVANCED      # the log is a card on Settings
     SIDEBAR = (("Studio", PAGE_PROJECT),
-               ("Make", None), ("Speech", PAGE_GENERATE), ("Sounds", PAGE_SOUNDSCAPE), ("Voices", PAGE_VOICE),
+               ("Make", None), ("Speech", PAGE_GENERATE), ("Sounds", PAGE_SOUNDSCAPE), ("Music", PAGE_MUSIC),
+               ("Voices", PAGE_VOICE),
                ("Transcribe", PAGE_TRANSCRIBE),
                ("Perform", None), ("Live", PAGE_LIVE_VOICE),
                ("Setup", None), ("Models", PAGE_MODEL), ("Settings", PAGE_ADVANCED))
@@ -331,6 +333,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self._build_model_page()
         self._build_advanced_page()
         self._build_project_page()     # the Studio: its own splitter, so it isn't wrapped in a scroll area
+        self._build_music_page()
 
         self._make_pages_scroll()
         # Tab moves to the next control everywhere: in a text box it used to type a tab, so
@@ -410,7 +413,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self.pages.setCurrentIndex(page)
         scenes = {
             self.PAGE_PROJECT: "studio", self.PAGE_GENERATE: "speech",
-            self.PAGE_SOUNDSCAPE: "sounds", self.PAGE_VOICE: "voices",
+            self.PAGE_SOUNDSCAPE: "sounds", self.PAGE_MUSIC: "music", self.PAGE_VOICE: "voices",
             self.PAGE_TRANSCRIBE: "transcribe", self.PAGE_LIVE_VOICE: "live",
         }
         scene = scenes.get(page, "neutral")
@@ -645,6 +648,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
             # ended the process with an error at exit; it normally finishes within seconds.
             discover.wait(5000)
         self.release_sound_model()
+        self.shut_down_music()
         if isinstance(self.model, WORKER_MODEL_TYPES):
             self.model.close()
         event.accept()
