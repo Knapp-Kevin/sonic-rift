@@ -145,17 +145,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self.preview_button_playing = None
         self.preview_player.playbackStateChanged.connect(self._on_preview_state_changed)
 
-        self.media_player = QMediaPlayer()
-        self.audio_output = QAudioOutput()
-        self.media_player.setAudioOutput(self.audio_output)
-        self.is_seeking_audio = False
-        self.paused_position = 0  # Added paused_position here
-
-        self.media_player.positionChanged.connect(self.update_slider_position)
-        self.media_player.durationChanged.connect(self.update_duration_info)
-        self.media_player.playbackStateChanged.connect(
-            self.handle_playback_state_changed)
-        self.media_player.errorOccurred.connect(self.handle_media_error)
+        self._build_take_player()
 
         self.generation_timer = QTimer(self)
         self.generation_timer.timeout.connect(

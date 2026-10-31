@@ -5,13 +5,12 @@ import os
 import time
 
 from PySide6.QtCore import QTime
-from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QMessageBox
 
 from this_voice_thing.core import documents
 from this_voice_thing.ui.common import preview_cut
 from this_voice_thing.ui.threads import AudioGeneratorThread
-from this_voice_thing.ui.pages.player import take_label
+from this_voice_thing.ui.pages.player import clock, take_label
 
 
 class Generation:
@@ -236,7 +235,7 @@ class Generation:
             if "chunk" not in self.status_bar.text().lower() and \
                self.generate_button.text() == "Stop Generation":
                 self.set_status_message(
-                    f"Status: Generating... (Elapsed: {self.format_time(elapsed_ms)})")
+                    f"Status: Generating... (Elapsed: {clock(elapsed_ms)})")
         elif not self.is_generating and self.generation_timer.isActive():
             # This is a failsafe, should be stopped by on_generation_thread_finished
             print(
@@ -296,7 +295,7 @@ class Generation:
         if self.generation_start_time:
             elapsed_ms = self.generation_start_time.msecsTo(
                 QTime.currentTime())
-            total_generation_time_str = f" (Total time: {self.format_time(elapsed_ms)})"
+            total_generation_time_str = f" (Total time: {clock(elapsed_ms)})"
 
         thread = self.audio_generator_thread
         self.generation_progress.setValue(self.generation_progress.maximum())
@@ -321,16 +320,9 @@ class Generation:
             # What the take says, for its clip in the Studio (Add to Studio).
             self.take_texts = getattr(self, "take_texts", {})
             self.take_texts[os.path.abspath(output_path)] = thread.original_text
-        # ... (rest of the method same as your working version)
-        self.current_file_label.setText(
-            f"Last generated: {take_label(os.path.basename(output_path))}")
-        self.media_player.setSource(QUrl.fromLocalFile(output_path))
-        self.play_pause_button.setEnabled(True)
-        self.stop_button.setEnabled(True)
-        self.playhead_slider.setEnabled(True)
+        self.load_take(output_path, f"Last generated: {take_label(os.path.basename(output_path))}",
+                       autoplay=self.autoplay_checkbox.isChecked() or thread.preview)
         self.update_output_log()
-        if self.autoplay_checkbox.isChecked() or thread.preview:
-            self.media_player.play()
 
     def on_generation_error(self, error_msg):
         # self.is_generating will be set to False by on_generation_thread_finished
