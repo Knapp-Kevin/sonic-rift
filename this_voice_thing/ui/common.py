@@ -4,26 +4,11 @@ NLTK, the Chatterbox backend, model config and engine tables."""
 
 import sys
 import os
-import torch
-
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
-# Determine the best available device
-if torch.cuda.is_available():
-    map_location = 'cuda'
-elif getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available():
-    map_location = 'mps'
-else:
-    map_location = 'cpu'
-
-# Patch torch.load to default to the best device if map_location not explicitly set
-torch_load_original = torch.load
-def patched_torch_load(*args, **kwargs):
-    if 'map_location' not in kwargs:
-        kwargs['map_location'] = map_location
-    return torch_load_original(*args, **kwargs)
-
-torch.load = patched_torch_load
+# Keep device policy within individual engine loaders. The old import-time
+# torch.load monkeypatch altered the entire process, including other providers.
+# Windows CPU/CUDA acceptance is required before merging this refactor.
 import torchaudio  # noqa: F401  (imported at start-up, as before the split)
 
 
