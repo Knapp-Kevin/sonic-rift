@@ -4,10 +4,10 @@ import json
 import os
 import unittest
 from unittest.mock import patch
-from urllib import error
+from urllib import error, request
 
 from this_voice_thing.integrations.agent_gateway import (
-    GatewayUnavailable, LocalGateway, MAX_RESPONSE,
+    GatewayUnavailable, LocalGateway, MAX_RESPONSE, _RefuseRedirects, _open_loopback,
 )
 
 
@@ -39,7 +39,7 @@ class GatewayTests(unittest.TestCase):
 
     def test_anonymous_local_api_is_refused(self):
         gateway = LocalGateway(token="not-printed")
-        with patch("this_voice_thing.integrations.agent_gateway.request.urlopen",
+        with patch("this_voice_thing.integrations.agent_gateway._open_loopback",
                    return_value=FakeResponse({"status": "ready"})):
             with self.assertRaisesRegex(GatewayUnavailable, "anonymous"):
                 gateway.health()
@@ -54,7 +54,7 @@ class GatewayTests(unittest.TestCase):
                                  "device": "cuda", "voice": "private-person",
                                  "endpoints": ["sensitive"]})
         gateway = LocalGateway(port=8765, token="not-printed")
-        with patch("this_voice_thing.integrations.agent_gateway.request.urlopen",
+        with patch("this_voice_thing.integrations.agent_gateway._open_loopback",
                    side_effect=urlopen):
             self.assertEqual(gateway.health(),
                              {"status": "ready", "loaded_model": "Chatterbox",
@@ -74,7 +74,7 @@ class GatewayTests(unittest.TestCase):
                 for i in range(45)
             ]})
         gateway = LocalGateway(token="not-printed")
-        with patch("this_voice_thing.integrations.agent_gateway.request.urlopen",
+        with patch("this_voice_thing.integrations.agent_gateway._open_loopback",
                    side_effect=urlopen):
             payload = gateway.voice_models()
         self.assertEqual(payload["shown"], 40)
@@ -87,6 +87,22 @@ class GatewayTests(unittest.TestCase):
         with self.assertRaises(GatewayUnavailable):
             gateway._get("http://remote.invalid/secrets", authenticated=True)
 
+    def test_redirects_always_fail_closed(self):
+        with self.assertRaisesRegex(GatewayUnavailable, "redirects are forbidden"):
+            _RefuseRedirects().redirect_request(
+                None, None, 302, "redirect", {},
+                "http://example.invalid/steal-token",
+            )
+
+    def test_explicitly_disables_environment_http_proxies(self):
+        req = request.Request("http://127.0.0.1:8765/v1/health")
+        with patch("this_voice_thing.integrations.agent_gateway.request.build_opener") as make:
+            _open_loopback(req)
+        handlers = make.call_args.args
+        self.assertEqual(handlers[0].proxies, {})
+        self.assertIsInstance(handlers[1], _RefuseRedirects)
+        self.assertEqual(make.return_value.open.call_args.kwargs["timeout"], 3)
+
     def test_response_size_limit(self):
         gateway = LocalGateway(token="not-printed")
         large = b"{" + b"x" * MAX_RESPONSE + b"}"
@@ -98,7 +114,7 @@ class GatewayTests(unittest.TestCase):
                 return False
             def read(self, _n):
                 return large
-        with patch("this_voice_thing.integrations.agent_gateway.request.urlopen",
+        with patch("this_voice_thing.integrations.agent_gateway._open_loopback",
                    return_value=BigResponse()):
             with self.assertRaisesRegex(GatewayUnavailable, "size limit"):
                 gateway._get("/v1/health", authenticated=True)
