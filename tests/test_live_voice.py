@@ -136,6 +136,44 @@ class CachedSpeechSessionTests(unittest.TestCase):
             os.remove(path)
 
 
+class CachedPadStartsOnTheFirstWord(unittest.TestCase):
+    """#13: a cached pad played the engine's leading silence (Kokoro: 165 ms) before the first
+    word, so the audible latency was ~190 ms though the audio path took ~40 ms."""
+
+    def write(self, samples, rate=24000):
+        handle = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        handle.close()
+        with wave.open(handle.name, "wb") as output:
+            output.setnchannels(1)
+            output.setsampwidth(2)
+            output.setframerate(rate)
+            output.writeframes(np.asarray(samples, dtype="<i2").tobytes())
+        self.addCleanup(os.remove, handle.name)
+        return handle.name
+
+    def test_leading_silence_is_skipped_with_a_short_preroll(self):
+        rate = 24000
+        silence = np.zeros(int(0.165 * rate), dtype=np.int16)
+        noise = np.full(int(0.165 * rate), 3, dtype=np.int16)          # dither-level hiss, not a word
+        word = (8000 * np.sin(np.arange(rate // 2) * 0.2)).astype(np.int16)
+        for lead in (silence, noise):
+            path = self.write(np.concatenate([lead, word]))
+            session = CachedSpeechSession(path)
+            played = np.frombuffer(b"".join(f.pcm for f in session.frames()), dtype="<i2")
+            preroll = int(0.02 * rate)
+            self.assertEqual(session.start_frame, len(lead) - preroll + 1)  # word[0] is 0; word[1] is the first sound
+            self.assertEqual(len(played), len(word) + preroll - 1)
+            self.assertTrue(np.array_equal(played[preroll - 1:], word))     # the word itself is untouched
+
+    def test_a_clip_that_starts_loud_or_is_all_quiet_plays_whole(self):
+        loud = self.write((8000 * np.sin(np.arange(2400) * 0.2 + 1.0)).astype(np.int16))
+        quiet = self.write(np.full(2400, 2, dtype=np.int16))
+        for path in (loud, quiet):
+            session = CachedSpeechSession(path)
+            self.assertEqual(session.start_frame, 0)
+            self.assertEqual(len(b"".join(f.pcm for f in session.frames())), 4800)
+
+
 class LiveSpeechSessionTests(unittest.TestCase):
     def test_native_mode_yields_pcm_and_applies_pronunciation(self):
         model = NativeModel()

@@ -465,6 +465,14 @@ class LiveAudioOutput(QObject):
             and not self._input_finished
             and self._bytes_written > 0
         ):
+            if self._bytes_written == self._bytes_at_configure:
+                # Nothing of this item has been written yet: the previous item played out before
+                # this one's first audio arrived. That's a hand-over, not an underrun; wait for
+                # this item's normal start buffer, as a drained sink does in configure().
+                # (Counted as an underrun, it doubled the start buffer: +0.35 s for VoxCPM2.)
+                self._holding = True
+                self._last_state = state
+                return
             self._underruns += 1
             if self._leader is not None:
                 # A follower doesn't pause on its own: an independent pause is what made the

@@ -389,6 +389,39 @@ class LiveAudioOutputReuseTests(unittest.TestCase):
         self.assertGreater(io.written, written)              # not held back forever
         output.stop()
 
+    def test_previous_item_ending_before_the_next_ones_audio_is_not_an_underrun(self):
+        """Regression (#13 soak, d180f9a): a line submitted as the previous item finished was
+        configured onto the still-playing sink; when that item's tail drained before the new
+        line's first audio, the idle was counted as an underrun and the new line waited for
+        twice its start buffer (VoxCPM2: 0.70 s instead of 0.35 s). 6 of 6 Kokoro underruns in
+        a 10-minute soak were this hand-over, with 0 bytes of the new line written."""
+        from PySide6.QtMultimedia import QAudio
+        output, device = self._played_item()
+        output._sink._state = QAudio.State.ActiveState  # previous item still audible
+        output._last_state = QAudio.State.ActiveState
+        output.configure(device, 48000, start_buffer_seconds=0.3)
+        output._on_state_changed(QAudio.State.IdleState)   # ...and it ends before the new audio
+        self.assertEqual(output.stats()["underruns"], 0)
+        self.assertFalse(output._rebuffering)
+        io = output._sink.io
+        written = io.written
+        output.push(b"\x00\x00" * 4800)                  # 0.1 s: below the start buffer
+        self.assertEqual(io.written, written)            # still a cushion, as for a drained sink
+        output.push(b"\x00\x00" * 9600)                  # 0.3 s: the normal start buffer
+        self.assertGreater(io.written, written)          # not 2 x 0.3 s
+        output.stop()
+
+    def test_a_real_underrun_after_the_new_items_audio_still_counts(self):
+        from PySide6.QtMultimedia import QAudio
+        output, device = self._played_item()
+        output.configure(device, 48000, start_buffer_seconds=0.15)
+        output.push(b"\x00\x00" * 12000)                 # this item's audio is playing
+        output._on_state_changed(QAudio.State.ActiveState)
+        output._on_state_changed(QAudio.State.IdleState)   # ran dry mid-item
+        self.assertEqual(output.stats()["underruns"], 1)
+        self.assertTrue(output._rebuffering)
+        output.stop()
+
     def test_back_to_back_items_are_not_held(self):
         from PySide6.QtMultimedia import QAudio
         output, device = self._played_item()
