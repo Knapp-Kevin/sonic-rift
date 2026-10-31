@@ -425,6 +425,8 @@ Optional engines install themselves into their own `engines/<name>/.venv` the fi
 - SRT and WebVTT subtitles, timed from the generation itself.
 - A pronunciation dictionary with import/export and auditioning (**Settings**).
 - An optional inaudible AI watermark on engines that don't add one themselves.
+- **Performance limits** (**Settings › Performance**), so generation doesn't take over your PC. Defaults come from your machine: each model may use half the CPU threads, runs at below-normal priority so games and other apps go first, and can use nearly all GPU memory, with a little kept for the display. A model that needs more than the limit stops with a clear message instead of spilling into system memory. Change any limit, or go back to the recommended values; a change applies the next time a model starts.
+- **Warnings before heavy jobs:** before a long or GPU-heavy job (for example several MOSS sound takes), the app shows the expected time, GPU memory and CPU use, and warns when little GPU memory would be left for games. You can switch the warnings off.
 
 </details>
 

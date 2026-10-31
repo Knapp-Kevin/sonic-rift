@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from this_voice_thing.core.soundscape import assets as sound_assets
-from this_voice_thing.core import model_registry
+from this_voice_thing.core import model_registry, resources
 from this_voice_thing.core.soundscape import catalog, mastering, procedural, render
 from this_voice_thing.engines import sound_models
 from this_voice_thing.ui import tiles as model_tiles
@@ -527,9 +527,14 @@ class SoundscapePage:
             if not sound_models.is_installed(engine.key):
                 self.install_sound_engine(engine)
                 return
+            if not getattr(self, "sound_cost_confirmed", False):
+                if not self.confirm_heavy_job(self.sound_job_cost(request, engine), "Sounds"):
+                    return
+                self.sound_cost_confirmed = True      # asked once for this Generate, not again after the start
             if self.sound_model is None or self.sound_model.key != engine.key:
                 self.start_sound_engine(engine, then=self.start_sound_render)
                 return
+        self.sound_cost_confirmed = False
         self.save_sound_settings(request)
         self.sound_takes = []
         self.sound_take_list.clear()
@@ -546,6 +551,16 @@ class SoundscapePage:
         thread.start()
         self.set_status_message(f"Status: Generating {request.candidates} take(s) with {engine.label}...")
         self.refresh_sound_engine()
+
+    def sound_job_cost(self, request, engine):
+        """Expected time and GPU memory for a model render (and the model's start, if needed)."""
+        extra = mastering.LOOP_FOLD_SECONDS if request.loop else 0.0
+        chunks = len(sound_models.plan_chunks(request.seconds + extra, engine.max_seconds))
+        seconds = request.candidates * chunks * (engine.take_seconds or 30.0)
+        if self.sound_model is None or self.sound_model.key != engine.key:
+            seconds += 60.0                     # starting the model
+        return resources.JobCost(f"{request.candidates} take(s) with {engine.label}", seconds / 60.0,
+                                 gpu_gb=engine.vram_gb)
 
     def on_sound_progress(self, done, total):
         self.sound_progress.setValue(done)
