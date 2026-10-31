@@ -1,8 +1,28 @@
 # Changelog
 
-All notable changes to **This Voice Thing**, which began as a fork of [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI), are listed here.
+All notable changes to **Sonic Rift** are recorded here. The project began as **This Voice Thing**, a fork of [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI). Its historical source provenance and applicable notices remain in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).
 
-## [Unreleased] - 2026-10-02
+## Unreleased: source-run development checkpoint (2026-10-30)
+
+No general release, packaged Windows executable or installer has been published. Entries below describe code integrated into `main`, **not** a release artifact or universally verified model/device matrix.
+
+### Integrated
+
+- [#120](https://github.com/Knapp-Kevin/sonic-rift/pull/120): Studio-first navigation, page-specific acoustic-wave backgrounds, improved creation/history UI and the genuine owner-approved multi-voice `A World in Sound` film and screenshots ([handoff](docs/marketing/README.md)). [#122](https://github.com/Knapp-Kevin/sonic-rift/pull/122) tracked the individual audio review assets and [#123](https://github.com/Knapp-Kevin/sonic-rift/pull/123) recorded their approval. Website integration is a separate task.
+- [#113](https://github.com/Knapp-Kevin/sonic-rift/pull/113): generate narration directly on an existing Studio script clip using the loaded Speech voice, retaining clip identity and undo/redo, exclusive model ownership, cancellation, safe stale-result handling, project persistence and export.
+- [#124](https://github.com/Knapp-Kevin/sonic-rift/pull/124): corrected false between-item Live underrun accounting and avoided leading silence on cached synthetic-speech pads. On the tested Windows audio hardware, Kokoro's mixed-soak underruns went from ten to zero; cached-pad first-word onset improved from approximately 205 ms to 130 ms. The latest [measurement record](docs/live-voice-validation-2026-10-30.md) retains the hardware and testing exclusions.
+- [#125](https://github.com/Knapp-Kevin/sonic-rift/pull/125): removed the inherited application-wide `torch.load` modification; fresh-import guard tests and installed Chatterbox, Qwen3, Kokoro and VoxCPM2 CPU/CUDA evidence were recorded. Remaining derived source and model-weight licensing are still under review.
+- [#115](https://github.com/Knapp-Kevin/sonic-rift/pull/115): fractional sample-rate waveform bucket alignment. [#117](https://github.com/Knapp-Kevin/sonic-rift/pull/117) adds a *research proposal* for Performance Direction, not an implemented engine.
+- [#121](https://github.com/Knapp-Kevin/sonic-rift/pull/121): documented mandatory release-only Azure Artifact Signing for any future distributed Windows binaries. Signing and packaging are not implemented by this document.
+
+### Still open
+
+- [#61](https://github.com/Knapp-Kevin/sonic-rift/issues/61): exact-head combined Windows regression after the independent #124 and #125 merges.
+- [#13](https://github.com/Knapp-Kevin/sonic-rift/issues/13): VoxCPM2 cold rebuffering, real device unplug/recovery, virtual routes and owner Live listening.
+- [#71](https://github.com/Knapp-Kevin/sonic-rift/issues/71): timeline zoom/navigation/loop transport and long-project streaming export within safe memory bounds.
+- [#55](https://github.com/Knapp-Kevin/sonic-rift/issues/55), [#57](https://github.com/Knapp-Kevin/sonic-rift/issues/57), [#60](https://github.com/Knapp-Kevin/sonic-rift/issues/60): further original-source separation, license/notice evidence, installed dependency rights and repository identity.
+
+## Historical unreleased development notes (2026-10-02)
 
 Changes since upstream commit `22460fd` ("Add best-effort macOS/Linux shell launcher flow").
 
