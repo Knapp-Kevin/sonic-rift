@@ -37,7 +37,8 @@ class SourceLineageTests(unittest.TestCase):
             "requirements.in": "sha-old-req",
         }
         current = {
-            "LICENSE": "sha-license",
+            "LICENSE": "sha-apache",
+            "LICENSES/MIT-Chatterbox-TTS-UI.txt": "sha-license",
             "this_voice_thing/ui/main_window.py": "sha-changed-shell",
             "this_voice_thing/engines/chatterbox_backend.py": "sha-new-facade",
             "requirements.in": "sha-new-req",
@@ -48,12 +49,12 @@ class SourceLineageTests(unittest.TestCase):
         )
         self.assertEqual(report["counts"]["current_paths_with_exact_upstream_blob"], 2)
         matches = {entry["current_path"] for entry in report["exact_blob_matches"]}
-        self.assertEqual(matches, {"LICENSE", "docs/historical_license.txt"})
+        self.assertEqual(matches, {"LICENSES/MIT-Chatterbox-TTS-UI.txt", "docs/historical_license.txt"})
         mapped = {
             (row["upstream_path"], row["current_path"]): row["evidence"]
             for row in report["mapped_review_candidates"]
         }
-        self.assertEqual(mapped[("LICENSE", "LICENSE")], "exact_same_blob")
+        self.assertEqual(mapped[("LICENSE", "LICENSES/MIT-Chatterbox-TTS-UI.txt")], "exact_same_blob")
         self.assertEqual(
             mapped[("requirements.in", "requirements.in")],
             "changed_blob_review_required",

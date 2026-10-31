@@ -43,7 +43,7 @@ Feature work must preserve optional-provider isolation. An absent Chatterbox TTS
 
 ## Source provenance and licensing
 
-Sonic Rift has its own product identity but contains some adapted third-party source. The repository's [LICENSE](LICENSE), [third-party notice index](THIRD_PARTY_NOTICES.md), and [provenance audit](docs/upstream-provenance-audit.md) document current limitations and retained notices.
+Sonic Rift is licensed under the [Apache License 2.0](LICENSE). By contributing, you agree that your contribution is licensed under Apache-2.0 as described in section 5 of that license. Some adapted upstream source still carries its MIT notice; [NOTICE](NOTICE), the [third-party notice index](THIRD_PARTY_NOTICES.md) and the [provenance audit](docs/upstream-provenance-audit.md) document current limitations and retained notices.
 
 - Only submit code or assets you have permission to contribute. Document imported code, external snippets, model weights and third-party assets, including their licenses and source.
 - Do not delete copyright headers or replace required notices as part of refactoring or rebranding.

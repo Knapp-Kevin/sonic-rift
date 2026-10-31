@@ -2,11 +2,13 @@
 
 Sonic Rift is a locally run creative-audio application. **The product name and branding are independent of its historical source ancestry.** This file records third-party relationships without turning those relationships into the application's public identity.
 
-> **Important:** This is an attribution index, **not** a new source-code license, a legal-clearance opinion, a complete software bill of materials, or a substitute for any license text required when distributing the application, its dependencies, or model weights.
+**Sonic Rift is licensed under the [Apache License 2.0](LICENSE)** (see [NOTICE](NOTICE)). This file lists the third-party code, engines and models it relates to.
+
+> **Important:** This is an attribution index, **not** a source-code license, a legal-clearance opinion, a complete software bill of materials, or a substitute for any license text required when distributing the application, its dependencies, or model weights.
 
 ## Historical source-code rights
 
-Parts of the current application were developed from [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI), including adapted worker, startup, installer and UI code. The original upstream copyright and MIT permission/notice text remain intact in the root [LICENSE](LICENSE). The permission-and-copyright notice must be retained in copies or substantial portions covered by that license.
+Parts of the current application were developed from [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI), including adapted worker, startup, installer and UI code. The original upstream copyright and MIT permission/notice text is preserved unchanged in [LICENSES/MIT-Chatterbox-TTS-UI.txt](LICENSES/MIT-Chatterbox-TTS-UI.txt) and referenced from [NOTICE](NOTICE). It must be retained in copies or substantial portions of that upstream-derived code, which Sonic Rift distributes under Apache-2.0 as MIT permits.
 
 The original copied model-loading backend was replaced in [PR #77](https://github.com/Knapp-Kevin/sonic-rift/pull/77); the old Python import path is a compatibility facade. That replacement **does not** establish that all upstream-derived implementation has been removed or that its copyright notice can be discarded. [The dated provenance audit](docs/upstream-provenance-audit.md) describes remaining source review and historical matches. A [current-main Git-blob lineage record](docs/source-lineage-current.md) and [offline audit tool](scripts/audit_source_lineage.py) distinguish exact-byte evidence from adapted-code review; neither establishes independent authorship or licensing clearance.
 
@@ -29,18 +31,13 @@ The application integrates or can install third-party speech and sound engines. 
 
 This table is a **starting index**, not an assertion that every listed engine is installed, redistributable or commercially cleared. Do not automatically ship downloaded model weights inside a release package.
 
-## Sonic Rift-owned source license: pending decision
+## Sonic Rift source license: Apache-2.0
 
-The root `LICENSE` currently retains the upstream MIT notice. It has **not** been replaced or amended to claim ownership of all source code.
+On 2026-10-31 the owner relicensed Sonic Rift under the [Apache License 2.0](LICENSE). All post-fork commits are by the owner, Kevin Knapp. The change applies from that commit forward; earlier commits stay available under the MIT terms they were published with.
 
-The project owner can select a new license for code they own and have authority to license (for example Apache-2.0, MIT, MPL-2.0 or a proprietary arrangement), after documenting:
+Upstream-derived code that is still present keeps its MIT notice in [LICENSES/MIT-Chatterbox-TTS-UI.txt](LICENSES/MIT-Chatterbox-TTS-UI.txt). The [independence work](docs/sonic-rift-independence-licensing-decision.md) is replacing that code (#55, #57). When none remains, the MIT notice can be dropped from new releases.
 
-1. The boundaries and rightsholders of Sonic Rift-original modules and contributed work.
-2. Which substantial upstream code or assets are still distributed and their required notices.
-3. Third-party dependency/model rights for the actual packaged release.
-4. Any transition plan for the root license, per-file SPDX markers, and full license/notice bundle.
-
-See [issue #55](https://github.com/Knapp-Kevin/sonic-rift/issues/55) for source provenance and [issue #60](https://github.com/Knapp-Kevin/sonic-rift/issues/60) for the licensing, metadata and distribution decision. **Neither a new license nor a clean-room status is asserted here.**
+The Apache-2.0 license covers Sonic Rift's own code only. It does not relicense optional engines, their dependencies or model weights, which keep their own terms (see above and [issue #60](https://github.com/Knapp-Kevin/sonic-rift/issues/60)). Clean-room status is **not** claimed.
 
 ## Source-based installed-environment checks
 

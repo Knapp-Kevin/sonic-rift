@@ -33,7 +33,7 @@ MOVED_REVIEW = {
     "setup_env.sh": ("setup_env.sh",),
     "requirements.in": ("requirements.in",),
     "requirements.lock.txt": ("requirements.lock.txt",),
-    "LICENSE": ("LICENSE",),
+    "LICENSE": ("LICENSES/MIT-Chatterbox-TTS-UI.txt",),
 }
 
 REVIEW_AREAS = {
@@ -48,7 +48,7 @@ REVIEW_AREAS = {
         "run.bat", "run.sh", "setup_env.bat", "setup_env.sh",
         "scripts/install_torch.py",
     ),
-    "source_license_and_notices": ("LICENSE", "THIRD_PARTY_NOTICES.md"),
+    "source_license_and_notices": ("LICENSE", "NOTICE", "LICENSES/MIT-Chatterbox-TTS-UI.txt", "THIRD_PARTY_NOTICES.md"),
 }
 
 
