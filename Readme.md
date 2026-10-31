@@ -4,7 +4,7 @@
 
 > **Make worlds you can hear.** Local-first creative audio for voices, soundscapes, and the ideas that connect them.
 
-**Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines multiple speech engines with voice design, cloning, narration, transcription, and soundscape generation. The long-term direction includes arranging environmental audio with spoken performances; these composition workflows are still evolving and should not be confused with independently validated release features.
+**Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines multiple speech engines with voice design, cloning, narration, transcription, and soundscape generation. The Studio already supports arranging environmental audio with spoken performances, in-place narration, and mastered exports. Remaining timeline and long-project improvements are tracked separately from verified source-run behavior.
 
 Sonic Rift integrates [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several optional speech providers. Copyright and dependency attribution is maintained in [Licensing and third-party notices](THIRD_PARTY_NOTICES.md) and the repository's [LICENSE](LICENSE).
 
@@ -220,11 +220,15 @@ These show pages as they looked before October 2026: Create is now **Speech**, a
 
 ## Current status
 
-- **Maintained platform:** Windows 10/11 64-bit, run from source (`run.bat`). macOS and Linux launchers exist but are **experimental and unverified**.
-- **Working in the current Windows build:** Speech (six engines), Voices (library, recording, clone/design/remix), Sounds (procedural ambience and loops, optional sound models), Transcribe, Models, and Live output to local audio devices. Integrated acceptance results are tracked in [#61](https://github.com/Knapp-Kevin/sonic-rift/issues/61).
-- **Newer, still evolving:** the Studio timeline (arranging, moving and trimming clips, preview, export with stems). Its export currently stops at about 11.7 minutes per track while a longer-export approach is decided.
-- **Not verified yet:** Live output through virtual cables, Discord, Zoom or OBS.
-- **Not available:** an installer, code-signed builds or a store listing.
+**Development checkpoint:** `f51897c` (October 30, 2026). **No general release is published.** The Windows source-launched app is the maintained path; this checkpoint is **not** an installer or public-distribution acceptance record.
+
+- **Working, Windows-qualified on individual heads:** Studio-first navigation and composition; multi-track arrangement, non-destructive clip moves/trims, fades, ducking, history and in-place narration generation; Speech, Voices, Sounds, Transcribe, Models and local Live output. See [#61](https://github.com/Knapp-Kevin/sonic-rift/issues/61) for exactly which source revision and device/engine workflows were validated.
+- **Latest merged improvements:** [#120](https://github.com/Knapp-Kevin/sonic-rift/pull/120) Studio-first UI and owner-approved [marketing walkthrough](docs/marketing/README.md); [#113](https://github.com/Knapp-Kevin/sonic-rift/pull/113) in-place Studio narration; [#124](https://github.com/Knapp-Kevin/sonic-rift/pull/124) Live hand-over and cached-pad responsiveness; [#125](https://github.com/Knapp-Kevin/sonic-rift/pull/125) removal of inherited process-wide PyTorch loader modification.
+- **Still awaiting combined acceptance:** one complete Windows regression on the current merged `main`, rather than assuming independent PR test runs qualify their combined tree. External virtual-microphone/Discord/Zoom/OBS routes, device unplug/recovery and owner listening are unverified; VoxCPM2 can rebuffer while slower than real-time. See [#13](https://github.com/Knapp-Kevin/sonic-rift/issues/13).
+- **Remaining Studio work:** zoom/navigation/loop transport and chunked, bounded-memory long-project export. Today's 512 MiB mix/export budget can refuse longer projects; the permissible duration depends on tracks and sample rate. See [#71](https://github.com/Knapp-Kevin/sonic-rift/issues/71).
+- **Source independence and release rights:** inherited workers/bootstrap and third-party code/model permissions still need disposition. Historical MIT attribution remains. No frozen executable, installer or Microsoft Store listing is available. Release-only Windows signing instructions exist but do not imply a signed build. See [#55](https://github.com/Knapp-Kevin/sonic-rift/issues/55), [#57](https://github.com/Knapp-Kevin/sonic-rift/issues/57) and [#60](https://github.com/Knapp-Kevin/sonic-rift/issues/60).
+
+For active issue and branch disposition, consult the [repository hygiene ledger](docs/operations/sonic-rift-2026-10-30-repository-hygiene.md). macOS and Linux remain experimental/unverified.
 
 ## How This Got Out of Hand
 
@@ -259,7 +263,7 @@ The sidebar is organized by what you're doing: the **Studio** (arrange speech an
 - **Listen:** **Play mix** plays the arrangement with narration ducking the background; click the ruler to jump.
 - **Export:** a mastered mix (WAV, plus MP3/OGG if you like) at about -16 LUFS, one stem per track and a manifest, in a new folder.
 - **Projects** are `.sonicrift.json` files. A project changed outside the app is never silently overwritten.
-- **Limits today:** export stops at about 11.7 minutes for a single track (less with more tracks); narration scripts need a take from Speech before export.
+- **Limits today:** export respects a 512 MiB unmastered PCM memory budget (duration varies with track count and format); narration scripts can generate their own take directly in Studio using the loaded Speech voice. A clip still needs a rendered take before export.
 
 </details>
 
@@ -288,7 +292,7 @@ The sidebar is organized by what you're doing: the **Studio** (arrange speech an
 - **Routes:** **Local output**, or an external route (**virtual microphone**, **Discord**, **Zoom**, **OBS**, **Other app**) that starts disarmed every launch and must be armed before anything is sent. An optional monitor plays the same audio on a second device. A missing saved device is shown as unavailable; Live never falls back to the speakers silently. With a virtual audio cable you already have, send to its playback side (often "CABLE Input") and pick its recording side ("CABLE Output") as the microphone in the other app; **Setup…** shows the steps. Sonic Rift doesn't install a virtual microphone driver.
 - **Privacy and provenance:** the Live history is session-only and can be cleared; **Clear cache** removes cached pad audio. The header shows the voice's origin and the watermark policy; **Copy diagnostics** copies timing, route and buffer figures without the spoken text.
 
-Live Voice has been validated on Windows 11 with local outputs (HDMI and USB digital), a USB microphone for Mic Effects, Kokoro and VoxCPM2, and a 30-minute soak ([record](docs/live-voice-validation-2026-10-15.md)). Virtual-cable, Discord, Zoom and OBS routes are implemented but not yet validated end to end. To check a Windows route without a model, play a quiet test tone:
+Live Voice has been validated on Windows 11 with local outputs, a USB microphone for Mic Effects, Kokoro and VoxCPM2, and repeated mixed 30-minute soaks ([latest measured record](docs/live-voice-validation-2026-10-30.md), [historical baseline](docs/live-voice-validation-2026-10-15.md)). Virtual-cable, Discord, Zoom and OBS routes are implemented but not yet validated end to end. To check a Windows route without a model, play a quiet test tone:
 
 ```bat
 .venv\Scripts\python.exe scripts\live_voice_route_probe.py --output "CABLE Input" --monitor "YOUR HEADPHONES"
