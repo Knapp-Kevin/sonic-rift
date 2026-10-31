@@ -51,7 +51,7 @@ def plan_request(request):
         raise InvalidJob("Request must be a JSON object.")
     unknown = set(request) - _ALLOWED_FIELDS
     if unknown:
-        raise InvalidJob("Unsupported fields: " + ", ".join(sorted(map(str, unknown))))
+        raise InvalidJob("Unsupported request fields.")
     kind = request.get("kind")
     if type(kind) is not str or kind not in CAPABILITIES:
         raise InvalidJob("Unknown generation capability.")
