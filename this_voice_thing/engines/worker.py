@@ -141,10 +141,15 @@ class WorkerProcess:
         self.device = "cuda" if ready.get("cuda") else "cpu"
 
     def _pump_stderr(self):
+        # Keep draining even if logging a line fails (e.g. an emoji on a cp1252 console):
+        # once nothing reads the pipe, the worker blocks on its next write and never replies.
         for line in self.process.stderr:
             line = line.rstrip()
-            if line and not self.skip(line):
-                self.log(f"[{self.tag}] {line}")
+            try:
+                if line and not self.skip(line):
+                    self.log(f"[{self.tag}] {line}")
+            except Exception:
+                pass
 
     def _read_reply(self):
         line = self.process.stdout.readline()

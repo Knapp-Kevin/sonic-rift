@@ -50,6 +50,22 @@ class KillTreeTests(unittest.TestCase):
         self.assertFalse(_alive(child_pid), "the child process outlived its parent")
 
 
+class StderrPumpTests(unittest.TestCase):
+    def test_a_line_the_log_cannot_write_does_not_stop_the_pump(self):
+        worker = WorkerProcess.__new__(WorkerProcess)
+        worker.tag, worker.skip = "fake", lambda _line: False
+        worker.process = mock.Mock(stderr=iter(["first\n", "emoji \U0001f50d\n", "last\n"]))
+        written = []
+
+        def log(text):
+            if "\U0001f50d" in text:
+                text.encode("cp1252")         # what print() does on a cp1252 console
+            written.append(text)
+        worker.log = log
+        worker._pump_stderr()
+        self.assertEqual(written, ["[fake] first", "[fake] last"])
+
+
 def _alive(pid):
     out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True).stdout
     return str(pid) in out
