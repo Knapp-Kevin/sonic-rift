@@ -208,7 +208,23 @@ class WorkerProcess:
             try:
                 self.process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                self.process.kill()
+                kill_tree(self.process)
+
+
+def kill_tree(process):
+    """End `process` and everything it started.
+
+    On Windows a venv's python.exe is a launcher that runs the real interpreter as a child
+    process, so killing only the launcher left the model running and holding GPU memory."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True,
+                       creationflags=NO_WINDOW)
+    if process.poll() is None:
+        process.kill()
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        pass
 
 
 class PerthWatermark:
