@@ -15,6 +15,19 @@ class GatewayUnavailable(RuntimeError):
     pass
 
 
+class _RefuseRedirects(request.HTTPRedirectHandler):
+    # A bearer token must NEVER be forwarded to a redirected hostname.
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise GatewayUnavailable("Local API redirects are forbidden.")
+
+
+def _open_loopback(req):
+    # Explicit no-proxy transport: OS HTTP_PROXY must not intercept a private
+    # bearer token or route localhost requests outside the workstation.
+    opener = request.build_opener(request.ProxyHandler({}), _RefuseRedirects())
+    return opener.open(req, timeout=TIMEOUT_SECONDS)
+
+
 class LocalGateway:
     def __init__(self, *, port=8765, token=None):
         if type(port) is not int or not 1 <= port <= 65535:
@@ -40,7 +53,7 @@ class LocalGateway:
         if authenticated:
             headers["Authorization"] = "Bearer " + self._token
         req = request.Request(self._url + path, headers=headers, method="GET")
-        with request.urlopen(req, timeout=TIMEOUT_SECONDS) as response:
+        with _open_loopback(req) as response:
             if response.status != 200:
                 raise GatewayUnavailable("Unexpected local API response.")
             body = response.read(MAX_RESPONSE + 1)
