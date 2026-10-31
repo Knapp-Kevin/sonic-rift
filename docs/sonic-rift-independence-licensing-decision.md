@@ -1,6 +1,6 @@
 # Sonic Rift: independence, provenance and source licensing decision
 
-**Status (updated 2026-10-15):** Living decision register, **NOT an approved owned-source license, copyright clearance or GitHub fork-detachment authorization**. Implementation steps already merged are recorded as factual progress; remaining decisions and release gates stay open.
+**Status (updated 2026-10-31):** Living decision register. **License decided: Apache-2.0** (owner decision, 2026-10-31; see section 4). This is not copyright clearance or GitHub fork-detachment authorization. Implementation steps already merged are recorded as factual progress; remaining decisions and release gates stay open.
 
 **Repository:** `Knapp-Kevin/sonic-rift`  
 **Tracking:** #54 (epic), #55 (provenance), #56 (architecture), #57 (refactor), #60 (license, metadata and packaging), #61 (release gates).  
@@ -24,7 +24,7 @@ The [dated upstream provenance audit](upstream-provenance-audit.md) initially id
 
 An expanded file-level analysis is in draft PR #62, which reports 5 byte-identical files and 19 adapted files at its audited revision. These counts are **historical audit evidence**, not current independent-author percentages or legal conclusions. Reconcile #62 against the current branch before using that ledger to authorize source license changes.
 
-As of this 2026-10-15 reconciliation, the root `LICENSE` is inherited MIT text. **Do not remove or overwrite it based on the product rename.** MIT's permission-and-copyright notice requirement continues for redistributed copies or substantial portions of upstream-derived code. If portions are fully and demonstrably replaced, provenance and distribution still need review; historical Git commits are not retroactively re-licensed.
+Since 2026-10-31 the root `LICENSE` is Apache-2.0 and the inherited MIT text is preserved unchanged in `LICENSES/MIT-Chatterbox-TTS-UI.txt`, referenced from `NOTICE`. **Do not delete that MIT notice while upstream-derived code remains.** MIT's permission-and-copyright notice requirement continues for redistributed copies or substantial portions of upstream-derived code. If portions are fully and demonstrably replaced, provenance and distribution still need review; historical Git commits are not retroactively re-licensed.
 
 ## Recommended implementation sequence
 
@@ -67,7 +67,7 @@ An independent application can **use** third-party engines while complying with 
 
 ### 4. Select Sonic Rift's owned-source license (#60)
 
-**No license change is made by this document.** The owner must decide if Sonic Rift should permit redistribution and commercial modifications or keep proprietary product features.
+**Decision (2026-10-31): Apache-2.0.** The owner chose Apache-2.0. Every post-fork commit is the owner's (Kevin Knapp). The root `LICENSE` is the unmodified Apache-2.0 text. `NOTICE` names the copyright holder and points to the retained upstream MIT notice in `LICENSES/MIT-Chatterbox-TTS-UI.txt`, which MIT allows inside an Apache-2.0 project. Prior commits stay MIT. Optional engines, dependencies and model weights are unaffected. Legal review remains advisable before announcing or packaging a release. The options considered were:
 
 | Candidate | Advantages | Tradeoffs |
 | --- | --- | --- |

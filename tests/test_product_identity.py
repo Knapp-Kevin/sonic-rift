@@ -24,13 +24,25 @@ class ProductIdentityTests(unittest.TestCase):
         self.assertNotIn("start This Voice Thing", readme)
         self.assertIn("THIRD_PARTY_NOTICES.md", readme)
 
-    def test_upstream_notices_remain_identifiable(self):
+    def test_project_is_apache_licensed(self):
         license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+        notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
+        self.assertTrue(license_text.lstrip().startswith("Apache License"))
+        self.assertIn("Version 2.0, January 2004", license_text)
+        self.assertIn("END OF TERMS AND CONDITIONS", license_text)
+        self.assertIn("Sonic Rift", notice)
+        self.assertIn("Apache License, Version 2.0", notice)
+
+    def test_upstream_notices_remain_identifiable(self):
+        mit = (ROOT / "LICENSES/MIT-Chatterbox-TTS-UI.txt").read_text(encoding="utf-8")
+        notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
         notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
-        self.assertIn("AcTePuKc", license_text)
-        self.assertIn("Copyright (c) 2025", license_text)
+        self.assertIn("AcTePuKc", mit)
+        self.assertIn("Copyright (c) 2025", mit)
+        self.assertIn("Permission is hereby granted", mit)
+        self.assertIn("LICENSES/MIT-Chatterbox-TTS-UI.txt", notice)
         self.assertIn("Chatterbox-TTS-UI", notices)
-        self.assertIn("LICENSE", notices)
+        self.assertIn("LICENSES/MIT-Chatterbox-TTS-UI.txt", notices)
 
     def test_contributor_workflow_references_correct_repository(self):
         contributors = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")

@@ -6,7 +6,7 @@
 
 **Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines multiple speech engines with voice design, cloning, narration, transcription, and soundscape generation. The Studio already supports arranging environmental audio with spoken performances, in-place narration, and mastered exports. Remaining timeline and long-project improvements are tracked separately from verified source-run behavior.
 
-Sonic Rift integrates [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several optional speech providers. Copyright and dependency attribution is maintained in [Licensing and third-party notices](THIRD_PARTY_NOTICES.md) and the repository's [LICENSE](LICENSE).
+Sonic Rift integrates [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several optional speech providers. Sonic Rift is licensed under the [Apache License 2.0](LICENSE); copyright and dependency attribution is maintained in [NOTICE](NOTICE) and [Licensing and third-party notices](THIRD_PARTY_NOTICES.md).
 
 **Who it's for:** creators who want narration, voices and ambient sound made on their own Windows PC (meditation and wind-down audio, stories, games, streams, video), without sending text or recordings to a cloud service.
 
@@ -677,9 +677,9 @@ Please keep model licensing, attribution, local/private behavior and compatibili
 
 ## Acknowledgements
 
-**Licenses and acknowledgements.** Sonic Rift is independently branded and supports multiple speech and sound providers. For the source-code provenance record and retained copyright notices, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [LICENSE](LICENSE) and [the upstream provenance audit](docs/upstream-provenance-audit.md).
+**Licenses and acknowledgements.** Sonic Rift is licensed under the [Apache License 2.0](LICENSE). Engines and models keep their own licenses. For the source-code provenance record and retained copyright notices, see [NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [the upstream provenance audit](docs/upstream-provenance-audit.md).
 
-- **AcTePuKc and upstream contributors**, including [lowkeytea](https://github.com/lowkeytea), for historical source contributions; the preserved [original MIT copyright notice](LICENSE) and [provenance record](docs/upstream-provenance-audit.md) explain the remaining obligations.
+- **AcTePuKc and upstream contributors**, including [lowkeytea](https://github.com/lowkeytea), for historical source contributions; the preserved [original MIT copyright notice](LICENSES/MIT-Chatterbox-TTS-UI.txt) and [provenance record](docs/upstream-provenance-audit.md) explain the remaining obligations.
 - **Resemble AI** for [Chatterbox TTS](https://github.com/resemble-ai/chatterbox) (MIT).
 - **Alibaba / the Qwen team** for [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0).
 - **OpenBMB** for [VoxCPM](https://github.com/OpenBMB/VoxCPM) (Apache-2.0).

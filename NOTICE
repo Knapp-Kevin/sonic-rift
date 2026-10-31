@@ -1,0 +1,15 @@
+Sonic Rift
+Copyright 2025-2026 Kevin Knapp
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product began as a fork of Chatterbox-TTS-UI
+(https://github.com/AcTePuKc/Chatterbox-TTS-UI), commit
+22460fd99ceb78c309f879b93878240241a0dc9b, which is licensed under the MIT
+License. Portions of Sonic Rift that are derived from that project remain
+subject to its copyright and permission notice, reproduced in
+LICENSES/MIT-Chatterbox-TTS-UI.txt, which must be retained in copies or
+substantial portions of that code.
+
+Optional speech and sound engines, their packages and their model weights are
+licensed separately by their owners. See THIRD_PARTY_NOTICES.md.

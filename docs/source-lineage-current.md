@@ -12,7 +12,7 @@ The historical upstream tree contains **17 tracked blobs**. The current baseline
 
 | Current path | Upstream path | Git blob SHA-1 | Action |
 | --- | --- | --- | --- |
-| `LICENSE` | `LICENSE` | `c8178d4e9cca723e0f88be0208044d1d5dd256f7` | Retain upstream MIT permission and copyright notices |
+| `LICENSE` (now `LICENSES/MIT-Chatterbox-TTS-UI.txt`) | `LICENSE` | `c8178d4e9cca723e0f88be0208044d1d5dd256f7` | Retain upstream MIT permission and copyright notices. Since 2026-10-31 the root `LICENSE` is Apache-2.0 and this blob lives at `LICENSES/MIT-Chatterbox-TTS-UI.txt` |
 | `docs/screenshots/upstream_original.png` | `screenshot_1.png` | `8be38900395eb296913e8b15dbe126a483991ad8` | Historical screenshot; do not promote as current Sonic Rift UI, preserve attribution while retained |
 
 **Do not read “two exact blobs” as “only two files derived from upstream.”** Moving, formatting, splitting, adapting, renaming or partially replacing code changes blob IDs without necessarily changing its copyright provenance. These counts measure *identical object content*, not independent authorship or proportion of derived code. Historical October 9 and October 13 inventories in `docs/upstream-provenance-audit.md` and `docs/rebrand/` refer to earlier revisions and had different identical-object counts.

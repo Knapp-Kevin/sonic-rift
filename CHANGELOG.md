@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **Sonic Rift** are recorded here. The project began as **This Voice Thing**, a fork of [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI). Its historical source provenance and applicable notices remain in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).
+All notable changes to **Sonic Rift** are recorded here. The project began as **This Voice Thing**, a fork of [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI). Sonic Rift is licensed under the [Apache License 2.0](LICENSE) from 2026-10-31; earlier versions were MIT. The upstream MIT notice is kept in [LICENSES/MIT-Chatterbox-TTS-UI.txt](LICENSES/MIT-Chatterbox-TTS-UI.txt), with provenance in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Unreleased: source-run development checkpoint (2026-10-30)
 
@@ -8,6 +8,7 @@ No general release, packaged Windows executable or installer has been published.
 
 ### Integrated
 
+- **License: Apache-2.0.** Sonic Rift is now licensed under the [Apache License 2.0](LICENSE), with a [NOTICE](NOTICE) file. The inherited Chatterbox-TTS-UI MIT notice moved, unchanged, to [LICENSES/MIT-Chatterbox-TTS-UI.txt](LICENSES/MIT-Chatterbox-TTS-UI.txt) and still covers any upstream-derived code. Earlier commits remain available under MIT. Engines and model weights keep their own licenses.
 - [#120](https://github.com/Knapp-Kevin/sonic-rift/pull/120): Studio-first navigation, page-specific acoustic-wave backgrounds, improved creation/history UI and the genuine owner-approved multi-voice `A World in Sound` film and screenshots ([handoff](docs/marketing/README.md)). [#122](https://github.com/Knapp-Kevin/sonic-rift/pull/122) tracked the individual audio review assets and [#123](https://github.com/Knapp-Kevin/sonic-rift/pull/123) recorded their approval. Website integration is a separate task.
 - [#113](https://github.com/Knapp-Kevin/sonic-rift/pull/113): generate narration directly on an existing Studio script clip using the loaded Speech voice, retaining clip identity and undo/redo, exclusive model ownership, cancellation, safe stale-result handling, project persistence and export.
 - [#124](https://github.com/Knapp-Kevin/sonic-rift/pull/124): corrected false between-item Live underrun accounting and avoided leading silence on cached synthetic-speech pads. On the tested Windows audio hardware, Kokoro's mixed-soak underruns went from ten to zero; cached-pad first-word onset improved from approximately 205 ms to 130 ms. The latest [measurement record](docs/live-voice-validation-2026-10-30.md) retains the hardware and testing exclusions.
