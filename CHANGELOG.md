@@ -2,13 +2,17 @@
 
 All notable changes to **Sonic Rift** are recorded here. The project began as **This Voice Thing**, a fork of [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI). Sonic Rift is licensed under the [Apache License 2.0](LICENSE) from 2026-10-31; earlier versions were MIT. The upstream MIT notice is kept in [LICENSES/MIT-Chatterbox-TTS-UI.txt](LICENSES/MIT-Chatterbox-TTS-UI.txt), with provenance in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-## Unreleased: source-run development checkpoint (2026-10-30)
+Versions follow [Semantic Versioning](https://semver.org/) from 0.9.0-alpha. Earlier work had no version numbers (the `ui-v0.2.0` tag predates the rename).
 
-No general release, packaged Windows executable or installer has been published. Entries below describe code integrated into `main`, **not** a release artifact or universally verified model/device matrix.
+## 0.9.0-alpha (in review)
 
-### Integrated
+The first numbered version: an alpha, run from source. No packaged Windows executable or installer is published, so there is nothing to code-sign yet. Entries describe code in this version, **not** a universally verified model/device matrix.
 
+### Added
+
+- **Music** (Make › Music, [#128](https://github.com/Knapp-Kevin/sonic-rift/issues/128)): instrumentals and songs with [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5) (MIT), installed only after a consent step naming the pinned code and weights revisions. Compare takes with Switch A/B, keep them in the library with full provenance, and add them to Studio. On an RTX 5070 Ti a take of up to 2 minutes takes about 20-40 s at a 10 GB peak. Musical quality is awaiting the owner's listening review ([report](docs/music/music-engine-qualification-2026-10-31.md)).
 - **Performance limits and heavy-job warnings.** Settings › Performance sets how many CPU threads each model may use, its process priority (below normal by default) and a GPU memory cap, with defaults taken from the PC. Every engine worker and its child processes start within them. Long or GPU-heavy jobs explain their expected time and resource use first.
+- **Cancel and close end the whole engine.** A stuck worker's own child processes are ended too, so GPU memory is always freed.
 - **License: Apache-2.0.** Sonic Rift is now licensed under the [Apache License 2.0](LICENSE), with a [NOTICE](NOTICE) file. The inherited Chatterbox-TTS-UI MIT notice moved, unchanged, to [LICENSES/MIT-Chatterbox-TTS-UI.txt](LICENSES/MIT-Chatterbox-TTS-UI.txt) and still covers any upstream-derived code. Earlier commits remain available under MIT. Engines and model weights keep their own licenses.
 - [#120](https://github.com/Knapp-Kevin/sonic-rift/pull/120): Studio-first navigation, page-specific acoustic-wave backgrounds, improved creation/history UI and the genuine owner-approved multi-voice `A World in Sound` film and screenshots ([handoff](docs/marketing/README.md)). [#122](https://github.com/Knapp-Kevin/sonic-rift/pull/122) tracked the individual audio review assets and [#123](https://github.com/Knapp-Kevin/sonic-rift/pull/123) recorded their approval. Website integration is a separate task.
 - [#113](https://github.com/Knapp-Kevin/sonic-rift/pull/113): generate narration directly on an existing Studio script clip using the loaded Speech voice, retaining clip identity and undo/redo, exclusive model ownership, cancellation, safe stale-result handling, project persistence and export.
