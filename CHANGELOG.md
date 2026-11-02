@@ -4,7 +4,7 @@ All notable changes to **Sonic Rift** are recorded here. The project began as **
 
 Versions follow [Semantic Versioning](https://semver.org/) from 0.9.0-alpha. Earlier work had no version numbers (the `ui-v0.2.0` tag predates the rename).
 
-## 0.9.0-alpha (in review)
+## 0.9.0-alpha (2026-11-02)
 
 The first numbered version, an alpha. It runs from source, or from the signed Windows installer the release workflow builds for this tag (the installer sets up Python and PyTorch on first launch). Entries describe code in this version, **not** a universally verified model/device matrix.
 
