@@ -29,6 +29,11 @@ class MusicEngine:
     env_gb: float
     gpu: str
     vram_gb: float = 0.0            # measured peak (0 = not measured yet)
+    # Measured on the reference GPU (RTX 5070 Ti), for the estimate shown before a job.
+    start_seconds: float = 0.0      # loading the model
+    take_seconds: float = 0.0       # fixed cost of one take
+    plan_seconds: float = 0.0       # extra per take when the planner runs first
+    seconds_per_second: float = 0.0 # extra per second of music
     speed_note: str = ""
     prompt_hint: str = ""
     limits: tuple = field(default_factory=tuple)   # plain-language limitations shown on the page
@@ -54,11 +59,19 @@ ACE_STEP_15 = MusicEngine(
         seed=True, planner=True,
         unsupported={}),
     download_gb=10.0, env_gb=7.0,
-    gpu="NVIDIA GPU with 12 GB or more; unload the voice and sound models first",
+    gpu="NVIDIA GPU with 12 GB or more (about 10 GB at peak); unload the voice and sound models first",
+    vram_gb=10.0, start_seconds=300.0, take_seconds=8.0, plan_seconds=15.0, seconds_per_second=0.25,
+    speed_note="≈ 20-40 s per 30 s take once started; starting takes a few minutes",
     prompt_hint="e.g. gentle piano and cello underscore for a reflective scene",
     limits=("Tempo and key are requests the model follows closely but not exactly; check the take.",
             "Lyrics must be your own. Sung words can be unclear, especially in fast passages.",
             "Longer than 4 minutes isn't offered yet: Studio's mix memory limit (#71)."))
+
+def job_seconds(engine, seconds, candidates, plan, loaded):
+    """Expected wall time of a Generate: each take, plus starting the model if it isn't running."""
+    take = engine.take_seconds + engine.seconds_per_second * seconds + (engine.plan_seconds if plan else 0.0)
+    return candidates * take + (0.0 if loaded else engine.start_seconds)
+
 
 ENGINES = {engine.key: engine for engine in (ACE_STEP_15,)}
 

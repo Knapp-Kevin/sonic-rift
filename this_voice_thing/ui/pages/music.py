@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
 )
 
+from this_voice_thing.core import resources
 from this_voice_thing.core.music import catalog as music_catalog
 from this_voice_thing.core.music import contract, service
 from this_voice_thing.core.soundscape import assets as sound_assets
@@ -322,7 +323,8 @@ class MusicPage:
             control.setEnabled(flag)
             control.setToolTip("" if flag else caps.unsupported.get(name, f"{engine.label} doesn't offer this."))
         self.music_bpm_spin.setEnabled(caps.bpm and self.music_bpm_checkbox.isChecked())
-        self.music_limits_label.setText("Limits: " + " ".join(engine.limits) if engine.limits else "")
+        notes = ([f"Speed: {engine.speed_note}."] if engine.speed_note else []) +             (["Limits: " + " ".join(engine.limits)] if engine.limits else [])
+        self.music_limits_label.setText(" ".join(notes))
         running = self.music_model is not None and self.music_model.key == engine.key
         if not music_models.is_installed(engine.key):
             self.music_engine_status.setText(f"Not installed · {engine.license_name}")
@@ -424,6 +426,7 @@ class MusicPage:
             self.music_task = None
             self.music_status.setText("")
             if error:
+                self.music_cost_confirmed = False
                 self.set_status_message(f"Status: {error}")
                 QMessageBox.warning(self, "Music", f"{error}\n\nDetails are in the log (Settings).")
             else:
@@ -480,9 +483,14 @@ class MusicPage:
             return
         if self.music_model is not None and not self.music_model.alive():
             self.music_model = self.music_service = None      # its worker ended (e.g. cancelled)
+        if not getattr(self, "music_cost_confirmed", False):
+            if not self.confirm_heavy_job(self.music_job_cost(request, engine), "Music"):
+                return
+            self.music_cost_confirmed = True      # asked once for this Generate, not again after the start
         if self.music_model is None or self.music_model.key != engine.key:
             self.start_music_engine(engine, then=self.start_music)
             return
+        self.music_cost_confirmed = False
         self.save_music_settings(request)
         self.music_player.stop()
         self.music_player.setSource(QUrl())
@@ -504,6 +512,13 @@ class MusicPage:
         self.music_status.setText(f"Composing take A of {request.candidates}...")
         self.set_status_message(f"Status: Composing {request.candidates} take(s) with {engine.label}...")
         self.refresh_music_controls()
+
+    def music_job_cost(self, request, engine):
+        """Expected time and GPU memory for a Generate (and the model's start, if needed)."""
+        loaded = self.music_model is not None and self.music_model.key == engine.key
+        seconds = music_catalog.job_seconds(engine, request.seconds, request.candidates, request.plan, loaded)
+        return resources.JobCost(f"{request.candidates} take(s) of {request.seconds:.0f} s with {engine.label}",
+                                 seconds / 60.0, gpu_gb=engine.vram_gb)
 
     def on_music_progress(self, done, total):
         self.music_progress.setValue(done)

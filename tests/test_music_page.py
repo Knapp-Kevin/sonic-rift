@@ -78,9 +78,12 @@ class MusicPageTests(unittest.TestCase):
         w.music_seed_spin.setValue(7)
         self.installed = patch("this_voice_thing.engines.music_models.is_installed", return_value=True)
         self.installed.start()
+        self.confirmed = patch.object(type(w), "confirm_heavy_job", return_value=True)
+        self.confirm = self.confirmed.start()
 
     def tearDown(self):
         self.installed.stop()
+        self.confirmed.stop()
 
     def wait_for_job(self, seconds=20):
         deadline = time.monotonic() + seconds
@@ -118,6 +121,16 @@ class MusicPageTests(unittest.TestCase):
             self.assertFalse(self.window.music_instrumental_checkbox.isEnabled())
         self.window.refresh_music_controls()
         self.assertTrue(self.window.music_key_combo.isEnabled())
+
+    def test_a_declined_cost_warning_runs_nothing(self):
+        w = self.window
+        self.confirm.return_value = False
+        w.start_music()
+        cost = self.confirm.call_args[0][0]
+        self.assertIn("2 take(s) of 10 s", cost.label)
+        self.assertIsNone(w.music_job)
+        self.assertEqual(self.model.calls, [])
+        self.assertFalse(getattr(w, "music_cost_confirmed", False))
 
     def test_an_invalid_request_is_explained_and_nothing_runs(self):
         w = self.window

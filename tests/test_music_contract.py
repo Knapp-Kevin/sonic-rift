@@ -256,6 +256,14 @@ class EngineInstallState(unittest.TestCase):
         self.assertEqual(run.call_args[0][0], ["taskkill", "/T", "/F", "/PID", "4242"])
         process.wait.assert_called_once()
 
+    def test_job_estimate_counts_takes_length_planner_and_start(self):
+        engine = catalog.ACE_STEP_15
+        one = engine.take_seconds + 30 * engine.seconds_per_second
+        self.assertAlmostEqual(catalog.job_seconds(engine, 30, 2, False, True), 2 * one)
+        self.assertAlmostEqual(catalog.job_seconds(engine, 30, 2, True, True), 2 * (one + engine.plan_seconds))
+        self.assertAlmostEqual(catalog.job_seconds(engine, 30, 1, False, False), one + engine.start_seconds)
+        self.assertGreater(engine.vram_gb, 0)
+
     def test_consent_names_exact_revisions_license_and_size(self):
         text = catalog.consent_text(catalog.ACE_STEP_15)
         for fact in ("19671f4", "ca1e85f", "MIT License", "10 GB", "7 GB"):

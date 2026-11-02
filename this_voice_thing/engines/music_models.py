@@ -30,7 +30,8 @@ SPECS = {
         key="ace_step_15", directory="acestep", worker="acestep_worker.py", python_version="3.12",
         required_files=("acestep-v15-turbo/model.safetensors", "acestep-5Hz-lm-1.7B/model.safetensors",
                         "Qwen3-Embedding-0.6B/model.safetensors", "vae/diffusion_pytorch_model.safetensors"),
-        load_request={"cmd": "load", "dit": "acestep-v15-turbo", "lm": "acestep-5Hz-lm-1.7B"}),
+        load_request={"cmd": "load", "dit": "acestep-v15-turbo", "lm": "acestep-5Hz-lm-1.7B",
+                      "offload_dit": False, "offload_lm": True}),
 }
 
 

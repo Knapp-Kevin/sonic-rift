@@ -42,6 +42,9 @@ def reply(**payload):
 def main():
     import soundfile as sf
     import torch
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import worker_limits
+    worker_limits.apply(torch)    # the app's CPU-thread and GPU-memory limits
     from acestep.handler import AceStepHandler
     from acestep.inference import GenerationConfig, GenerationParams, generate_music
     from acestep.llm_inference import LLMHandler
@@ -57,16 +60,18 @@ def main():
                 raise RuntimeError(f"Model folder {name} is missing from {checkpoints}; install the engine again.")
         started = time.monotonic()
         # Everything resident needs more than 16 GB (it spilled into shared memory and ran at
-        # ~2% GPU); upstream's advice below 20 GB is to offload idle components to the CPU.
-        offload = bool(req.get("offload", True))
+        # ~2% GPU). Moving every idle part to the CPU fits but costs 25-70 s of copying per
+        # take, so by default only the planner (the biggest part, idle while rendering) moves.
+        offload_dit = bool(req.get("offload_dit", True))
+        offload_lm = bool(req.get("offload_lm", True))
         dit = AceStepHandler()
         message, ok = dit.initialize_service(project_root=root, config_path=req["dit"],
-                                             device="cuda" if cuda else "cpu", offload_to_cpu=offload)
+                                             device="cuda" if cuda else "cpu", offload_to_cpu=offload_dit)
         if not ok:
             raise RuntimeError(f"ACE-Step model didn't load: {message}")
         lm = LLMHandler()
         message, ok = lm.initialize(checkpoint_dir=checkpoints, lm_model_path=req["lm"], backend="pt",
-                                    device="cuda" if cuda else "cpu", offload_to_cpu=offload)
+                                    device="cuda" if cuda else "cpu", offload_to_cpu=offload_lm)
         if not ok:
             raise RuntimeError(f"ACE-Step planner didn't load: {message}")
         state.update(dit=dit, lm=lm)
