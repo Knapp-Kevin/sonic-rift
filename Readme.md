@@ -4,7 +4,7 @@
 
 > **Make worlds you can hear.** Local-first creative audio for voices, soundscapes, and the ideas that connect them.
 
-**Version 0.9.0-alpha**, run from source. Versions follow [Semantic Versioning](https://semver.org/); see the [changelog](CHANGELOG.md).
+**Version 0.9.0-alpha** (alpha): run from source, or install it with the signed Windows installer from the [releases page](https://github.com/Knapp-Kevin/sonic-rift/releases). Versions follow [Semantic Versioning](https://semver.org/); see the [changelog](CHANGELOG.md).
 
 **Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines multiple speech engines with voice design, cloning, narration, transcription, and soundscape generation. The Studio already supports arranging environmental audio with spoken performances, in-place narration, and mastered exports. Remaining timeline and long-project improvements are tracked separately from verified source-run behavior.
 
