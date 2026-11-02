@@ -1,8 +1,6 @@
 """Backwards-compatible import path for the Sonic Rift Chatterbox provider.
 
-The prior implementation originated in AcTePuKc/Chatterbox-TTS-UI. This file
-now delegates to Sonic Rift's adapter; its historical MIT notice must remain
-recorded while other upstream-derived implementation survives elsewhere.
+Older scripts import from here; everything is defined in chatterbox_provider.
 """
 from this_voice_thing.engines.chatterbox_provider import (  # noqa: F401
     BACKEND_LEGACY,

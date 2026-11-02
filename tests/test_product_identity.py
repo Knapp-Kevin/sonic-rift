@@ -41,7 +41,6 @@ class ProductIdentityTests(unittest.TestCase):
             self.assertIn("Chatterbox-TTS-UI", text)
             self.assertIn("independence-2026-11-02.md", text)
         self.assertTrue((ROOT / "docs/independence-2026-11-02.md").is_file())
-        self.assertIn("AcTePuKc", readme)          # thanks to the original authors stays
 
     def test_contributor_workflow_references_correct_repository(self):
         contributors = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")

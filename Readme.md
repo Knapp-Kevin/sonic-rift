@@ -694,7 +694,6 @@ Please keep model licensing, attribution, local/private behavior and compatibili
 
 **Licenses and acknowledgements.** Sonic Rift is licensed under the [Apache License 2.0](LICENSE). Engines and models keep their own licenses. For the source-code provenance record and retained copyright notices, see [NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [the upstream provenance audit](docs/upstream-provenance-audit.md).
 
-- **AcTePuKc and contributors**, including [lowkeytea](https://github.com/lowkeytea), for [Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI), where Sonic Rift began. Its code has since been rewritten ([record](docs/independence-2026-11-02.md)).
 - **Resemble AI** for [Chatterbox TTS](https://github.com/resemble-ai/chatterbox) (MIT).
 - **Alibaba / the Qwen team** for [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0).
 - **OpenBMB** for [VoxCPM](https://github.com/OpenBMB/VoxCPM) (Apache-2.0).

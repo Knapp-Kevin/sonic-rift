@@ -1,6 +1,6 @@
 # GitHub fork-network preservation: pre-detachment gate
 
-**Status: Preparation only. Detachment is NOT authorized.**
+**Status: Done.** The owner detached Sonic Rift from the fork network on 2026-11-02, after the metadata archive, a full git mirror and a release-asset check ([independence record](independence-2026-11-02.md)). The text below is the preparation gate as written.
 
 Sonic Rift is currently a public, ~10 MB GitHub repository, still in the AcTePuKc/Chatterbox-TTS-UI fork network. Its GitHub REST metadata showed **zero child forks** at this checkpoint, which suggests the self-service Leave fork network control may be eligible. GitHub's official requirements are a public repository, under 1 GB and no child forks; GitHub settings are authoritative at execution time. **Do not click the control yet.**
 
