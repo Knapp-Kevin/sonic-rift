@@ -12,6 +12,7 @@ Requests:
 """
 
 import json
+import os
 import sys
 import traceback
 import warnings
@@ -30,6 +31,9 @@ def main():
     import numpy as np
     import soundfile as sf
     import torch
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import worker_limits
+    worker_limits.apply(torch)    # the app's CPU-thread and GPU-memory limits
     from huggingface_hub import hf_hub_download, snapshot_download
     from transformers import AutoModelForTextToWaveform, AutoProcessor, set_seed
 

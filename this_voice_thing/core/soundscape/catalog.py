@@ -30,6 +30,7 @@ class SoundEngine:
     vram_gb: float = 0.0      # measured peak on the GPU (0 = CPU or not measured)
     prompt_hint: str = ""
     speed_note: str = ""      # typical speed, shown on its Models tile
+    take_seconds: float = 0.0 # measured time per take on the reference GPU (for job estimates)
 
 
 PROCEDURAL = SoundEngine(
@@ -53,7 +54,7 @@ MOSS_SFX_V2 = SoundEngine(
     gated=False, download_gb=11.2, env_gb=7.0, max_seconds=30.0, sample_rate=48000, channels=1,
     gpu="NVIDIA GPU with 16 GB (about 15 GB at peak); unload the voice model first", vram_gb=15.2,
     prompt_hint="e.g. heavy rain on a tin roof with distant thunder",
-    speed_note="\u2248 23 s per take (any length up to 30 s)")
+    speed_note="\u2248 23 s per take (any length up to 30 s)", take_seconds=23.0)
 
 # Stable Audio 3 Small SFX was evaluated and removed (2026-10-14): its ocean, rain and tonal
 # output was rejected in the owner's listening review, and it carried license conditions.

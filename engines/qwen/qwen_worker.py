@@ -33,6 +33,9 @@ def main():
     import numpy as np
     import soundfile as sf
     import torch
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import worker_limits
+    worker_limits.apply(torch)    # the app's CPU-thread and GPU-memory limits
     from qwen_tts import Qwen3TTSModel
 
     state = {"model": None, "model_id": None, "mode": None, "clone_prompts": {},

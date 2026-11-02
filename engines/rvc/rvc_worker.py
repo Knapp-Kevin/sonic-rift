@@ -186,6 +186,9 @@ def main():
                     model_path=str(model_path),
                 )
                 torch = engine.torch
+                sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                import worker_limits
+                worker_limits.apply(torch)    # the app's CPU-thread and GPU-memory limits
                 device = str(engine.config.device)
                 cuda = torch.device(engine.config.device).type == "cuda"
                 reply(
