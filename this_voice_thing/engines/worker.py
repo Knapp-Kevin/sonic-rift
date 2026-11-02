@@ -141,10 +141,15 @@ class WorkerProcess:
         self.device = "cuda" if ready.get("cuda") else "cpu"
 
     def _pump_stderr(self):
+        # Keep draining even if logging a line fails (e.g. an emoji on a cp1252 console):
+        # once nothing reads the pipe, the worker blocks on its next write and never replies.
         for line in self.process.stderr:
             line = line.rstrip()
-            if line and not self.skip(line):
-                self.log(f"[{self.tag}] {line}")
+            try:
+                if line and not self.skip(line):
+                    self.log(f"[{self.tag}] {line}")
+            except Exception:
+                pass
 
     def _read_reply(self):
         line = self.process.stdout.readline()
@@ -208,7 +213,23 @@ class WorkerProcess:
             try:
                 self.process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                self.process.kill()
+                kill_tree(self.process)
+
+
+def kill_tree(process):
+    """End `process` and everything it started.
+
+    On Windows a venv's python.exe is a launcher that runs the real interpreter as a child
+    process, so killing only the launcher left the model running and holding GPU memory."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True,
+                       creationflags=NO_WINDOW)
+    if process.poll() is None:
+        process.kill()
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        pass
 
 
 class PerthWatermark:
