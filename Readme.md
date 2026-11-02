@@ -661,7 +661,7 @@ Your data stays in the project folder, where it has always been: `app_settings.j
 ## Why PyTorch is installed separately
 
 <details>
-<summary><strong>Why PyTorch is installed separately</strong></summary>
+<summary><strong>Details</strong></summary>
 
 The project uses two deliberately separate mechanisms:
 
