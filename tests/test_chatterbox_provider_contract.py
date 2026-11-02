@@ -238,6 +238,20 @@ class ChatterboxProviderContractTests(unittest.TestCase):
         for value, expected in cases.items():
             self.assertEqual(resolve(value), expected, value)
 
+    def test_languages_per_backend(self):
+        m = self.adapter
+        self.assertEqual(m.get_supported_languages_for_backend(m.BACKEND_MULTILINGUAL)["fr"], "French")
+        self.assertEqual(m.get_supported_languages_for_backend(m.BACKEND_LEGACY), {"en": "English"})
+        self.assertEqual(m.get_supported_languages_for_backend("other"), {"en": "English"})
+
+    def test_t3_aliases_cover_versions_stems_and_file_names(self):
+        aliases = self.adapter.MULTILINGUAL_T3_MODEL_ALIASES
+        for version in ("v2", "v3"):
+            file_name = f"t3_mtl23ls_{version}.safetensors"
+            for alias in (version, f"t3_mtl23ls_{version}", file_name):
+                self.assertEqual(aliases[alias], file_name)
+        self.assertEqual(len(aliases), 6)
+
     def test_older_engine_without_t3_selection_uses_the_full_download_set(self):
         m = self.adapter
 
