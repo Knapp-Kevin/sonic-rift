@@ -1,0 +1,90 @@
+# Builds, signs and verifies the Windows installer for a version tag, then attaches it
+# to a draft GitHub Release for the owner to publish. Runs only for v* tags, and only
+# after the owner approves the release environment, which holds the Azure sign-in.
+name: Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      SIGNING_CLIENT_VERSION: "1.0.146"
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v5
+
+      - name: Read the version from the tag
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+') { throw "Tag ${{ github.ref_name }} is not a vMAJOR.MINOR.PATCH version." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Make sure Inno Setup 6 is installed
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Installing Inno Setup failed.' }
+          }
+          (Get-Item "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe").VersionInfo.ProductVersion
+
+      - name: Get the Artifact Signing client
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'signing-client'
+          $pkg = "$dir.zip"
+          Invoke-WebRequest "https://www.nuget.org/api/v2/package/Microsoft.ArtifactSigning.Client/$env:SIGNING_CLIENT_VERSION" -OutFile $pkg
+          Expand-Archive $pkg -DestinationPath $dir
+          $sig = Get-AuthenticodeSignature (Join-Path $dir 'bin\x64\Azure.CodeSigning.Dlib.dll')
+          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+            throw "The signing client is not Microsoft-signed: $($sig.Status) $($sig.SignerCertificate.Subject)"
+          }
+          "SIGNING_CLIENT_DIR=$dir" >> $env:GITHUB_ENV
+
+      - name: Build and sign the installer
+        shell: pwsh
+        run: ./packaging/windows/build-installer.ps1 -Version ${{ steps.version.outputs.version }} -Sign -SigningClientDir $env:SIGNING_CLIENT_DIR
+
+      - name: Verify the signature
+        shell: pwsh
+        run: |
+          $installer = "dist/SonicRift-Setup-${{ steps.version.outputs.version }}.exe"
+          ./packaging/windows/verify-signature.ps1 -Path $installer
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  SonicRift-Setup-${{ steps.version.outputs.version }}.exe" | Set-Content "$installer.sha256" -Encoding ascii
+
+      - name: Attach to a draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $notes = "Signed Windows installer for Sonic Rift $version. The first launch downloads Python, PyTorch and other components (several GB). Publisher: MythologIQ Labs, LLC."
+          gh release create "${{ github.ref_name }}" "dist/SonicRift-Setup-$version.exe" "dist/SonicRift-Setup-$version.exe.sha256" `
+            --draft --verify-tag --title "Sonic Rift $version" --notes $notes
+          if ($LASTEXITCODE -ne 0) { throw 'Creating the draft release failed.' }

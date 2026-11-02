@@ -1,0 +1,7 @@
+Sonic Rift is installed.
+
+The first launch takes a while. Sonic Rift downloads Python 3.11, PyTorch and its other components onto this PC, which can be several gigabytes. A console window shows progress, and setup logs are saved in the "logs" folder inside the installation folder.
+
+Speech models download separately, when you first choose each one in the app. Each model is roughly 0.4 to 5.4 GB.
+
+After the first launch, Sonic Rift starts in seconds and works offline for models already downloaded.
