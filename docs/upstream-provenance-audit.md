@@ -1,5 +1,7 @@
 # Upstream Provenance and Legacy Cleanup Audit
 
+> **Update 2026-11-02:** the independence work is complete. All inherited code was rewritten and the upstream MIT notice was removed from the current tree; see [the completion record](independence-2026-11-02.md). The text below is the record as it stood before that.
+
 Status: **Historical baseline audit (2026-10-09) with a 2026-10-15 mainline reconciliation; not legal clearance or dead-code certification.**
 
 Original audit snapshot: 2026-10-09. Scope: the then-current `main` branch file trees of `Knapp-Kevin/this-voice-thing` and `AcTePuKc/Chatterbox-TTS-UI`. Upstream commit tree: `22460fd99ceb78c309f879b93878240241a0dc9b`. This Voice Thing baseline tree: `17657c653d9bed89f86b526cbae704cf12308d36`.
