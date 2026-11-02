@@ -57,16 +57,21 @@ def language_choices(entry):
     return rows, wanted, entry.get("backend") in MULTI_LANGUAGE_BACKENDS
 
 
+def _sample_sources(entry, language):
+    """Sample texts in order of preference (some may be empty)."""
+    yield (entry.get("test_texts") or {}).get(language)
+    if entry.get("backend") == BACKEND_MULTILINGUAL:
+        builtin = DEFAULT_LANGUAGE_TEST_TEXTS
+        yield builtin.get(language) or builtin["en"]
+    yield entry.get("test_text")
+
+
 def sample_text(entry, language):
     """The Sample button's text: the entry's own sample for the language; for multilingual
     Chatterbox the built-in one (English when the language has none); then the entry's
     general sample. None when there is nothing. No language means the entry's own."""
-    language = language or entry.get("language_id", "en")
-    candidates = [entry.get("test_texts", {}).get(language)]
-    if entry.get("backend") == BACKEND_MULTILINGUAL:
-        candidates.append(DEFAULT_LANGUAGE_TEST_TEXTS.get(language) or DEFAULT_LANGUAGE_TEST_TEXTS["en"])
-    candidates.append(entry.get("test_text"))
-    return next((text for text in candidates if text), None)
+    wanted = language or entry.get("language_id", "en")
+    return next(filter(None, _sample_sources(entry, wanted)), None)
 
 
 class GeneratePage:
