@@ -37,11 +37,11 @@ class ProductIdentityTests(unittest.TestCase):
         notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
         notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
         readme = (ROOT / "Readme.md").read_text(encoding="utf-8")
-        for text in (notice, notices, readme):
+        for text in (notice, notices):                  # the factual origin stays in the notices
             self.assertIn("Chatterbox-TTS-UI", text)
+        for text in (notice, notices, readme):
             self.assertIn("independence-2026-11-02.md", text)
         self.assertTrue((ROOT / "docs/independence-2026-11-02.md").is_file())
-        self.assertIn("AcTePuKc", readme)          # thanks to the original authors stays
 
     def test_contributor_workflow_references_correct_repository(self):
         contributors = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")

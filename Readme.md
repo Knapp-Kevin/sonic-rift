@@ -4,9 +4,9 @@
 
 > **Make worlds you can hear.** Local-first creative audio for voices, soundscapes, and the ideas that connect them.
 
-**Version 0.9.0-alpha** (alpha): run from source, or install it with the signed Windows installer from the [releases page](https://github.com/Knapp-Kevin/sonic-rift/releases). Versions follow [Semantic Versioning](https://semver.org/); see the [changelog](CHANGELOG.md).
+**[Download Sonic Rift 0.9.0-alpha for Windows](https://github.com/Knapp-Kevin/sonic-rift/releases)**: a signed installer (publisher MythologIQ Labs, LLC). See [Quick Start](#quick-start). Versions follow [Semantic Versioning](https://semver.org/); see the [changelog](CHANGELOG.md).
 
-**Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines multiple speech engines with voice design, cloning, narration, transcription, and soundscape generation. The Studio already supports arranging environmental audio with spoken performances, in-place narration, and mastered exports. Remaining timeline and long-project improvements are tracked separately from verified source-run behavior.
+**Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines several speech engines with voice design, cloning, narration and transcription. It also makes sound effects, ambience and music, and its Studio arranges them with spoken performances and exports the mix.
 
 Sonic Rift integrates [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several optional speech providers. Sonic Rift is licensed under the [Apache License 2.0](LICENSE); copyright and dependency attribution is maintained in [NOTICE](NOTICE) and [Licensing and third-party notices](THIRD_PARTY_NOTICES.md).
 
@@ -40,13 +40,13 @@ See [CHANGELOG.md](CHANGELOG.md) for the long version of how this got out of han
 
 | Platform | Current project status | What to expect |
 | --- | --- | --- |
-| **Windows 10/11 (64-bit)** | **Primary maintained path** | `run.bat` automates setup; NVIDIA CUDA acceleration is supported by the installer, subject to compatible drivers and hardware. |
+| **Windows 10/11 (64-bit)** | **Primary maintained path** | A signed installer (or `run.bat` from source) sets everything up; NVIDIA CUDA acceleration is supported, subject to compatible drivers and hardware. |
 | **macOS on Apple Silicon (M1–M4, including M4 MacBooks)** | **Experimental / unverified** | A `run.sh` launcher exists, but macOS has **not been tested by the maintainer**. Metal (MPS) acceleration is unverified; installation may fail or run on CPU. Community test reports are welcome. |
 | **Linux** | **Experimental / unverified** | A `run.sh` launcher exists; dependency and GPU support are not validated to the same standard as Windows. |
 
 **Local requirements and recommendations**
 
-- **Python:** The application environment is pinned to **Python 3.11**. On Windows, a working `python` command and `uv` are needed to bootstrap it. On macOS/Linux, install Python 3.11 and `uv` before running the shell launcher.
+- **Python:** The application environment is pinned to **Python 3.11**. The Windows installer brings its own uv and downloads Python 3.11 itself; running from source needs a working `python` command and `uv`. On macOS/Linux, install Python 3.11 and `uv` before running the shell launcher.
 - **Graphics:** An NVIDIA GPU is recommended for the maintained Windows path. Some engines may work on CPU, typically with much slower generation. Apple's M-series GPU is **not yet a verified acceleration target** for this application.
 - **GPU memory:** Requirements vary by engine. The current project guidance ranges from roughly **2 GB VRAM for Kokoro**, **4 GB minimum for Chatterbox**, and **6–10 GB or more** for larger engines. These are estimates, not confirmed compatibility guarantees. See [per-model guidance](#prerequisites).
 - **System RAM:** No tested minimum has been established. More memory may be necessary for larger models and CPU inference; do not treat GPU VRAM figures as RAM requirements.
@@ -65,7 +65,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the long version of how this got out of han
 - [Quick Start](#quick-start)
 - [Screenshots](#screenshots)
 - [Current status](#current-status)
-- [How This Got Out of Hand](#how-this-got-out-of-hand)
+- [What Sonic Rift does](#what-sonic-rift-does)
 - [Features](#features)
 - [Local API](#local-api)
 - [Google Docs sign-in setup](#google-docs-sign-in-setup)
@@ -80,178 +80,85 @@ See [CHANGELOG.md](CHANGELOG.md) for the long version of how this got out of han
 
 ## Quick Start
 
-If you are on Windows and just want the app to work, use this section. You do **not** need an OpenAI API key, a Hugging Face account, or prior Python experience for normal local generation.
+On Windows, install Sonic Rift with the signed installer. You don't need Python, an OpenAI API key, a Hugging Face account or any programming experience.
 
-### 1. Install the two required tools
+### 1. Install
 
-Install **Python 3.11 or newer** from [python.org](https://www.python.org/downloads/windows/).
+1. Open the [Releases page](https://github.com/Knapp-Kevin/sonic-rift/releases) and download **`SonicRift-Setup-<version>.exe`** from the newest release (0.9.0-alpha is a pre-release).
+2. Run it. Windows shows the publisher as **MythologIQ Labs, LLC**: the installer is code-signed and timestamped. It installs for your user only, with no administrator prompt, into `%LOCALAPPDATA%\Programs\Sonic Rift`, and adds **Sonic Rift** to the Start menu (a desktop icon is optional).
+3. Start **Sonic Rift** from the Start menu.
 
-During the Python installer, enable **Add python.exe to PATH**. Then open **Command Prompt** and verify:
+**The first launch takes a while.** Sonic Rift downloads Python 3.11, PyTorch and its other components onto your PC, several gigabytes in all, and a console window shows the progress. Later launches take seconds. Each speech, sound or music model downloads only when you first choose it, after the app tells you its size and license.
 
-```bat
-python --version
-```
+To check the download, compare its SHA-256 with the `.sha256` file on the release (`Get-FileHash SonicRift-Setup-<version>.exe`). To uninstall, use **Settings › Apps** in Windows; it removes the app and its Python environment, and keeps your generated audio and any engines you installed.
 
-The exact system Python version is not important as long as that command works. The launcher uses `uv` to create the app's required Python 3.11 environment.
+### 2. Make your first audio
 
-Next install **uv**, which manages the app's Python environment and packages:
+1. Go to **Speech**, type a sentence and keep the default model and voice.
+2. Click **Preview** for a short sample, then **Generate**.
+3. Play the take in the player. **Add to Studio** puts it on the Studio timeline, where you can lay **Sounds** and **Music** under it, play the mix and export it.
 
-```bat
-python -m pip install uv
-```
+Then explore:
 
-Verify that Windows can find it:
-
-```bat
-uv --version
-```
-
-If either command says it is not recognized, close and reopen Command Prompt after installation. If it still fails, see [Troubleshooting](#troubleshooting).
-
-> [!NOTE]
-> **FFmpeg is optional for initial setup.** Install it later if you want MP3 support and the best speed/pitch processing. The app itself can start without it.
-
-### 2. Download Sonic Rift
-
-Choose **one** method.
-
-**Easiest: download a ZIP**
-
-1. On this GitHub page, click **Code → Download ZIP**.
-2. Open the downloaded ZIP.
-3. Extract the entire folder somewhere you can keep it, such as `Documents\Sonic Rift`.
-4. Open the extracted folder. Do not run the app from inside the ZIP preview.
-
-**Or, if you use Git:**
-
-```bat
-git clone https://github.com/Knapp-Kevin/sonic-rift
-cd sonic-rift
-```
-
-### 3. Start the app
-
-Double-click **`run.bat`**.
-
-That is the normal launcher. You do **not** need to run `setup_env.bat` first.
-
-On the first run, the launcher will:
-
-1. create the private `.venv` Python environment used by the app;
-2. install the locked Python dependencies;
-3. choose and install the appropriate PyTorch build for your hardware;
-4. start Sonic Rift;
-5. download the default Chatterbox model when it is first needed.
-
-Keep the setup window open while it works. Later launches reuse the environment and are much shorter.
-
-If setup fails, the launcher tells you where the installer log was written. Look in the repo's **`logs`** folder for the newest `installer_*.log`.
-
-### 4. Make your first audio
-
-When the app opens:
-
-1. Go to **Speech**.
-2. Type or paste a short sentence into the text box.
-3. Keep the default model and voice for the first test.
-4. Click **Preview** to make a short sample.
-5. If it sounds right, click **Generate Audio**.
-6. Play the result in the built-in player. Generated files are also kept under `chatterbox_outputs/`.
-7. Optional: **Add to Studio** puts the take on the Studio timeline, where you can add a sound from **Sounds**, play the mix and export it.
-
-Once that works, the rest of the app is safe to explore:
-
-- **Voices › New voice** creates, clones, remixes and refines voices; the **Studio** arranges speech and sounds into a mix.
-- **Live** speaks typed lines and soundboard pads straight to an audio output, with a queue and stop controls.
-- **Voices** stores the voices you save.
+- **Studio** arranges speech, sounds and music on a timeline and exports the mix.
+- **Sounds** makes ambience and effects; **Music** makes instrumentals and songs.
+- **Voices** keeps your voices; **New voice** designs, clones and remixes them.
+- **Live** speaks typed lines and soundboard pads to an audio device in real time.
 - **Transcribe** turns recordings into text.
-- **Model** switches engines, installs optional models and discovers compatible Hugging Face models.
-- **Advanced** contains pronunciation, audio finishing, export and local API settings.
+- **Models** switches and installs engines; **Settings** holds performance limits, pronunciation, the local API and the log.
 
-Optional engines install their own isolated environments when you first choose them. That is expected and prevents their incompatible dependencies from breaking the main app.
+Heavy jobs say how long they'll take and how much GPU memory they need before they start. **Settings › Performance** sets how much of your PC the models may use.
 
-### 5. Normal use after installation
+### Run from source instead
 
-After the first successful setup, just double-click **`run.bat`** whenever you want to use the app. The launcher checks the environment, repairs it when needed, and then starts the application.
+For development, or to try macOS or Linux (not tested by the maintainer):
 
-You normally should **not**:
+1. Install **Python 3.11 or newer** (on Windows, tick **Add python.exe to PATH**) and **uv**: `python -m pip install uv`.
+2. Get the code: **Code › Download ZIP** and extract it, or `git clone https://github.com/Knapp-Kevin/sonic-rift` and `cd sonic-rift`.
+3. Double-click **`run.bat`** on Windows, or run `./run.sh` on macOS or Linux.
 
-- activate the virtual environment yourself;
-- run `setup_env.bat` separately;
-- install packages into `.venv` by hand;
-- copy optional-engine packages into the main environment.
-
-Those are troubleshooting or development tasks, not normal use.
-
-### Launchers
-
-- `run.bat`: **Windows users should start here.** It prepares or repairs the environment, then launches the app.
-- `setup_env.bat`: setup only. Useful for troubleshooting or development.
-- `run.sh` + `setup_env.sh`: best-effort macOS/Linux equivalents, not validated to the same level as Windows.
-
-Windows remains the primary maintained path. Installer decisions are written to `logs/installer_*.log`; start-up problems to `logs/app_startup_*.log`.
+The launcher creates the app's private `.venv`, installs the locked dependencies, picks the right PyTorch build for your hardware and starts the app. Keep its window open on the first run. Afterwards, `run.bat` is all you need: it checks and repairs the environment each time. Setup decisions are logged to `logs/installer_*.log` and start-up problems to `logs/app_startup_*.log`; `setup_env.bat` runs setup alone for troubleshooting.
 
 ## Screenshots
 
-Captured from the running app (build `d9e8179`, Windows 11) while making the short film below, with fictional content and synthetic voices. Details, alt text and checksums: [docs/marketing](docs/marketing/README.md).
+Version 0.9.0-alpha on Windows 11, with the fictional "Evening Tide" scene and synthetic voices from the [short film](docs/marketing/README.md).
 
-![The Studio: a saved scene with three dialogue lines over a Shoreline waves track](docs/marketing/screenshots/sonic-rift-studio-dark.png)
+![The Studio: three lines of dialogue over a Shoreline waves track, with the clip list below](docs/screenshots/studio-dark.png)
 
-| Speech | Sounds |
+| Speech | Music |
 | --- | --- |
-| ![Speech page: the saved voice Traveler, a line of dialogue and its takes](docs/marketing/screenshots/sonic-rift-speech-dark.png) | ![Sounds page: a procedural ocean preset, two takes with loudness figures, and the Sound library](docs/marketing/screenshots/sonic-rift-sounds-dark.png) |
+| ![Speech: a line of text, the Official multilingual model, delivery controls and recent takes](docs/screenshots/speech.png) | ![Music: a prompt for piano and strings, two ACE-Step takes with tempo and key, and a kept piece](docs/screenshots/music.png) |
 
-| Voices: keep a character's voice | Studio (light theme) |
+| Sounds | Voices |
 | --- | --- |
-| ![New voice, Clone: two VoxCPM2 takes made from the Keeper's line](docs/marketing/screenshots/sonic-rift-voices-clone-dark.png) | ![The same Studio scene in the light theme](docs/marketing/screenshots/sonic-rift-studio-light.png) |
+| ![Sounds: the procedural Ocean waves preset and the Sound library](docs/screenshots/sounds.png) | ![Voices: four saved voices for the Evening Tide characters](docs/screenshots/voices.png) |
 
-**Film, “A World in Sound” (about 1:43, with sound):** [MP4](docs/marketing/video/sonic-rift-beacon.mp4) · [captions](docs/marketing/video/sonic-rift-beacon.en.vtt) · [transcript](docs/marketing/video/transcript.md). A narrator, two characters and the sea become one scene in the Studio; waits for renders are shortened and everything shown is the real app.
-
-<details>
-<summary>Earlier screenshots (older builds, before the Studio and the new sidebar)</summary>
-
-These show pages as they looked before October 2026: Create is now **Speech**, and the voice studio is **Voices › New voice**.
-
-| | |
+| Settings: performance limits | Studio (light theme) |
 | --- | --- |
-| ![Older build: Generate page with a Qwen3 preset voice and style instruction](docs/screenshots/generate_qwen_dark.png) | ![Older build: voice studio designing three candidate voices](docs/screenshots/studio.png) |
-| ![Older build: voice library with clip, designed and preset voices](docs/screenshots/voice.png) | ![Older build: Transcribe page with a timestamped transcript](docs/screenshots/transcribe.png) |
-| ![Older build: Model page with capability tabs and model tiles](docs/screenshots/model.png) | ![Older build: Discover tiles listing Hugging Face models](docs/screenshots/discover.png) |
+| ![Settings: CPU threads, priority and GPU memory limit chosen for this PC](docs/screenshots/settings.png) | ![The same Studio scene in the light theme](docs/screenshots/studio-light.png) |
 
-</details>
+**Film, "A World in Sound" (about 1:43, with sound, made with an October build):** [MP4](docs/marketing/video/sonic-rift-beacon.mp4) · [captions](docs/marketing/video/sonic-rift-beacon.en.vtt) · [transcript](docs/marketing/video/transcript.md). The film's own stills are in [docs/marketing](docs/marketing/README.md).
 
 ## Current status
 
-**Development checkpoint:** `f51897c` (October 30, 2026). **No general release is published.** The Windows source-launched app is the maintained path; this checkpoint is **not** an installer or public-distribution acceptance record.
+**Version 0.9.0-alpha** (November 2, 2026) is the first numbered release: a pre-release with a signed Windows installer. Windows 10/11 with an NVIDIA GPU is the tested path; macOS and Linux run from source but are untested.
 
-- **Working, Windows-qualified on individual heads:** Studio-first navigation and composition; multi-track arrangement, non-destructive clip moves/trims, fades, ducking, history and in-place narration generation; Speech, Voices, Sounds, Transcribe, Models and local Live output. See [#61](https://github.com/Knapp-Kevin/sonic-rift/issues/61) for exactly which source revision and device/engine workflows were validated.
-- **Latest merged improvements:** [#120](https://github.com/Knapp-Kevin/sonic-rift/pull/120) Studio-first UI and owner-approved [marketing walkthrough](docs/marketing/README.md); [#113](https://github.com/Knapp-Kevin/sonic-rift/pull/113) in-place Studio narration; [#124](https://github.com/Knapp-Kevin/sonic-rift/pull/124) Live hand-over and cached-pad responsiveness; [#125](https://github.com/Knapp-Kevin/sonic-rift/pull/125) removal of inherited process-wide PyTorch loader modification.
-- **Still awaiting combined acceptance:** one complete Windows regression on the current merged `main`, rather than assuming independent PR test runs qualify their combined tree. External virtual-microphone/Discord/Zoom/OBS routes, device unplug/recovery and owner listening are unverified; VoxCPM2 can rebuffer while slower than real-time. See [#13](https://github.com/Knapp-Kevin/sonic-rift/issues/13).
-- **Remaining Studio work:** zoom/navigation/loop transport and chunked, bounded-memory long-project export. Today's 512 MiB mix/export budget can refuse longer projects; the permissible duration depends on tracks and sample rate. See [#71](https://github.com/Knapp-Kevin/sonic-rift/issues/71).
-- **Release rights:** the code inherited from Chatterbox-TTS-UI has been rewritten ([record](docs/independence-2026-11-02.md)); third-party engine and model permissions still need review. No frozen executable, installer or Microsoft Store listing is available. Release-only Windows signing instructions exist but do not imply a signed build. See [#55](https://github.com/Knapp-Kevin/sonic-rift/issues/55), [#57](https://github.com/Knapp-Kevin/sonic-rift/issues/57) and [#60](https://github.com/Knapp-Kevin/sonic-rift/issues/60).
+- **Ready to use:** Studio arrangement (clip moves and trims, fades, ducking, undo, in-place narration, mixed export); Speech with six engines; Voices; Sounds; Music; Transcribe; Live output; Models; performance limits.
+- **New in this release:** Music with ACE-Step 1.5; performance limits and heavy-job warnings; the signed installer; all code inherited from the original fork rewritten ([record](docs/independence-2026-11-02.md)). See the [changelog](CHANGELOG.md).
+- **Known limits:** long Studio projects can exceed the 512 MiB mix budget, and timeline zoom and loop transport are still to come ([#71](https://github.com/Knapp-Kevin/sonic-rift/issues/71)). Live routes through virtual microphones (Discord, Zoom, OBS) and device unplugging are unverified ([#13](https://github.com/Knapp-Kevin/sonic-rift/issues/13)). Engine and model licenses each need checking for your use ([#60](https://github.com/Knapp-Kevin/sonic-rift/issues/60)).
 
-For active issue and branch disposition, consult the [repository hygiene ledger](docs/operations/sonic-rift-2026-10-30-repository-hygiene.md). macOS and Linux remain experimental/unverified.
+## What Sonic Rift does
 
-## How This Got Out of Hand
+Sonic Rift brings speech, voices, sound, music and mixing into one creative-audio app that runs on your own PC.
 
-Sonic Rift brings local voice synthesis, sound generation, narration, and audio processing into one creative workbench. Its supported capabilities and release limitations are documented below.
-
-Current additions include:
-
-- **Six speech engines grouped by capability.** Chatterbox, Qwen3-TTS, VoxCPM2, OmniVoice, VibeVoice and Kokoro provide different combinations of cloning, preset voices, voice design and conversations.
-- **Multi-speaker conversations.** VibeVoice performs scripts with a different voice for each speaker.
-- **Model-aware hardware guidance.** Model tiles show licensing, expected download size and GPU-memory requirements against the current machine.
-- **A voice studio (Voices › New voice).** Clone a recording, design a voice from a description (several candidates at once), or remix a voice with words; clean it up, adjust pitch and speed, and save it frozen so it sounds the same in every render.
-- **Voice first.** Generate starts from a saved voice, and only offers the models that can speak it.
-- **Document narration.** Open long text, documents and Google Docs, preview a few seconds, estimate generation time, render in sensible sections, and keep partial work if generation is stopped.
-- **Hugging Face model discovery.** Search compatible models, inspect compatibility and licensing, and add supported repositories without hand-editing configuration files.
-- **Transcription.** Turn audio into text with Whisper, save it as text or subtitles, fill in a voice clip's transcript, or send it back to Generate.
-- **Pronunciation controls and subtitles.** Maintain a pronunciation dictionary and generate SRT or WebVTT from the known generation timeline.
-- **Audio finishing.** Adjust paragraph pauses, even out volume, trim silence, change speed or pitch, and export WAV, FLAC or MP3.
-- **A local HTTP API.** Use the same engines and voice library from other software through OpenAI-compatible or native endpoints.
-- **A redesigned desktop interface.** Studio, Speech, Sounds, Voices, Transcribe, Live, Models and Settings pages with light and dark themes.
-
-The goal is one coherent creative-audio application, not a collection of unrelated engine interfaces.
+- **Studio.** Arrange dialogue, narration, ambience and music on a timeline, duck sounds under speech, and export the mix.
+- **Six speech engines, grouped by what they do.** Chatterbox, Qwen3-TTS, VoxCPM2, OmniVoice, VibeVoice and Kokoro cover cloning, preset voices, voice design and multi-speaker conversations.
+- **Voices.** Clone a recording, design a voice from a description, or remix one with words; save it so it sounds the same in every render.
+- **Sounds and music.** Procedural ambience and loops, sound effects with MOSS-SoundEffect, and instrumentals or songs with ACE-Step 1.5, each kept in a library with how it was made.
+- **Document narration.** Open long text, documents and Google Docs, preview a few seconds, see an estimate, render in sections and keep partial work if you stop.
+- **Finishing.** Pronunciation dictionary, subtitles (SRT, WebVTT), paragraph pauses, even volume, trimming, speed and pitch, and WAV, FLAC or MP3 export.
+- **Transcription** with Whisper, **Live** output to an audio device, and a **local HTTP API** (OpenAI-compatible) for other software.
+- **Respectful of your PC.** Models download only when you choose them, after showing their size and license; heavy jobs say how long they'll take first; Settings › Performance caps CPU threads, priority and GPU memory.
 
 ## Features
 
@@ -694,7 +601,6 @@ Please keep model licensing, attribution, local/private behavior and compatibili
 
 **Licenses and acknowledgements.** Sonic Rift is licensed under the [Apache License 2.0](LICENSE). Engines and models keep their own licenses. For the source-code provenance record and retained copyright notices, see [NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [the upstream provenance audit](docs/upstream-provenance-audit.md).
 
-- **AcTePuKc and contributors**, including [lowkeytea](https://github.com/lowkeytea), for [Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI), where Sonic Rift began. Its code has since been rewritten ([record](docs/independence-2026-11-02.md)).
 - **Resemble AI** for [Chatterbox TTS](https://github.com/resemble-ai/chatterbox) (MIT).
 - **Alibaba / the Qwen team** for [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0).
 - **OpenBMB** for [VoxCPM](https://github.com/OpenBMB/VoxCPM) (Apache-2.0).
