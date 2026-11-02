@@ -44,7 +44,7 @@ class NavigationTests(unittest.TestCase):
     def test_sidebar_is_grouped_by_task(self):
         """The Studio brings everything together; MAKE holds the generators; then live; then setup."""
         self.assertEqual(self.sidebar_labels(),
-                         ["Studio", "MAKE", "Speech", "Sounds", "Voices", "Transcribe", "PERFORM", "Live",
+                         ["Studio", "MAKE", "Speech", "Sounds", "Music", "Voices", "Transcribe", "PERFORM", "Live",
                           "SETUP", "Models", "Settings"])
         from PySide6.QtCore import Qt
         for i, label in enumerate(self.sidebar_labels()):
@@ -59,10 +59,10 @@ class NavigationTests(unittest.TestCase):
     def test_show_page_reaches_every_page_and_the_new_voice_tab(self):
         w = self.window
         for page in (w.PAGE_GENERATE, w.PAGE_VOICE, w.PAGE_SOUNDSCAPE, w.PAGE_LIVE_VOICE, w.PAGE_TRANSCRIBE,
-                     w.PAGE_MODEL, w.PAGE_ADVANCED, w.PAGE_PROJECT):
+                     w.PAGE_MODEL, w.PAGE_ADVANCED, w.PAGE_PROJECT, w.PAGE_MUSIC):
             w.show_page(page)
             self.assertEqual(w.pages.currentIndex(), page)
-        self.assertEqual(w.pages.count(), w.PAGE_PROJECT + 1)    # one stack page per sidebar page
+        self.assertEqual(w.pages.count(), w.PAGE_MUSIC + 1)    # one stack page per sidebar page
         w.show_page(w.PAGE_STUDIO)
         self.assertEqual(w.pages.currentIndex(), w.PAGE_VOICE)
         self.assertEqual(w.voices_stack.currentIndex(), 1)

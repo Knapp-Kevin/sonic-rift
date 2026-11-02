@@ -253,7 +253,7 @@ The goal is one coherent creative-audio application, not a collection of unrelat
 
 ## Features
 
-The sidebar is organized by what you're doing: the **Studio** (arrange speech and sounds on a timeline and export the mix), then **Make** (**Speech**: write or open text and generate it; **Sounds**: ambience and effects; **Voices**: your library, and **New voice** to make one; **Transcribe**), **Perform** (**Live**: speak to a device in real time) and **Setup** (Models, Settings).
+The sidebar is organized by what you're doing: the **Studio** (arrange speech and sounds on a timeline and export the mix), then **Make** (**Speech**: write or open text and generate it; **Sounds**: ambience and effects; **Music**: instrumentals and songs; **Voices**: your library, and **New voice** to make one; **Transcribe**), **Perform** (**Live**: speak to a device in real time) and **Setup** (Models, Settings).
 
 <details>
 <summary><strong>Studio</strong></summary>
@@ -341,6 +341,17 @@ Sound beyond speech: ambience loops, rain and waves, tonal beds and UI chimes, k
   - Calm ambience defaults to about -24 to -27 LUFS (adjustable per take).
   - Mono models are spread into stereo without changing their mono mix.
 - **Asset Library:** keep a take with its name, engine, model, license, preset or prompt, seed and settings. Rename, delete, or export as a WAV master, OGG or MP3.
+
+</details>
+
+<details>
+<summary><strong>Music</strong> (new, being qualified)</summary>
+
+- **Compose:** describe the music, add genre, mood and instruments, pick a length (10 s to 4 min) and how many takes to compare. Switch off **Instrumental** to write lyrics for a song; they must be your own words.
+- **Musical controls:** tempo, key and beats per bar are optional. The model follows them closely but not exactly, so check the take. Controls a model can't honour are disabled, with the reason.
+- **Audition:** play each take, and **Switch A/B** to hear the other take from the same moment. **Cancel** stops at once; the model starts again on the next Generate.
+- **Keep:** a kept take goes into the Sound library as a music asset, with its prompt, settings, lyrics, seed, model and code revisions, license, loudness and peak. **Keep and add to Studio** puts it on the timeline, where it mixes under narration like any sound: trim, fades, gain and ducking all apply.
+- **Model:** [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5) (MIT code and weights) in its own environment, with a pinned code commit and weights revision. The app shows the license and download size (about 10 GB of weights plus a 7 GB environment) and asks before installing. It needs about 10 GB of GPU memory, so starting it unloads the voice and sound models. Starting it takes a few minutes; after that a 30 s take takes about 20-40 s on an RTX 5070 Ti. Before each Generate the app shows the expected time and memory, and it runs within your limits in Settings › Performance. Measurements are in the [qualification report](docs/music/music-engine-qualification-2026-10-31.md).
 
 </details>
 

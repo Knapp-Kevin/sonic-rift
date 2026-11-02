@@ -3,7 +3,8 @@
 Each asset is a 24-bit WAV master in sound_library/audio/ plus an entry in
 sound_library/assets.json recording how it was made (engine, model and license,
 preset or prompt, settings, seed) and what it measured (loudness, peak, seam).
-Exports to OGG/MP3 are re-encoded from the master on demand.
+Exports to OGG/MP3 are re-encoded from the master on demand. Kept music takes live here
+too (kind "music"), so Studio places them like any other sound.
 """
 
 import hashlib
@@ -41,6 +42,7 @@ class Asset:
     settings: dict = field(default_factory=dict)
     metrics: dict = field(default_factory=dict)
     notes: str = ""
+    kind: str = "sound"             # "sound" or "music"; older entries have no kind and are sounds
 
 
 def _sha256(path):
@@ -93,14 +95,23 @@ class AssetLibrary:
         asset_id = uuid.uuid4().hex[:12]
         filename = f"{safe_stem(name)}_{asset_id}.wav"
         path = os.path.join(self.audio_dir, filename)
-        mastering.write_audio(path, audio, sample_rate, "wav")
-        metrics = provenance.pop("metrics", None) or mastering.measure(audio, sample_rate, loop)
-        asset = Asset(id=asset_id, name=name.strip() or "Sound", file=filename, engine=engine,
-                      loop=bool(loop), seconds=round(len(audio) / sample_rate, 3),
-                      sample_rate=int(sample_rate), sha256=_sha256(path), created=time.time(),
-                      metrics=metrics, **provenance)
-        self.assets.insert(0, asset)
-        self.save()
+        try:
+            mastering.write_audio(path, audio, sample_rate, "wav")
+            metrics = provenance.pop("metrics", None) or mastering.measure(audio, sample_rate, loop)
+            asset = Asset(id=asset_id, name=name.strip() or "Sound", file=filename, engine=engine,
+                          loop=bool(loop), seconds=round(len(audio) / sample_rate, 3),
+                          sample_rate=int(sample_rate), sha256=_sha256(path), created=time.time(),
+                          metrics=metrics, **provenance)
+            self.assets.insert(0, asset)
+            self.save()
+        except BaseException:
+            # Nothing half-kept: no index entry without its master, no master without an entry.
+            self.assets = [a for a in self.assets if a.file != filename]
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+            raise
         return asset
 
     def rename(self, asset_id, name):
