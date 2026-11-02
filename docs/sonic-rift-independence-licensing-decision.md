@@ -1,5 +1,7 @@
 # Sonic Rift: independence, provenance and source licensing decision
 
+> **Update 2026-11-02:** the independence work is complete. All inherited code was rewritten and the upstream MIT notice was removed from the current tree; see [the completion record](independence-2026-11-02.md). The text below is the record as it stood before that.
+
 **Status (updated 2026-10-31):** Living decision register. **License decided: Apache-2.0** (owner decision, 2026-10-31; see section 4). This is not copyright clearance or GitHub fork-detachment authorization. Implementation steps already merged are recorded as factual progress; remaining decisions and release gates stay open.
 
 **Repository:** `Knapp-Kevin/sonic-rift`  

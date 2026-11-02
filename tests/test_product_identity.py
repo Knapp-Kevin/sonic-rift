@@ -33,16 +33,15 @@ class ProductIdentityTests(unittest.TestCase):
         self.assertIn("Sonic Rift", notice)
         self.assertIn("Apache License, Version 2.0", notice)
 
-    def test_upstream_notices_remain_identifiable(self):
-        mit = (ROOT / "LICENSES/MIT-Chatterbox-TTS-UI.txt").read_text(encoding="utf-8")
+    def test_upstream_history_is_credited_and_recorded(self):
         notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
         notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
-        self.assertIn("AcTePuKc", mit)
-        self.assertIn("Copyright (c) 2025", mit)
-        self.assertIn("Permission is hereby granted", mit)
-        self.assertIn("LICENSES/MIT-Chatterbox-TTS-UI.txt", notice)
-        self.assertIn("Chatterbox-TTS-UI", notices)
-        self.assertIn("LICENSES/MIT-Chatterbox-TTS-UI.txt", notices)
+        readme = (ROOT / "Readme.md").read_text(encoding="utf-8")
+        for text in (notice, notices, readme):
+            self.assertIn("Chatterbox-TTS-UI", text)
+            self.assertIn("independence-2026-11-02.md", text)
+        self.assertTrue((ROOT / "docs/independence-2026-11-02.md").is_file())
+        self.assertIn("AcTePuKc", readme)          # thanks to the original authors stays
 
     def test_contributor_workflow_references_correct_repository(self):
         contributors = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")

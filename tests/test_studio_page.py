@@ -93,7 +93,7 @@ class StudioPage(unittest.TestCase):
         sf.write(path, (0.2 * np.sin(2 * np.pi * 220 * t)).astype("float32"), 24000)
         w.current_audio_file = path
         w.take_texts = {os.path.abspath(path): "Breathe in slowly."}     # what Speech rendered
-        w.output_log_listwidget.clear()
+        w.speech_takes_list.clear()
         w.add_take_to_studio()
         editor = w.project_editor
         self.assertEqual(w.pages.currentIndex(), w.PAGE_PROJECT)
@@ -187,13 +187,13 @@ class TakeHistoryRefinement(unittest.TestCase):
                         audio.write(b"unused test fixture")
                 w.output_directory = tmp
                 w.update_output_log()
-                self.assertEqual(w.output_log_listwidget.count(), 2)
-                self.assertNotEqual(w.output_log_listwidget.item(0).text(),
-                                    w.output_log_listwidget.item(1).text())
-                w.output_log_listwidget.setCurrentRow(1)
-                selected = w.output_log_listwidget.currentItem().data(Qt.ItemDataRole.UserRole)
+                self.assertEqual(w.speech_takes_list.count(), 2)
+                self.assertNotEqual(w.speech_takes_list.item(0).text(),
+                                    w.speech_takes_list.item(1).text())
+                w.speech_takes_list.setCurrentRow(1)
+                selected = w.speech_takes_list.currentItem().data(Qt.ItemDataRole.UserRole)
                 w.update_output_log()
-                self.assertEqual(w.output_log_listwidget.currentItem().data(
+                self.assertEqual(w.speech_takes_list.currentItem().data(
                     Qt.ItemDataRole.UserRole), selected)
             finally:
                 w.close()
@@ -218,12 +218,12 @@ class TakeHistoryRefinement(unittest.TestCase):
                     with open(path, "wb") as audio:
                         audio.write(b"not decoded by this test")
                 w.current_audio_file = stale
-                w.output_log_listwidget.clear()
+                w.speech_takes_list.clear()
                 for path in (latest, stale):
                     row = QListWidgetItem(os.path.basename(path))
                     row.setData(Qt.ItemDataRole.UserRole, path)
-                    w.output_log_listwidget.addItem(row)
-                w.output_log_listwidget.setCurrentRow(-1)  # explicitly clear selection
+                    w.speech_takes_list.addItem(row)
+                w.speech_takes_list.setCurrentRow(-1)  # explicitly clear selection
                 editor = Mock()
                 with patch.object(w, "open_project_editor", return_value=editor):
                     w.add_take_to_studio()

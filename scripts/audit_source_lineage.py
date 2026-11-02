@@ -48,7 +48,7 @@ REVIEW_AREAS = {
         "run.bat", "run.sh", "setup_env.bat", "setup_env.sh",
         "scripts/install_torch.py",
     ),
-    "source_license_and_notices": ("LICENSE", "NOTICE", "LICENSES/MIT-Chatterbox-TTS-UI.txt", "THIRD_PARTY_NOTICES.md"),
+    "source_license_and_notices": ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"),
 }
 
 

@@ -33,7 +33,7 @@ from this_voice_thing.engines import omnivoice as omnivoice_engine
 from this_voice_thing.ui.common import DUAL_MODE_BACKENDS, languages_for_backend
 from this_voice_thing.ui.dialogs.voices import VoiceDetailsDialog
 from this_voice_thing.ui.threads import TaskThread
-from this_voice_thing.ui.widgets import dialog_accepted, set_empty_text
+from this_voice_thing.ui.widgets import SliderWithValue, dialog_accepted, set_empty_text
 
 MODE_TITLES = {"clone": "Clone", "design": "Design", "remix": "Remix"}
 MODE_HINTS = {
@@ -195,10 +195,10 @@ class StudioPage:
         delivery_row = QHBoxLayout()
         delivery_row.setContentsMargins(0, 0, 0, 0)
         delivery_row.addWidget(QLabel("Expressiveness"))
-        self.studio_exaggeration = self._create_slider(0.25, 2.0, 0.05, 0.5)
+        self.studio_exaggeration = SliderWithValue(0.25, 2.0, 0.05, 0.5)
         delivery_row.addWidget(self.studio_exaggeration, 1)
         delivery_row.addWidget(QLabel("Pacing"))
-        self.studio_cfg = self._create_slider(0.2, 1.0, 0.05, 0.5)
+        self.studio_cfg = SliderWithValue(0.2, 1.0, 0.05, 0.5)
         delivery_row.addWidget(self.studio_cfg, 1)
         self.studio_delivery_row = QWidget()
         self.studio_delivery_row.setLayout(delivery_row)
@@ -288,11 +288,11 @@ class StudioPage:
         checks.addStretch(1)
         grid.addLayout(checks, 0, 2, 1, 2)
         grid.addWidget(QLabel("Pitch"), 1, 0)
-        self.studio_pitch = self._create_slider(*audio_effects.PITCH_RANGE, 0.5, 0.0, "{:+.1f} st")
+        self.studio_pitch = SliderWithValue(*audio_effects.PITCH_RANGE, 0.5, 0.0, "{:+.1f} st")
         self.studio_pitch.setToolTip("Raise or lower the voice, keeping its character (semitones).")
         grid.addWidget(self.studio_pitch, 1, 1)
         grid.addWidget(QLabel("Speed"), 1, 2)
-        self.studio_speed = self._create_slider(*audio_effects.SPEED_RANGE, 0.05, 1.0, "{:.2f}x")
+        self.studio_speed = SliderWithValue(*audio_effects.SPEED_RANGE, 0.05, 1.0, "{:.2f}x")
         self.studio_speed.setToolTip("Make the voice speak faster or slower.")
         grid.addWidget(self.studio_speed, 1, 3)
         layout.addLayout(grid)

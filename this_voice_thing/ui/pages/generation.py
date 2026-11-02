@@ -4,18 +4,60 @@ from dataclasses import replace
 import os
 import time
 
-from PySide6.QtCore import QTime
-from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QMessageBox
 
 from this_voice_thing.core import documents
 from this_voice_thing.ui.common import preview_cut
 from this_voice_thing.ui.threads import AudioGeneratorThread
-from this_voice_thing.ui.pages.player import take_label
+from this_voice_thing.ui.pages.player import clock, take_label
+
+TICK_MS = 1000                 # the countdown next to the progress bar refreshes once a second
+IDLE_LABEL, RUNNING_LABEL, STOPPING_LABEL = "Generate", "Stop", "Stopping..."
+READY_STATUS = "Status: Ready."
+STATUS_ERROR_CHARS = 70        # an error's first line is cut to this length in the status bar
+USER_STOP_MARKER = "stopped by user"   # the render thread's wording for a Stop
+
+
+def error_status(message):
+    """(status text, whether it was a Stop) for an error the render thread reported."""
+    if USER_STOP_MARKER in message.lower():
+        return "Status: Stopped. Nothing was saved.", True
+    status = "Status: Couldn't generate the audio."
+    if message:
+        first_line = next(iter(message.splitlines()), "")
+        if len(first_line) > STATUS_ERROR_CHARS:
+            first_line = first_line[:STATUS_ERROR_CHARS - 3] + "..."
+        status += f" ({first_line})"
+    return status, False
+
+
+def section_span(first, last):
+    """'3' for one section, '3–5' for a batch."""
+    return str(first) if first == last else f"{first}–{last}"
+
+
+def render_refusal(owner):
+    """Why Speech can't start a render right now, as (status text, dialog text); None: it can."""
+    if getattr(owner, "live_voice_busy", False):
+        return "Status: Live Voice is generating; stop it before starting a file render.", None
+    if owner.api_busy:
+        return "Status: Busy with a request from the local API; try again in a moment.", None
+    if owner.making_voice_clip():
+        return "Status: Making a voice clip; try again when it's done.", None
+    if owner.model is None:
+        return None, ("Speech", "Load a speech model first: pick one in the Model list or on the Models page.")
+    return None
 
 
 class Generation:
     """Starting, tracking and finishing a generation. Mixed into ChatterboxApp."""
+
+    def _set_speech_controls(self, enabled, include_picker=True):
+        """Generate, Preview, Open and (unless a model is loading) the Model picker."""
+        for control in (self.generate_button, self.preview_button, self.open_document_button):
+            control.setEnabled(enabled)
+        if include_picker:
+            self.model_repo_combo.setEnabled(enabled and not getattr(self, "model_is_loading", False))
 
     def handle_generate_stop_toggle(self):
         if getattr(self, "editor_generation_active", False):
@@ -25,21 +67,23 @@ class Generation:
         if not self.is_generating:
             self.start_generation(preview=False)
             return
-        if hasattr(self, 'audio_generator_thread') and self.audio_generator_thread.isRunning():
-            print("UI: Requesting stop for audio_generator_thread")
-            self.audio_generator_thread.stop()
-            self.generate_button.setText("Stopping...")
-            self.generate_button.setEnabled(False)
-            self.set_status_message(
-                "Status: Stopping after the current section. Finished sections will be kept.")
-        else:
-            print("UI: Stop requested, but no active generation thread found. Resetting UI.")
-            self.on_generation_thread_finished()
+        thread = getattr(self, "audio_generator_thread", None)
+        if thread is None or not thread.isRunning():
+            print("UI: Stop pressed with no render running; resetting Speech.")
+            self.on_render_thread_finished()
+            return
+        print("UI: Stop pressed; asking the render to finish its current section.")
+        thread.stop()
+        button = self.generate_button
+        button.setText(STOPPING_LABEL)
+        button.setEnabled(False)
+        self.set_status_message(
+            "Status: Stopping after the current section. Finished sections will be kept.")
 
     def preview_text(self):
         """(text, character budget): a selection is previewed whole; otherwise a short
         excerpt from the start of the text, about the length picked next to Preview."""
-        selected = self.text_input.textCursor().selectedText().replace("\u2029", "\n").strip()
+        selected = self.text_input.textCursor().selectedText().replace(" ", "\n").strip()
         if selected:
             return selected, None
         return documents.excerpt(self.text_input.toPlainText(), self.preview_length_combo.currentData()), None
@@ -47,89 +91,87 @@ class Generation:
     def start_generation(self, preview=False):
         if self.is_generating:
             return
-        if getattr(self, "live_voice_busy", False):
-            self.set_status_message("Status: Live Voice is generating; stop it before starting a file render.")
-            return
-        if self.api_busy:
-            self.set_status_message("Status: Busy with a request from the local API; try again in a moment.")
-            return
-        if self.making_voice_clip():
-            self.set_status_message("Status: Making a voice clip; try again when it's done.")
-            return
-        if self.model is None:
-            QMessageBox.warning(self, "Model Not Loaded", "Please load the model first.")
+        refusal = render_refusal(self)
+        if refusal is not None:
+            status, dialog = refusal
+            if status:
+                self.set_status_message(status)
+            else:
+                QMessageBox.warning(self, *dialog)
             return
         # Keep the settings this render uses even if the app is closed abruptly later.
         self.save_app_settings()
-        preview_budget = None
-        if preview:
-            text, preview_budget = self.preview_text()
-        else:
-            text = self.text_input.toPlainText().strip()
+        text, preview_budget = self.preview_text() if preview else (self.text_input.toPlainText().strip(), None)
         if not text:
-            QMessageBox.warning(self, "Input Error", "Please enter some text to synthesize.")
+            QMessageBox.warning(self, "Speech", "Type or open some text to read first.")
             return
         qwen_problem = self.prepare_qwen_generation()
         if qwen_problem:
             QMessageBox.information(self, "Voice", qwen_problem)
             return
+        self._plan_render(text, preview, preview_budget)
+        self._lock_for_render(preview)
+        self._launch_render(text, preview, preview_budget)
 
+    def _plan_render(self, text, preview, preview_budget):
+        """Section plan and time estimate for the countdown."""
         self.is_generating = True
         self.generation_is_preview = preview
+        self.generation_outcome_shown = False
         self.generation_char_count = len(text)
         plan_entry = self.loaded_entry() or self.get_selected_model_entry()
         lengths = self.section_lengths(text, plan_entry)
         if preview:
             lengths = lengths[:preview_cut(lengths, preview_budget)]
         self.generation_plan = self.batch_plan(plan_entry, lengths)
-        self.generation_estimate = sum(cost for _f, _l, cost in self.generation_plan)
+        self.generation_estimate = sum(step[2] for step in self.generation_plan)
         self.progress_range = None
-        self.progress_done_cost = 0.0
-        self.progress_done_time = 0.0
+        self.progress_done_cost = self.progress_done_time = 0.0
         self.generation_started_at = time.monotonic()
-        self.keep_take_button.setVisible(False)
-        self.generate_button.setText("Stop")
-        self.generate_button.setEnabled(True)
-        self.preview_button.setEnabled(False)
-        self.open_document_button.setEnabled(False)
-        self.model_repo_combo.setEnabled(False)
-        self.generation_progress.setValue(0)
-        self.generation_progress.setVisible(True)
-        self.activity_label.setText("Previewing..." if preview else "Starting...")
 
-        self.generation_start_time = QTime.currentTime()
-        self.generation_timer.start(1000)
+    def _lock_for_render(self, preview):
+        """Speech while rendering: Generate becomes Stop, everything else waits."""
+        self.keep_take_button.setVisible(False)
+        for control in (self.preview_button, self.open_document_button, self.model_repo_combo):
+            control.setEnabled(False)
+        stop_button = self.generate_button
+        stop_button.setText(RUNNING_LABEL)
+        stop_button.setEnabled(True)
+        bar = self.generation_progress
+        bar.setValue(0)
+        bar.setVisible(True)
+        self.activity_label.setText("Previewing..." if preview else "Starting...")
+        self.generation_timer.start(TICK_MS)
         self.update_generation_time_display()
 
-        self.audio_generator_thread = self._generator_thread(
+    def _launch_render(self, text, preview, preview_budget):
+        thread = self._generator_thread(
             text, self.output_directory, self.current_finishing_settings(),
             output_name=self.current_document_name, preview=preview)
-        self.audio_generator_thread.preview_chars = preview_budget
-        self.audio_generator_thread.generation_complete.connect(self.on_generation_complete)
-        self.audio_generator_thread.error_occurred.connect(self.on_generation_error)
-        self.audio_generator_thread.chunk_generated.connect(self.on_chunk_generated_progress)
-        self.audio_generator_thread.section_timed.connect(self.on_section_timed)
-        self.audio_generator_thread.finished.connect(self.on_generation_thread_finished)
-        self.audio_generator_thread.start()
+        thread.preview_chars = preview_budget
+        for signal, handler in ((thread.generation_complete, self.on_generation_complete),
+                                (thread.error_occurred, self.on_generation_error),
+                                (thread.chunk_generated, self.on_chunk_generated_progress),
+                                (thread.section_timed, self.on_section_timed),
+                                (thread.finished, self.on_render_thread_finished)):
+            signal.connect(handler)
+        self.audio_generator_thread = thread
+        thread.start()
 
     def _generator_thread(self, text, output_dir, finishing, output_name=None, preview=False):
         """A render of `text` with the voice and settings currently chosen on Speech."""
+        sampling = {
+            "exaggeration": self.exaggeration_slider.get_value(),
+            "temperature": self.temp_slider.get_value(),
+            "cfg_weight": self.cfg_slider.get_value(),
+            "language_id": self.language_combo.currentData() or "en",
+            "repetition_penalty": self.repetition_penalty,
+            "min_p": self.min_p,
+            "top_p": self.top_p,
+        }
         thread = AudioGeneratorThread(
-            self.model, text,
-            self.reference_path,
-            self.exaggeration_slider.get_value(),
-            self.temp_slider.get_value(),
-            self.cfg_slider.get_value(),
-            self.seed_input.value(),
-            output_dir,
-            language_id=self.language_combo.currentData() or "en",
-            repetition_penalty=self.repetition_penalty,
-            min_p=self.min_p,
-            top_p=self.top_p,
-            finishing=finishing,
-            output_name=output_name,
-            preview=preview,
-        )
+            self.model, text, self.reference_path, seed=self.seed_input.value(), output_dir=output_dir,
+            finishing=finishing, output_name=output_name, preview=preview, **sampling)
         thread.pronunciations = self.pronunciations
         return thread
 
@@ -169,22 +211,16 @@ class Generation:
         voice) and model switching all see `is_generating` and wait."""
         self.is_generating = True
         self.editor_generation_active = True
-        for control in (self.generate_button, self.preview_button, self.open_document_button,
-                        self.model_repo_combo):
-            control.setEnabled(False)
+        self._set_speech_controls(False)
         self.set_status_message("Status: Generating narration in the Studio…")
 
     def end_editor_generation(self):
         if not getattr(self, "editor_generation_active", False):
             return
-        self.editor_generation_active = False
-        self.is_generating = False
-        self.generate_button.setEnabled(True)
-        self.preview_button.setEnabled(True)
-        self.open_document_button.setEnabled(True)
-        self.model_repo_combo.setEnabled(not getattr(self, "model_is_loading", False))
+        self.editor_generation_active = self.is_generating = False
+        self._set_speech_controls(True)
         self.update_model_details()
-        self.set_status_message("Status: Ready.")
+        self.set_status_message(READY_STATUS)
 
     def keep_preview_take(self):
         if self.last_preview_seed:
@@ -192,65 +228,38 @@ class Generation:
             self.keep_take_button.setVisible(False)
             self.activity_label.setText(f"Take {self.last_preview_seed} locked")
 
-    def on_generation_thread_finished(self):
-        print("UI: audio_generator_thread.finished signal received.")
-
-        # Stop the timer regardless of how the thread finished
-        if self.generation_timer.isActive():
-            print("UI: Stopping generation timer.")
-            self.generation_timer.stop()
-
-        # Reset UI elements
+    def on_render_thread_finished(self):
+        """The render thread ended, however it ended: unlock Speech and settle the status."""
+        timer = self.generation_timer
+        if timer.isActive():
+            timer.stop()
         self.is_generating = False
-        self.generate_button.setText("Generate Audio")
-        self.generate_button.setEnabled(True)
-        self.preview_button.setEnabled(True)
-        self.open_document_button.setEnabled(True)
-        self.model_repo_combo.setEnabled(not getattr(self, "model_is_loading", False))
+        self.generate_button.setText(IDLE_LABEL)
+        self._set_speech_controls(True)
         self.update_model_details()
         self.generation_progress.setVisible(False)
         if not self.keep_take_button.isVisible():
             self.activity_label.clear()
         self.update_text_stats()
-
-        # Final status update based on how the thread might have ended,
-        # if not already set by on_generation_complete or on_generation_error.
-        # This ensures "Stopping..." doesn't linger.
-        current_status = self.status_bar.text()
-        if "stopping generation..." in current_status.lower() or \
-           "stop requested." in current_status.lower():
-            self.set_status_message("Status: Generation stopped by user.")
-        elif not any(marker in current_status.lower() for marker in (
-                "full audio generated", "failed", "stopped by user",
-                "preview ready", "stopped. saved")):
-            # If no specific completion or error message was set, default to Ready
-            self.set_status_message("Status: Ready.")
+        # The complete/error handlers already said how it ended; otherwise (say, the
+        # thread died before reporting) leave no "Stopping..." behind.
+        if not getattr(self, "generation_outcome_shown", False):
+            self.set_status_message(READY_STATUS)
+        print("UI: render thread finished; Speech is ready again.")
 
     def update_generation_time_display(self):
-        self.refresh_progress_activity()
-        if self.generation_start_time and self.is_generating:
-            elapsed_ms = self.generation_start_time.msecsTo(
-                QTime.currentTime())
-            # Only update if not showing chunk progress, to avoid flicker
-            # and if the button still says "Stop Generation" (i.e. not "Stopping...")
-            if "chunk" not in self.status_bar.text().lower() and \
-               self.generate_button.text() == "Stop Generation":
-                self.set_status_message(
-                    f"Status: Generating... (Elapsed: {self.format_time(elapsed_ms)})")
-        elif not self.is_generating and self.generation_timer.isActive():
-            # This is a failsafe, should be stopped by on_generation_thread_finished
-            print(
-                "UI: Generation timer stopped by failsafe in update_generation_time_display.")
+        """Timer tick: refresh the countdown while rendering; the timer stops itself when idle."""
+        if self.is_generating:
+            self.refresh_progress_activity()
+        elif self.generation_timer.isActive():
             self.generation_timer.stop()
 
-    def update_generation_time(self):
-        if self.generation_start_time and self.is_generating:
-            elapsed_ms = self.generation_start_time.msecsTo(
-                QTime.currentTime())
-            seconds = int((elapsed_ms / 1000) % 60)
-            minutes = int((elapsed_ms / (1000 * 60)) % 60)
-            self.set_status_message(
-                f"Status: Generating audio... {minutes:02}:{seconds:02}")
+    def elapsed_generation_text(self):
+        """Time since the current (or last) render started, as mm:ss; None before any render."""
+        started = getattr(self, "generation_started_at", None)
+        if started is None:
+            return None
+        return clock((time.monotonic() - started) * 1000)
 
     def on_chunk_generated_progress(self, first, last, total):
         if not self.is_generating:
@@ -264,8 +273,7 @@ class Generation:
         self.progress_range = (first, last, total)
         self.generation_progress.setMaximum(total)
         self.generation_progress.setValue(done)
-        span = f"{first}" if first == last else f"{first}\u2013{last}"
-        self.set_status_message(f"Status: Generating section {span} of {total}...")
+        self.set_status_message(f"Status: Generating section {section_span(first, last)} of {total}...")
         self.refresh_progress_activity()
 
     def refresh_progress_activity(self):
@@ -280,75 +288,52 @@ class Generation:
         else:
             projected = estimate
         remaining = max(projected - elapsed, 0.0)
-        span = f"{first}" if first == last else f"{first}\u2013{last}"
-        activity = f"{span}/{total}"
+        activity = f"{section_span(first, last)}/{total}"
         if self.generation_is_preview:
             activity = f"Preview {activity}"
         if estimate > 0:
-            activity += f" \u00b7 {self.format_clock(remaining)} left" if remaining >= 1 else " \u00b7 finishing"
+            activity += f" · {self.format_clock(remaining)} left" if remaining >= 1 else " · finishing"
         self.activity_label.setText(activity)
 
-    def on_generation_complete(self, output_path, sample_rate):
-        # self.is_generating will be set to False by on_generation_thread_finished
-        # self.generation_timer will be stopped by on_generation_thread_finished
+    def _finished_take_status(self, thread, path):
+        """Status line for a finished render: preview, partial (after Stop) or full take."""
+        elapsed = self.elapsed_generation_text()
+        took = f" (took {elapsed})" if elapsed else ""
+        name = os.path.basename(path)
+        if thread.preview:
+            return f"Status: Preview ready{took}."
+        if thread.partial_info:
+            done, total = thread.partial_info
+            missing = f"section {total}" if done + 1 == total else f"sections {done + 1}-{total}"
+            return (f"Status: Stopped, so {missing} of {total} weren't generated. "
+                    f"Saved the first {done}: {name}")
+        captions = f" + {os.path.basename(thread.subtitle_path)}" if thread.subtitle_path else ""
+        return f"Status: Saved {take_label(name)}{captions}{took}."
 
-        total_generation_time_str = ""
-        if self.generation_start_time:
-            elapsed_ms = self.generation_start_time.msecsTo(
-                QTime.currentTime())
-            total_generation_time_str = f" (Total time: {self.format_time(elapsed_ms)})"
-
+    def on_generation_complete(self, path, _sample_rate):
+        """A take was saved (the thread's finished signal follows and unlocks Speech)."""
         thread = self.audio_generator_thread
         self.generation_progress.setValue(self.generation_progress.maximum())
+        self.set_status_message(self._finished_take_status(thread, path))
+        self.generation_outcome_shown = True
         if thread.preview:
             self.last_preview_seed = thread.actual_seed_used
             self.activity_label.setText(f"Preview take {self.last_preview_seed}")
             self.keep_take_button.setVisible(self.seed_input.value() == 0)
-            self.set_status_message(f"Status: Preview ready{total_generation_time_str}.")
-        elif thread.partial_info:
-            done, total = thread.partial_info
-            missing = f"section {done + 1}" if done + 1 == total else f"sections {done + 1}-{total}"
-            self.set_status_message(
-                f"Status: Stopped, so {missing} of {total} weren't generated. Saved the first {done}: "
-                f"{os.path.basename(output_path)}")
         else:
-            captions = f" + {os.path.basename(thread.subtitle_path)}" if thread.subtitle_path else ""
-            self.set_status_message(
-                f"Status: Full audio generated: {take_label(os.path.basename(output_path))}{captions}{total_generation_time_str}")
-
-        self.current_audio_file = output_path
-        if not thread.preview:
             # What the take says, for its clip in the Studio (Add to Studio).
             self.take_texts = getattr(self, "take_texts", {})
-            self.take_texts[os.path.abspath(output_path)] = thread.original_text
-        # ... (rest of the method same as your working version)
-        self.current_file_label.setText(
-            f"Last generated: {take_label(os.path.basename(output_path))}")
-        self.media_player.setSource(QUrl.fromLocalFile(output_path))
-        self.play_pause_button.setEnabled(True)
-        self.stop_button.setEnabled(True)
-        self.playhead_slider.setEnabled(True)
+            self.take_texts[os.path.abspath(path)] = thread.original_text
+        caption = f"Latest take: {take_label(os.path.basename(path))}"
+        self.load_take(path, caption, autoplay=thread.preview or self.play_when_done_checkbox.isChecked())
         self.update_output_log()
-        if self.autoplay_checkbox.isChecked() or thread.preview:
-            self.media_player.play()
 
-    def on_generation_error(self, error_msg):
-        # self.is_generating will be set to False by on_generation_thread_finished
-        # self.generation_timer will be stopped by on_generation_thread_finished
-
-        is_user_stop = "stopped by user" in error_msg.lower()
-
-        final_status_msg = f"Status: {'Generation stopped by user.' if is_user_stop else 'Generation failed.'}"
-        if not is_user_stop and error_msg:
-            first_line_error = error_msg.splitlines()[0]
-            if len(first_line_error) > 70:
-                # Adjusted length
-                first_line_error = first_line_error[:67] + "..."
-            final_status_msg += f" ({first_line_error})"
-
-        self.set_status_message(final_status_msg)
-
-        if not is_user_stop:
-            QMessageBox.critical(self, "Generation Error", error_msg)
+    def on_generation_error(self, message):
+        """The render ended without a take: a Stop is only noted, a failure is explained."""
+        status, was_stop = error_status(message)
+        self.set_status_message(status)
+        self.generation_outcome_shown = True
+        if was_stop:
+            print(f"UI: render ended by Stop ({message})")
         else:
-            print(f"User stop confirmed by error signal: {error_msg}")
+            QMessageBox.critical(self, "Speech", message)

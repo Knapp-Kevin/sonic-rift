@@ -1,5 +1,7 @@
 # Sonic Rift source lineage: current-main evidence
 
+> **Update 2026-11-02:** the independence work is complete. All inherited code was rewritten and the upstream MIT notice was removed from the current tree; see [the completion record](independence-2026-11-02.md). The text below is the record as it stood before that.
+
 **Verified baseline:** Sonic Rift `main` at `9cdbfeadad11d2820435a72bdb528ab0d23a0e2b`, inspected October 16, 2026.  
 **Historical upstream tree:** `AcTePuKc/Chatterbox-TTS-UI` commit `22460fd99ceb78c309f879b93878240241a0dc9b`.  
 **Scope:** tracked Git objects and selected current code entry points, **not** copyright or trademark clearance, a runtime SBOM, legal advice, or a statement about what an installer redistributes.

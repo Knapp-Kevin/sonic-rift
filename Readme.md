@@ -74,7 +74,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the long version of how this got out of han
 - [Manual Installation](#manual-installation-advanced)
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
-- [PyTorch & Reproducibility](#important-notes-on-pytorch-installation--reproducibility)
+- [Why PyTorch is installed separately](#why-pytorch-is-installed-separately)
 - [Contributing](#contributing)
 - [Acknowledgements](#acknowledgements)
 
@@ -228,7 +228,7 @@ These show pages as they looked before October 2026: Create is now **Speech**, a
 - **Latest merged improvements:** [#120](https://github.com/Knapp-Kevin/sonic-rift/pull/120) Studio-first UI and owner-approved [marketing walkthrough](docs/marketing/README.md); [#113](https://github.com/Knapp-Kevin/sonic-rift/pull/113) in-place Studio narration; [#124](https://github.com/Knapp-Kevin/sonic-rift/pull/124) Live hand-over and cached-pad responsiveness; [#125](https://github.com/Knapp-Kevin/sonic-rift/pull/125) removal of inherited process-wide PyTorch loader modification.
 - **Still awaiting combined acceptance:** one complete Windows regression on the current merged `main`, rather than assuming independent PR test runs qualify their combined tree. External virtual-microphone/Discord/Zoom/OBS routes, device unplug/recovery and owner listening are unverified; VoxCPM2 can rebuffer while slower than real-time. See [#13](https://github.com/Knapp-Kevin/sonic-rift/issues/13).
 - **Remaining Studio work:** zoom/navigation/loop transport and chunked, bounded-memory long-project export. Today's 512 MiB mix/export budget can refuse longer projects; the permissible duration depends on tracks and sample rate. See [#71](https://github.com/Knapp-Kevin/sonic-rift/issues/71).
-- **Source independence and release rights:** inherited workers/bootstrap and third-party code/model permissions still need disposition. Historical MIT attribution remains. No frozen executable, installer or Microsoft Store listing is available. Release-only Windows signing instructions exist but do not imply a signed build. See [#55](https://github.com/Knapp-Kevin/sonic-rift/issues/55), [#57](https://github.com/Knapp-Kevin/sonic-rift/issues/57) and [#60](https://github.com/Knapp-Kevin/sonic-rift/issues/60).
+- **Release rights:** the code inherited from Chatterbox-TTS-UI has been rewritten ([record](docs/independence-2026-11-02.md)); third-party engine and model permissions still need review. No frozen executable, installer or Microsoft Store listing is available. Release-only Windows signing instructions exist but do not imply a signed build. See [#55](https://github.com/Knapp-Kevin/sonic-rift/issues/55), [#57](https://github.com/Knapp-Kevin/sonic-rift/issues/57) and [#60](https://github.com/Knapp-Kevin/sonic-rift/issues/60).
 
 For active issue and branch disposition, consult the [repository hygiene ledger](docs/operations/sonic-rift-2026-10-30-repository-hygiene.md). macOS and Linux remain experimental/unverified.
 
@@ -658,10 +658,10 @@ Your data stays in the project folder, where it has always been: `app_settings.j
 
 </details>
 
-## Important Notes on PyTorch Installation & Reproducibility
+## Why PyTorch is installed separately
 
 <details>
-<summary><strong>Why PyTorch is installed separately</strong></summary>
+<summary><strong>Details</strong></summary>
 
 The project uses two deliberately separate mechanisms:
 
@@ -694,7 +694,7 @@ Please keep model licensing, attribution, local/private behavior and compatibili
 
 **Licenses and acknowledgements.** Sonic Rift is licensed under the [Apache License 2.0](LICENSE). Engines and models keep their own licenses. For the source-code provenance record and retained copyright notices, see [NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [the upstream provenance audit](docs/upstream-provenance-audit.md).
 
-- **AcTePuKc and upstream contributors**, including [lowkeytea](https://github.com/lowkeytea), for historical source contributions; the preserved [original MIT copyright notice](LICENSES/MIT-Chatterbox-TTS-UI.txt) and [provenance record](docs/upstream-provenance-audit.md) explain the remaining obligations.
+- **AcTePuKc and contributors**, including [lowkeytea](https://github.com/lowkeytea), for [Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI), where Sonic Rift began. Its code has since been rewritten ([record](docs/independence-2026-11-02.md)).
 - **Resemble AI** for [Chatterbox TTS](https://github.com/resemble-ai/chatterbox) (MIT).
 - **Alibaba / the Qwen team** for [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0).
 - **OpenBMB** for [VoxCPM](https://github.com/OpenBMB/VoxCPM) (Apache-2.0).

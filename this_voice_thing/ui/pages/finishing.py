@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QWidget
 
 from this_voice_thing.core import audio_effects, subtitles
 from this_voice_thing.ui.common import LOSSLESS_FORMATS
-from this_voice_thing.ui.widgets import ElidedLabel
+from this_voice_thing.ui.widgets import ElidedLabel, SliderWithValue
 
 
 class Finishing:
@@ -43,7 +43,7 @@ class Finishing:
             finishing_grid.addWidget(label, row, column)
             finishing_grid.addWidget(widget, row, column + 1)
 
-        self.pause_slider = self._create_slider(
+        self.pause_slider = SliderWithValue(
             *audio_effects.PAUSE_RANGE, 0.1, 0.6, "{:.1f} s")
         add_finishing(0, 0, "Paragraph pause", self.pause_slider,
                       "Silence between paragraphs (headings get a little more). Pauses between "
@@ -55,10 +55,10 @@ class Finishing:
                       "and plays everywhere, but lossy and can weaken the AI watermark.")
         watermark = (" Changes the audio after it is generated and can weaken the inaudible watermark "
                      "that marks it as AI-generated.")
-        self.speed_slider = self._create_slider(*audio_effects.SPEED_RANGE, 0.05, 1.0, "{:.2f}x")
+        self.speed_slider = SliderWithValue(*audio_effects.SPEED_RANGE, 0.05, 1.0, "{:.2f}x")
         add_finishing(1, 0, "Speed", self.speed_slider,
                       "Speaking speed without changing the pitch. 1.00x is unchanged." + watermark)
-        self.pitch_slider = self._create_slider(*audio_effects.PITCH_RANGE, 0.5, 0.0, "{:+.1f} st")
+        self.pitch_slider = SliderWithValue(*audio_effects.PITCH_RANGE, 0.5, 0.0, "{:+.1f} st")
         add_finishing(1, 2, "Pitch", self.pitch_slider,
                       "Raise or lower the voice in semitones while keeping its character; 1-2 st sounds "
                       "most natural." + watermark)

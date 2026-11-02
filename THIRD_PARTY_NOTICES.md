@@ -6,13 +6,11 @@ Sonic Rift is a locally run creative-audio application. **The product name and b
 
 > **Important:** This is an attribution index, **not** a source-code license, a legal-clearance opinion, a complete software bill of materials, or a substitute for any license text required when distributing the application, its dependencies, or model weights.
 
-## Historical source-code rights
+## Historical source code
 
-Parts of the current application were developed from [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI), including adapted worker, startup, installer and UI code. The original upstream copyright and MIT permission/notice text is preserved unchanged in [LICENSES/MIT-Chatterbox-TTS-UI.txt](LICENSES/MIT-Chatterbox-TTS-UI.txt) and referenced from [NOTICE](NOTICE). It must be retained in copies or substantial portions of that upstream-derived code, which Sonic Rift distributes under Apache-2.0 as MIT permits.
+Sonic Rift began as a fork of [AcTePuKc/Chatterbox-TTS-UI](https://github.com/AcTePuKc/Chatterbox-TTS-UI) (MIT). By version 0.9.0-alpha every part inherited from it had been rewritten or removed; the [completion record](docs/independence-2026-11-02.md) lists what was replaced and the similarity evidence, and a test keeps it that way. Commits up to that point in this repository's history contain the upstream code with its MIT license, as published.
 
-The original copied model-loading backend was replaced in [PR #77](https://github.com/Knapp-Kevin/sonic-rift/pull/77); the old Python import path is a compatibility facade. That replacement **does not** establish that all upstream-derived implementation has been removed or that its copyright notice can be discarded. [The dated provenance audit](docs/upstream-provenance-audit.md) describes remaining source review and historical matches. A [current-main Git-blob lineage record](docs/source-lineage-current.md) and [offline audit tool](scripts/audit_source_lineage.py) distinguish exact-byte evidence from adapted-code review; neither establishes independent authorship or licensing clearance.
-
-GitHub's fork-network relationship is independent of code authorship or licensing. Detaching a GitHub fork does **not** eliminate applicable attribution obligations. Preserve issue, pull-request and review history before any irreversible network detachment.
+GitHub's fork-network relationship is separate from authorship and licensing. Preserve issue, pull-request and review history before any irreversible network detachment.
 
 ## Engine packages and models
 
@@ -35,7 +33,7 @@ This table is a **starting index**, not an assertion that every listed engine is
 
 On 2026-10-31 the owner relicensed Sonic Rift under the [Apache License 2.0](LICENSE). All post-fork commits are by the owner, Kevin Knapp. The change applies from that commit forward; earlier commits stay available under the MIT terms they were published with.
 
-Upstream-derived code that is still present keeps its MIT notice in [LICENSES/MIT-Chatterbox-TTS-UI.txt](LICENSES/MIT-Chatterbox-TTS-UI.txt). The [independence work](docs/sonic-rift-independence-licensing-decision.md) is replacing that code (#55, #57). When none remains, the MIT notice can be dropped from new releases.
+The [independence work](docs/independence-2026-11-02.md) (#55, #57) replaced all code inherited from Chatterbox-TTS-UI, so the upstream MIT notice no longer applies to the current tree.
 
 The Apache-2.0 license covers Sonic Rift's own code only. It does not relicense optional engines, their dependencies or model weights, which keep their own terms (see above and [issue #60](https://github.com/Knapp-Kevin/sonic-rift/issues/60)). Clean-room status is **not** claimed.
 
@@ -50,7 +48,6 @@ A [read-only dependency metadata inventory](docs/runtime-license-inventory.md) a
 - [ ] Confirm licenses and attribution for distributed fonts, images, sound assets and model weights.
 - [ ] Ship full required license/notice text for all components actually redistributed.
 - [ ] Check noncommercial, research-only, conditional-use, and evaluation-only components against proposed distribution.
-- [ ] Verify retained upstream MIT notices are present in source/release artifacts as required.
 - [ ] Record the approved license scope for independently owned Sonic Rift source.
 - [ ] Audit an actual build on Windows and record owner release approval.
 

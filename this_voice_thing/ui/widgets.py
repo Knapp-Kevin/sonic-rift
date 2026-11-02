@@ -3,7 +3,7 @@ design-system pieces every page shares (button roles, menu buttons, empty states
 
 from collections import deque
 
-from PySide6.QtCore import QObject, Qt
+from PySide6.QtCore import QMargins, QObject, Qt
 from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import (QAbstractScrollArea, QAbstractSpinBox, QApplication, QComboBox, QDialog,
                                QHBoxLayout, QLabel, QMenu, QSizePolicy, QSlider, QToolButton, QVBoxLayout,
@@ -61,32 +61,48 @@ class ElidingChip(QLabel):
 
 
 class SliderWithValue(QWidget):
+    """A horizontal slider over a real-valued range, with its current value shown beside it.
+
+    QSlider only holds integers, so the slider counts steps: position n means n * step."""
+
     def __init__(self, min_val, max_val, step_val, default_val, value_format="{:.2f}"):
         super().__init__()
-        self._step_val = step_val
-        self._value_format = value_format
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.slider = QSlider(Qt.Orientation.Horizontal)
-        # round(), not int(): e.g. int(0.25 / 0.05) truncates to 4.
-        self.slider.setMinimum(round(min_val / step_val))
-        self.slider.setMaximum(round(max_val / step_val))
-        self.slider.setValue(round(default_val / step_val))
+        self.step, self.value_format = step_val, value_format
+        self.value_label = self._readout(value_format.format(min_val), value_format.format(max_val))
+        self.value_label.setText(value_format.format(default_val))
+        self.slider = QSlider(Qt.Orientation.Horizontal, self)
         self.slider.setSingleStep(1)
-        self.value_label = QLabel(value_format.format(default_val))
-        widest = max((value_format.format(v) for v in (min_val, max_val)), key=len)
-        self.value_label.setMinimumWidth(self.value_label.fontMetrics().horizontalAdvance(widest) + 6)
-        self.slider.valueChanged.connect(
-            lambda val: self.value_label.setText(self._value_format.format(val * self._step_val))
-        )
-        layout.addWidget(self.slider)
-        layout.addWidget(self.value_label)
+        self.slider.setRange(self._steps(min_val), self._steps(max_val))
+        self.slider.setValue(self._steps(default_val))
+        self.slider.valueChanged.connect(self._show_position)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(QMargins())
+        for part in (self.slider, self.value_label):
+            row.addWidget(part)
+
+    @staticmethod
+    def _readout(*extremes):
+        """A label wide enough for the longest value, so the slider doesn't shift as it changes."""
+        label = QLabel()
+        label.setMinimumWidth(label.fontMetrics().horizontalAdvance(max(extremes, key=len)) + 6)
+        return label
+
+    def _steps(self, value):
+        # round(), not int(): int(0.25 / 0.05) truncates to 4.
+        return round(value / self.step)
+
+    def _value_at(self, position):
+        return position * self.step
+
+    def _show_position(self, position):
+        self.value_label.setText(self.value_format.format(self._value_at(position)))
 
     def get_value(self):
-        return self.slider.value() * self._step_val
+        """The slider's value in real units."""
+        return self._value_at(self.slider.value())
 
     def set_value(self, value):
-        self.slider.setValue(round(value / self._step_val))
+        self.slider.setValue(self._steps(value))
 
 
 def dialog_accepted(result):
@@ -201,7 +217,7 @@ class _EmptyState(QObject):
         # on the viewport, called for every paint and mouse event; a model-loading thread
         # importing modules at the same moment crashed the app there (PySide's import hook).
         layout = QVBoxLayout(view.viewport())
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(QMargins())
         layout.addWidget(self.label)
         self.sync()
 

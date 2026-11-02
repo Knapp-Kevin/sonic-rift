@@ -18,9 +18,15 @@ from this_voice_thing.core import model_registry
 from this_voice_thing.ui import theme as ui_theme
 
 
+HF_TOKEN_VARIABLE = "HF_TOKEN"   # read by huggingface_hub and the Chatterbox provider
 # Hugging Face's "new access token" page with the Read type preselected (all the app
 # needs); signed-out users sign in first and land back here.
 HF_NEW_TOKEN_URL = "https://huggingface.co/settings/tokens/new?tokenType=read"
+
+
+def saved_hf_token(settings):
+    """The Hugging Face token saved in app settings ("" when there is none)."""
+    return str(settings.get("hf_token") or "").strip()
 
 
 class ModelSettings:
@@ -105,18 +111,18 @@ class ModelSettings:
         return tuning_card
 
     def apply_hf_token_setting(self):
-        hf_token = str(self.app_settings.get("hf_token", "")).strip()
-        if hf_token:
-            os.environ["HF_TOKEN"] = hf_token
-        else:
-            os.environ.pop("HF_TOKEN", None)
+        """Downloads read the Hugging Face token from the environment: mirror the saved one
+        there, and clear any token once the saved one is removed."""
+        token = saved_hf_token(self.app_settings)
+        os.environ.pop(HF_TOKEN_VARIABLE, None)   # a removed token must stop being used
+        if token:
+            os.environ[HF_TOKEN_VARIABLE] = token
 
     def save_hf_token(self):
         token = self.hf_token_input.text().strip()
-        if token:
-            self.app_settings["hf_token"] = token
-        else:
-            self.app_settings.pop("hf_token", None)
+        self.app_settings.update(hf_token=token)
+        if not token:
+            del self.app_settings["hf_token"]   # kept out of app_settings.json entirely
         self.apply_hf_token_setting()
         self.save_app_settings()
         self.update_hf_token_status("Token saved." if token else "Token removed.")

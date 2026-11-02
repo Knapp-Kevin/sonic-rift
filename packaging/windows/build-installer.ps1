@@ -37,7 +37,7 @@ $UvSha256 = 'ea1397797a0ca15f63516dd0f49c2dde9776db9be5861cab152ebe8ad199894d'
 $AppPaths = @(
     'main.py', 'models.json', 'requirements.in', 'requirements.lock.txt', 'uv.toml',
     'run.bat', 'setup_env.bat', 'this_voice_thing', 'engines', 'scripts', 'assets',
-    'LICENSE', 'NOTICE', 'LICENSES', 'THIRD_PARTY_NOTICES.md', 'Readme.md', 'CHANGELOG.md'
+    'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'Readme.md', 'CHANGELOG.md'
 )
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
