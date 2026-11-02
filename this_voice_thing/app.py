@@ -27,9 +27,7 @@ LOG_PATH = make_startup_log_path(datetime.datetime.now())
 
 
 def _try_console(console, method, *args):
-    """Call a console stream method, ignoring a missing console (pythonw) or one that fails."""
-    if console is None:
-        return
+    """Call a console stream method; no console (pythonw gives None) or a failing one is ignored."""
     try:
         getattr(console, method)(*args)
     except Exception:
@@ -43,45 +41,52 @@ class TeeFile:
     best effort."""
 
     def __init__(self, console, log_file):
-        self.console = console
-        self.log = log_file
-        self.encoding = stream_encoding(console)
+        self.console, self.log = console, log_file
 
-    def _log_is_open(self):
-        # A background thread may still print after main() has closed the log.
-        return not self.log.closed
+    @property
+    def encoding(self):
+        return stream_encoding(self.console)
+
+    def _to_log(self, text=""):
+        if self.log.closed:
+            return   # a background thread may still print after main() has closed the log
+        if text:
+            self.log.write(text)
+        self.log.flush()
 
     def write(self, value):
-        text = str(value)
-        if self._log_is_open():
-            self.log.write(text)
-            self.log.flush()
+        text = f"{value}"
+        self._to_log(text)
         _try_console(self.console, "write", text)
         return len(text)
 
     def flush(self):
-        if self._log_is_open():
-            self.log.flush()
+        self._to_log()
         _try_console(self.console, "flush")
 
     def isatty(self):
         return stream_is_terminal(self.console)
 
 
-def show_startup_error(log_path, last_error):
-    """Tell the user start-up failed, where the log is, and the last error line.
+def startup_error_text(log_path, last_error):
+    """What the start-up error box says."""
+    return "\n\n".join(("Sonic Rift failed to start.", f"Log file:\n{log_path}", f"Last error:\n{last_error}"))
 
-    Uses a Windows message box; elsewhere (or if that fails) it does nothing."""
-    sections = (
-        "Sonic Rift failed to start.",
-        "Log file:\n" + str(log_path),
-        "Last error:\n" + str(last_error),
-    )
+
+def _windows_message_box(text, title, icon):
+    """Show a native message box; does nothing off Windows or without a desktop session."""
+    user32 = getattr(getattr(ctypes, "windll", None), "user32", None)
+    if user32 is None:
+        return
     try:
-        user32 = ctypes.windll.user32
-        user32.MessageBoxW(None, "\n\n".join(sections), STARTUP_ERROR_TITLE, MB_ICONERROR)
+        user32.MessageBoxW(None, text, title, icon)
     except Exception:
         pass
+
+
+def show_startup_error(log_path, last_error):
+    """Tell the user start-up failed, where the log is, and the last error line."""
+    _windows_message_box(startup_error_text(log_path, last_error), STARTUP_ERROR_TITLE, MB_ICONERROR)
 
 
 def main():

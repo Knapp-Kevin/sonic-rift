@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from this_voice_thing import __version__, paths
-from this_voice_thing.core import pronunciation, transcription, voice_library
+from this_voice_thing.core import config_io, pronunciation, transcription, voice_library
 from this_voice_thing.integrations import google_docs, local_api
 from this_voice_thing.ui import common, taskbar
 from this_voice_thing.ui import theme as ui_theme
@@ -37,7 +37,7 @@ from this_voice_thing.ui.api_bridge import ApiBridge
 from this_voice_thing.ui.common import (
     APP_SETTINGS_FILENAME, BACKEND_MULTILINGUAL, CHATTERBOX_AVAILABLE, DEFAULT_MODEL_REPO,
     DEFAULT_MULTILINGUAL_T3_MODEL, MODEL_CONFIG_FILENAME, REFERENCE_RECORDINGS_DIRNAME, WORKER_MODEL_TYPES,
-    has_system_nvidia_gpu, load_models_config, read_json_payload, resolve_multilingual_t3_model,
+    has_system_nvidia_gpu, load_models_config, resolve_multilingual_t3_model,
     write_json_payload,
 )
 from this_voice_thing.ui.pages.advanced import AdvancedPage
@@ -91,15 +91,49 @@ GEOMETRY_KEY, MAXIMIZED_KEY, FULLSCREEN_KEY = "window_geometry", "window_maximiz
 def read_app_settings(path):
     """app_settings.json as a dict. A missing, damaged or non-object file gives {}: the problem
     goes to the log and the file is left untouched."""
-    data, problem = read_json_payload(path)
+    settings, problem = config_io.read_json(path, error_label=f"app settings '{path}'")
+    if isinstance(settings, dict):
+        return settings
     if problem:
         print(problem)
-    return data if isinstance(data, dict) else {}
+    return {}
+
+
+def write_app_settings(path, settings):
+    """Write app_settings.json. Returns None, or the exception that stopped the write."""
+    try:
+        write_json_payload(path, settings)
+    except Exception as exc:   # e.g. a read-only folder
+        return exc
+    return None
 
 
 def geometry_to_text(geometry):
     """saveGeometry() bytes as the base64 text stored under GEOMETRY_KEY."""
-    return base64.b64encode(bytes(geometry)).decode("ascii")
+    return str(base64.b64encode(bytes(geometry)), "ascii")
+
+
+class StatusLine(QLabel):
+    """The status bar's message: one line, cut with an ellipsis to the width it has (re-fitted
+    whenever that changes); the whole message is its tooltip."""
+
+    def __init__(self, text):
+        super().__init__(text)
+        self.message = None   # the start-up text stays until the first message
+
+    def show_message(self, message):
+        self.message = message
+        self.setToolTip(message)
+        self.fit_message()
+
+    def fit_message(self):
+        if self.message is not None:
+            room = max(120, self.width() - 8)
+            self.setText(self.fontMetrics().elidedText(self.message, Qt.TextElideMode.ElideRight, room))
+
+    def resizeEvent(self, event):
+        self.fit_message()
+        super().resizeEvent(event)
 
 
 def geometry_from_text(text):
@@ -365,7 +399,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
     def _build_status_bar(self):
         """One line of status text (elided to fit; the whole message is its tooltip) and, on
         the right, the model-load progress bar (idle until a model loads)."""
-        message = QLabel("Status: Initializing...")
+        message = StatusLine("Status: Initializing...")
         message.setTextFormat(Qt.TextFormat.PlainText)
         message.setWordWrap(False)
         # Status text is elided to fit; it must never set the window's minimum width.
@@ -483,11 +517,12 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
 
     def append_console_log(self, chunk):
         """Add console output at the end of the Settings log and scroll to it."""
-        view = getattr(self, "console_log_view", None)
-        if view is None:
+        try:
+            view = self.console_log_view
+        except AttributeError:
             return   # output from before the log card was built
-        view.moveCursor(QTextCursor.MoveOperation.End)
-        view.insertPlainText(str(chunk))
+        view.moveCursor(QTextCursor.MoveOperation.End)   # output goes at the end, whatever is selected
+        view.insertPlainText(f"{chunk}")
         view.ensureCursorVisible()
 
     def load_app_settings(self):
@@ -579,24 +614,17 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         if hasattr(self, "speed_slider"):
             settings.update(finishing=self.current_finishing_settings().to_dict(),
                                      finishing_expanded=not self.finishing_panel.isHidden())
-        try:
-            write_json_payload(self.app_settings_path, settings)
-        except Exception as exc:   # e.g. a read-only folder: say so, but let the app close
-            QMessageBox.warning(self, "Settings Error", f"Could not save {APP_SETTINGS_FILENAME}: {exc}")
+        failure = write_app_settings(self.app_settings_path, settings)
+        if failure is not None:   # say so, but let the app close
+            QMessageBox.warning(self, "Settings Error", f"Could not save {APP_SETTINGS_FILENAME}: {failure}")
 
     def set_status_message(self, text):
         """Show a message on the status line; the full text stays in its tooltip."""
         # One line, and without the old "Status: " prefix: the bar itself says this is status.
         text = " ".join(str(text).split()).removeprefix("Status: ")
-        self.status_bar.setToolTip(text)
-        self._elide_status()
-
-    def _elide_status(self):
-        """Fit the whole message (kept in the tooltip) to the bar's current width. Eliding only
-        when a message arrived left it cut short if the window grew afterwards."""
-        label = self.status_bar
-        room = max(120, label.width() - 8)
-        label.setText(label.fontMetrics().elidedText(label.toolTip(), Qt.TextElideMode.ElideRight, room))
+        # StatusLine re-fits the message whenever its width changes: eliding only when a message
+        # arrived left it cut short if the window grew afterwards.
+        self.status_bar.show_message(text)
 
     OPENAI_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"}
 
@@ -614,12 +642,6 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         if page == self.PAGE_MODEL and getattr(self, "discover_results", None) is None \
                 and getattr(self, "discover_thread", None) is None:
             self.start_discover()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        # Re-fit the status line to the new width (the label starts out without a message).
-        if self.status_bar.toolTip():
-            self._elide_status()
 
     def closeEvent(self, event):
         # An open project editor asks about unsaved edits first; keep the app open if it stays.

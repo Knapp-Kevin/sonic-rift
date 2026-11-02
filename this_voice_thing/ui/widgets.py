@@ -67,34 +67,39 @@ class SliderWithValue(QWidget):
 
     def __init__(self, min_val, max_val, step_val, default_val, value_format="{:.2f}"):
         super().__init__()
-        self.step = step_val
-        self.value_format = value_format
-        self.slider = QSlider(Qt.Orientation.Horizontal, self)
-        self.slider.setRange(self._steps(min_val), self._steps(max_val))
-        self.slider.setSingleStep(1)
-        self.value_label = QLabel()
-        # Wide enough for the longest value, so the slider doesn't shift as the text changes.
-        longest = max((value_format.format(end) for end in (min_val, max_val)), key=len)
-        self.value_label.setMinimumWidth(self.value_label.fontMetrics().horizontalAdvance(longest) + 6)
-        self.slider.setValue(self._steps(default_val))
+        self.step, self.value_format = step_val, value_format
+        self.value_label = self._readout(value_format.format(min_val), value_format.format(max_val))
         self.value_label.setText(value_format.format(default_val))
+        self.slider = QSlider(Qt.Orientation.Horizontal, self)
+        self.slider.setSingleStep(1)
+        self.slider.setRange(self._steps(min_val), self._steps(max_val))
+        self.slider.setValue(self._steps(default_val))
         self.slider.valueChanged.connect(self._show_position)
         row = QHBoxLayout(self)
         row.setContentsMargins(QMargins())
-        row.addWidget(self.slider)
-        row.addWidget(self.value_label)
+        for part in (self.slider, self.value_label):
+            row.addWidget(part)
+
+    @staticmethod
+    def _readout(*extremes):
+        """A label wide enough for the longest value, so the slider doesn't shift as it changes."""
+        label = QLabel()
+        label.setMinimumWidth(label.fontMetrics().horizontalAdvance(max(extremes, key=len)) + 6)
+        return label
 
     def _steps(self, value):
         # round(), not int(): int(0.25 / 0.05) truncates to 4.
         return round(value / self.step)
 
+    def _value_at(self, position):
+        return position * self.step
+
     def _show_position(self, position):
-        self.value_label.setText(self.value_format.format(position * self.step))
+        self.value_label.setText(self.value_format.format(self._value_at(position)))
 
     def get_value(self):
         """The slider's value in real units."""
-        steps_taken = self.slider.value()
-        return steps_taken * self.step
+        return self._value_at(self.slider.value())
 
     def set_value(self, value):
         self.slider.setValue(self._steps(value))

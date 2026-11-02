@@ -4,18 +4,19 @@ An optional provider import must never determine whether the host exposes
 NVIDIA hardware or whether the installed PyTorch build can use CUDA.
 Importing this module does not import any TTS SDK or perform a GPU probe.
 """
+import contextlib
 import subprocess
 
 CUDA_NOT_AVAILABLE = "torch.cuda.is_available() returned False."
+NVIDIA_SMI_LIST = ["nvidia-smi", "-L"]   # prints one line per NVIDIA GPU
 
 
 def _nvidia_smi_devices():
-    """Lines from `nvidia-smi -L` (one per GPU), or [] when the tool is missing or fails."""
-    try:
-        listing = subprocess.run(["nvidia-smi", "-L"], capture_output=True, text=True, check=True)
-    except (OSError, subprocess.CalledProcessError):
-        return []
-    return [line for line in (listing.stdout or "").splitlines() if line.strip()]
+    """The GPU lines nvidia-smi lists, or [] when the tool is missing or fails."""
+    output = ""
+    with contextlib.suppress(OSError, subprocess.CalledProcessError):   # no NVIDIA driver, or it failed
+        output = subprocess.run(NVIDIA_SMI_LIST, check=True, capture_output=True, text=True).stdout or ""
+    return [line for line in output.splitlines() if line.strip()]
 
 
 def has_system_nvidia_gpu():
@@ -34,11 +35,12 @@ def _missing_kernel_problem(cuda):
 
 
 def _gpu_smoke_test(torch_module):
-    """Run a matrix multiply and a small GRU on the GPU; raises if CUDA kernels fail."""
-    matrix = torch_module.randn((8, 8), device="cuda")
-    (matrix @ matrix).sum().item()
-    recurrent = torch_module.nn.GRU(4, 4).to("cuda")
-    recurrent(torch_module.randn((2, 1, 4), device="cuda"))
+    """Run a matrix multiply and a small GRU on the GPU; raises if CUDA kernels fail.
+    (Some builds list an architecture yet fail at the first real kernel; RNNs use cuDNN.)"""
+    square = torch_module.randn((16, 16), device="cuda")
+    float((square @ square).sum().item())   # .item() waits for the GPU, so errors surface here
+    gru = torch_module.nn.GRU(8, 8).to("cuda")
+    gru(torch_module.randn((3, 1, 8), device="cuda"))
 
 
 def probe_usable_torch_cuda(torch_module=None):

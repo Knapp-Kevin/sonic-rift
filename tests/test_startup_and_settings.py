@@ -344,6 +344,22 @@ class AppSettingsTests(unittest.TestCase):
                 else:
                     printed.assert_not_called()
 
+    def test_status_line_elides_and_refits(self):
+        line = self.main_window.StatusLine("Status: Initializing...")
+        self.addCleanup(line.deleteLater)
+        line.resize(300, 20)
+        self.assertEqual(line.text(), "Status: Initializing...")   # kept until the first message
+        message = "A long status message " * 20
+        line.show_message(message)
+        self.assertEqual(line.toolTip(), message)
+        short = line.text()
+        self.assertTrue(short.endswith("…") and len(short) < len(message))
+        line.resize(3000, 20)
+        line.fit_message()
+        self.assertGreater(len(line.text()), len(short))
+        line.show_message("")
+        self.assertEqual(line.text(), "")
+
     def test_geometry_text_helpers(self):
         self.assertEqual(self.main_window.geometry_to_text(b"\x01\xd9\xd0\xcb"), "AdnQyw==")
         self.assertEqual(self.main_window.geometry_from_text("AdnQyw=="), b"\x01\xd9\xd0\xcb")

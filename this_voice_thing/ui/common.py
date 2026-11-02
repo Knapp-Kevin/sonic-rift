@@ -110,7 +110,7 @@ class _ChatterboxUnavailableRepoError(RuntimeError):
 
 
 def _t3_choice_without_chatterbox(choice):
-    return str(choice or DEFAULT_MULTILINGUAL_T3_MODEL).strip()
+    return f"{choice or DEFAULT_MULTILINGUAL_T3_MODEL}".strip()
 
 
 # What the window uses from the Chatterbox backend, with stand-ins for when it isn't installed.

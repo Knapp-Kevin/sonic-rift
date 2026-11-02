@@ -5,6 +5,8 @@ optional live sink so this module never imports the UI or stores application
 state globally.
 """
 
+import contextlib
+
 # What every console stream is switched to when it allows it: UTF-8, and characters
 # the console still can't take come out as \x.. escapes instead of raising.
 UTF8_CONSOLE = {"encoding": "utf-8", "errors": "backslashreplace"}
@@ -30,8 +32,11 @@ def safe_console_text(value):
 
 
 def stream_encoding(stream):
-    """The encoding a stream reports; UTF-8 for an object without that attribute."""
-    return getattr(stream, "encoding", "utf-8")
+    """The encoding a stream reports (it may be None); UTF-8 for an object without one."""
+    try:
+        return stream.encoding
+    except AttributeError:
+        return "utf-8"
 
 
 def stream_is_terminal(stream):
@@ -54,19 +59,18 @@ class ForwardingStream:
         self._listener_for = sink_supplier or (lambda: None)
 
     def _tell_listener(self, text):
-        try:
+        if not text:
+            return
+        with contextlib.suppress(Exception):   # UI listeners only observe; they must never break stdout
             listener = self._listener_for()
             if listener is not None:
                 listener(text)
-        except Exception:
-            pass   # UI listeners only observe; they must never break stdout
 
     def write(self, value):
-        text = str(value)
-        result = self.target.write(text)
-        if text:
-            self._tell_listener(text)
-        return result
+        text = f"{value}"
+        count = self.target.write(text)
+        self._tell_listener(text)
+        return count
 
     def flush(self):
         return self.target.flush()
@@ -76,6 +80,8 @@ class ForwardingStream:
 
     def reconfigure(self, *args, **options):
         """Pass reconfigure() through; streams that lack it are left as they are."""
-        if not hasattr(self.target, "reconfigure"):
+        try:
+            method = self.target.reconfigure
+        except AttributeError:
             return None
-        return self.target.reconfigure(*args, **options)
+        return method(*args, **options)
