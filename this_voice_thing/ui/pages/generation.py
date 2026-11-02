@@ -325,7 +325,7 @@ class Generation:
             self.take_texts = getattr(self, "take_texts", {})
             self.take_texts[os.path.abspath(path)] = thread.original_text
         caption = f"Latest take: {take_label(os.path.basename(path))}"
-        self.load_take(path, caption, autoplay=thread.preview or self.autoplay_checkbox.isChecked())
+        self.load_take(path, caption, autoplay=thread.preview or self.play_when_done_checkbox.isChecked())
         self.update_output_log()
 
     def on_generation_error(self, message):

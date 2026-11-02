@@ -92,19 +92,19 @@ def newest_takes(folder):
 class Player:
     """Speech's take player: transport, playhead and the list of recent takes.
 
-    One QMediaPlayer (`media_player`) plays the selected take. Qt keeps the position across
+    One QMediaPlayer (`take_player`) plays the selected take. Qt keeps the position across
     pause and resume, and the playhead slider follows playback except while the user drags it.
     Mixed into the main window."""
 
     def _build_take_player(self):
         """The media player and its signals (called once, from the window's constructor)."""
-        self.media_player = QMediaPlayer()
-        self.audio_output = QAudioOutput()
-        self.media_player.setAudioOutput(self.audio_output)
-        self.media_player.positionChanged.connect(self._show_position)
-        self.media_player.durationChanged.connect(self._show_duration)
-        self.media_player.playbackStateChanged.connect(self._show_transport_state)
-        self.media_player.errorOccurred.connect(self._report_playback_error)
+        self.take_player = QMediaPlayer()
+        self.take_audio_out = QAudioOutput()
+        self.take_player.setAudioOutput(self.take_audio_out)
+        self.take_player.positionChanged.connect(self._show_position)
+        self.take_player.durationChanged.connect(self._show_duration)
+        self.take_player.playbackStateChanged.connect(self._show_transport_state)
+        self.take_player.errorOccurred.connect(self._report_playback_error)
 
     def _build_player_card(self):
         card, layout = self._make_card()
@@ -112,8 +112,8 @@ class Player:
         header = QHBoxLayout()
         title = QLabel("Player")
         title.setObjectName("CardTitle")
-        self.autoplay_checkbox = QCheckBox("Auto-play results")
-        self.autoplay_checkbox.setChecked(True)
+        self.play_when_done_checkbox = QCheckBox("Auto-play results")
+        self.play_when_done_checkbox.setChecked(True)
         self.current_file_label = QLabel("No take selected")
         self.current_file_label.setObjectName("Muted")
         self.current_file_label.setWordWrap(False)
@@ -122,26 +122,26 @@ class Player:
         self.current_file_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         header.addWidget(title)
         header.addSpacing(12)
-        header.addWidget(self.autoplay_checkbox)
+        header.addWidget(self.play_when_done_checkbox)
         header.addStretch(1)
         header.addWidget(self.current_file_label)
         layout.addLayout(header)
 
         transport = QHBoxLayout()
-        self.play_pause_button = self._transport_button("Play", self.toggle_play_pause)
+        self.take_play_button = self._transport_button("Play", self.toggle_play_pause)
         self.stop_button = self._transport_button("Stop", self.stop_audio)
-        self.current_time_label = QLabel(clock(0))
-        self.duration_label = QLabel(clock(0))
-        self.playhead_slider = QSlider(Qt.Orientation.Horizontal)
-        self.playhead_slider.setEnabled(False)
-        self.playhead_slider.sliderMoved.connect(self._scrub)
-        self.playhead_slider.sliderReleased.connect(self._finish_scrub)
-        for widget in (self.play_pause_button, self.stop_button):
+        self.take_time_label = QLabel(clock(0))
+        self.take_length_label = QLabel(clock(0))
+        self.take_scrubber = QSlider(Qt.Orientation.Horizontal)
+        self.take_scrubber.setEnabled(False)
+        self.take_scrubber.sliderMoved.connect(self._scrub)
+        self.take_scrubber.sliderReleased.connect(self._finish_scrub)
+        for widget in (self.take_play_button, self.stop_button):
             transport.addWidget(widget)
         transport.addSpacing(8)
-        transport.addWidget(self.current_time_label)
-        transport.addWidget(self.playhead_slider, 1)
-        transport.addWidget(self.duration_label)
+        transport.addWidget(self.take_time_label)
+        transport.addWidget(self.take_scrubber, 1)
+        transport.addWidget(self.take_length_label)
         layout.addLayout(transport)
 
         list_header = QHBoxLayout()
@@ -154,13 +154,13 @@ class Player:
         list_header.addWidget(to_studio)
         layout.addLayout(list_header)
 
-        self.output_log_listwidget = QListWidget()
-        set_empty_text(self.output_log_listwidget, "Audio you generate appears here. Double-click to play it.")
+        self.speech_takes_list = QListWidget()
+        set_empty_text(self.speech_takes_list, "Audio you generate appears here. Double-click to play it.")
         # itemActivated fires for Enter as well as a double-click.
-        self.output_log_listwidget.itemActivated.connect(self.play_selected_from_log)
-        self.output_log_listwidget.setMinimumHeight(70)
-        self.output_log_listwidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
-        layout.addWidget(self.output_log_listwidget, 1)
+        self.speech_takes_list.itemActivated.connect(self.play_selected_from_log)
+        self.speech_takes_list.setMinimumHeight(70)
+        self.speech_takes_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
+        layout.addWidget(self.speech_takes_list, 1)
         return card
 
     @staticmethod
@@ -172,25 +172,25 @@ class Player:
         return button
 
     def _set_transport_enabled(self, enabled):
-        for control in (self.play_pause_button, self.stop_button, self.playhead_slider):
+        for control in (self.take_play_button, self.stop_button, self.take_scrubber):
             control.setEnabled(enabled)
 
     # ---- the take list ----
 
     def update_output_log(self):
         """Refill the list from the output folder, keeping the selected take selected."""
-        current = self.output_log_listwidget.currentItem()
+        current = self.speech_takes_list.currentItem()
         keep = current.data(Qt.ItemDataRole.UserRole) if current is not None else None
         paths = newest_takes(self.output_directory)
         labels = history_take_labels(paths)
-        self.output_log_listwidget.clear()
+        self.speech_takes_list.clear()
         for path in paths:
             item = QListWidgetItem(labels[path])
             item.setToolTip(os.path.basename(path))
             item.setData(Qt.ItemDataRole.UserRole, path)
-            self.output_log_listwidget.addItem(item)
+            self.speech_takes_list.addItem(item)
             if path == keep:
-                self.output_log_listwidget.setCurrentItem(item)
+                self.speech_takes_list.setCurrentItem(item)
 
     def play_selected_from_log(self, item: QListWidgetItem):
         path = item.data(Qt.ItemDataRole.UserRole)
@@ -205,15 +205,15 @@ class Player:
         self.current_audio_file = path
         self.current_file_label.setText(caption)
         self.current_file_label.setToolTip(os.path.basename(path))
-        self.media_player.setSource(QUrl.fromLocalFile(path))
+        self.take_player.setSource(QUrl.fromLocalFile(path))
         self._set_transport_enabled(True)
         if autoplay:
-            self.media_player.play()
+            self.take_player.play()
 
     # ---- transport ----
 
     def toggle_play_pause(self):
-        player = self.media_player
+        player = self.take_player
         if player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
             player.pause()                  # Qt keeps the position for the next play()
             return
@@ -228,34 +228,34 @@ class Player:
         player.play()
 
     def stop_audio(self):
-        self.media_player.stop()
+        self.take_player.stop()
 
     # ---- playhead ----
 
     def _scrub(self, milliseconds):
-        self.media_player.setPosition(milliseconds)
-        self.current_time_label.setText(clock(milliseconds))
+        self.take_player.setPosition(milliseconds)
+        self.take_time_label.setText(clock(milliseconds))
 
     def _finish_scrub(self):
-        self.media_player.setPosition(self.playhead_slider.value())
+        self.take_player.setPosition(self.take_scrubber.value())
 
     def _show_position(self, milliseconds):
-        if not self.playhead_slider.isSliderDown():   # don't fight the user's drag
-            self.playhead_slider.setValue(milliseconds)
-        self.current_time_label.setText(clock(milliseconds))
+        if not self.take_scrubber.isSliderDown():   # don't fight the user's drag
+            self.take_scrubber.setValue(milliseconds)
+        self.take_time_label.setText(clock(milliseconds))
 
     def _show_duration(self, milliseconds):
         length = max(0, milliseconds)
-        self.playhead_slider.setRange(0, length)
-        self.duration_label.setText(clock(length))
+        self.take_scrubber.setRange(0, length)
+        self.take_length_label.setText(clock(length))
         if not length:
-            self.current_time_label.setText(clock(0))
+            self.take_time_label.setText(clock(0))
 
     def _show_transport_state(self, state):
-        self.play_pause_button.setText("Pause" if state == QMediaPlayer.PlaybackState.PlayingState else "Play")
+        self.take_play_button.setText("Pause" if state == QMediaPlayer.PlaybackState.PlayingState else "Play")
 
     def _report_playback_error(self, *_error):
-        message = self.media_player.errorString()
+        message = self.take_player.errorString()
         if message:
             QMessageBox.warning(self, "Playback", f"This take can't be played: {message}")
         self.set_status_message("Status: Playback failed.")
