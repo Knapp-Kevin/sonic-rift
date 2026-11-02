@@ -5,15 +5,15 @@
       "label": "Official multilingual",
       "enabled": true,
       "experimental": false,
-      "test_text": "Hello. This is a short test of the multilingual model.",
+      "test_text": "Hi! Here's a little sentence so you can hear the voice before you start.",
       "test_texts": {
-        "en": "Hello. This is a short test of the multilingual model.",
-        "es": "Hola. Esta es una prueba corta del modelo multilingue.",
-        "hi": "नमस्ते। यह बहुभाषी मॉडल की एक छोटी जांच है।",
-        "pt": "Ola. Este e um teste curto do modelo multilingue.",
-        "zh": "你好。这是多语言模型的简短测试。"
+        "en": "Hi! Here's a little sentence so you can hear the voice before you start.",
+        "es": "¡Hola! Aquí tienes una frase breve para escuchar la voz antes de empezar.",
+        "hi": "नमस्ते! शुरू करने से पहले आवाज़ सुनने के लिए यह एक छोटा सा वाक्य है।",
+        "pt": "Oi! Aqui está uma frase curtinha para você ouvir a voz antes de começar.",
+        "zh": "你好！先用这句短话听听这个声音，再开始吧。"
       },
-      "notes": "Recommended default model. Uses the official multilingual V3 T3 weights by default.",
+      "notes": "The default: Resemble AI's multilingual model, with its V3 T3 weights.",
       "backend": "multilingual",
       "language_id": "en",
       "multilingual_t3_model": "v3",

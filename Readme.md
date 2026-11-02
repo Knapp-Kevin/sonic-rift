@@ -74,7 +74,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the long version of how this got out of han
 - [Manual Installation](#manual-installation-advanced)
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
-- [PyTorch & Reproducibility](#important-notes-on-pytorch-installation--reproducibility)
+- [Why PyTorch is installed separately](#why-pytorch-is-installed-separately)
 - [Contributing](#contributing)
 - [Acknowledgements](#acknowledgements)
 
@@ -658,7 +658,7 @@ Your data stays in the project folder, where it has always been: `app_settings.j
 
 </details>
 
-## Important Notes on PyTorch Installation & Reproducibility
+## Why PyTorch is installed separately
 
 <details>
 <summary><strong>Why PyTorch is installed separately</strong></summary>
