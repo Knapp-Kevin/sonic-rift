@@ -1,12 +1,14 @@
 """The Settings page: performance limits, pronunciation dictionary, local API and the log."""
 
+from this_voice_thing import __version__
+
 
 class AdvancedPage:
     """The Settings page: pronunciation dictionary, local API and log. Mixed into ChatterboxApp."""
 
     def _build_advanced_page(self):
         advanced_page, advanced_layout = self._make_page(
-            "Settings", "Performance limits, pronunciation, the local API, and the technical log.")
+            "Settings", f"Sonic Rift {__version__}. Performance limits, pronunciation, the local API, and the technical log.")
         advanced_layout.addWidget(self._build_performance_card())
         advanced_layout.addWidget(self._build_pronunciation_card())
         self.update_pronunciation_summary()

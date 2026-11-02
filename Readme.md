@@ -4,6 +4,8 @@
 
 > **Make worlds you can hear.** Local-first creative audio for voices, soundscapes, and the ideas that connect them.
 
+**Version 0.9.0-alpha** (alpha): run from source, or install it with the signed Windows installer from the [releases page](https://github.com/Knapp-Kevin/sonic-rift/releases). Versions follow [Semantic Versioning](https://semver.org/); see the [changelog](CHANGELOG.md).
+
 **Sonic Rift** is a Windows-first, local-first desktop creative-audio workbench. It combines multiple speech engines with voice design, cloning, narration, transcription, and soundscape generation. The Studio already supports arranging environmental audio with spoken performances, in-place narration, and mastered exports. Remaining timeline and long-project improvements are tracked separately from verified source-run behavior.
 
 Sonic Rift integrates [Resemble AI's Chatterbox TTS](https://github.com/resemble-ai/chatterbox) as one of several optional speech providers. Sonic Rift is licensed under the [Apache License 2.0](LICENSE); copyright and dependency attribution is maintained in [NOTICE](NOTICE) and [Licensing and third-party notices](THIRD_PARTY_NOTICES.md).

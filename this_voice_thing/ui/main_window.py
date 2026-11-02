@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from this_voice_thing import paths
+from this_voice_thing import __version__, paths
 from this_voice_thing.core import pronunciation, transcription, voice_library
 from this_voice_thing.integrations import google_docs, local_api
 from this_voice_thing.ui import common, taskbar
@@ -667,6 +667,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName(ui_theme.APP_NAME)
     app.setApplicationDisplayName(ui_theme.APP_NAME)
+    app.setApplicationVersion(__version__)
     ui_theme.apply_theme(app)
     window = SonicRiftApp()
     # Before show(): the taskbar button then never asks a busy window for its icon
