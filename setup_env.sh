@@ -117,7 +117,7 @@ step_torch() {
 
 echo
 say "=== Starting Sonic Rift Installer ==="
-echo "Installer log: $LOG_FILE"
+echo "Writing the installer log to $LOG_FILE"
 note "Dry Run Mode: $DRY"
 
 step_tools

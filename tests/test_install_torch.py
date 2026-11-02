@@ -228,9 +228,11 @@ class InstallLogTests(unittest.TestCase):
             with patch("builtins.print") as printed:
                 say("hello")
                 say.output("stderr", "a\nb")
+                say.output("stdout", "")
+            say.close()
             with open(path, encoding="utf-8") as handle:
                 self.assertEqual(handle.read(), "hello\n[uv stderr] a\n[uv stderr] b\n")
-            self.assertEqual(printed.call_count, 3)
+            self.assertEqual(printed.call_count, 2)
 
     def test_console_only_without_a_path(self):
         with patch("builtins.print") as printed:

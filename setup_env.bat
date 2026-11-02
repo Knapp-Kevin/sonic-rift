@@ -26,7 +26,7 @@ set "CHATTERBOX_INSTALL_LOG=%CD%\%LOG_FILE%"
 
 echo.
 call :say "=== Starting Sonic Rift Installer ==="
-echo Installer log: %LOG_FILE%
+echo Writing the installer log to %LOG_FILE%
 call :note "Dry Run Mode: %UV_APP_DRY%"
 
 call :step_tools || goto failed

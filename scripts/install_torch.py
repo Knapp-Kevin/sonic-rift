@@ -50,21 +50,25 @@ NEWEST_CUDA = CUDA_BUILDS[0]
 
 
 class InstallLog:
-    """Echo to the console and append to the installer log file, if any."""
+    """Echo to the console and, when given a path, to the installer log as well."""
 
     def __init__(self, path=None):
-        self.path = path
+        # Line-buffered so the log stays readable if the install is interrupted.
+        self.file = open(path, "a", encoding="utf-8", buffering=1) if path else None
 
     def __call__(self, text):
         print(text)
-        if self.path:
-            with open(self.path, "a", encoding="utf-8") as handle:
-                handle.write(f"{text}\n")
+        if self.file is not None:
+            self.file.write(f"{text}\n")
 
     def output(self, stream_name, text):
-        """Copy captured tool output line by line, tagged with its stream."""
-        for line in (text or "").splitlines():
-            self(f"[uv {stream_name}] {line}")
+        """Copy captured tool output, each line tagged with its stream."""
+        if text:
+            self("\n".join(f"[uv {stream_name}] {line}" for line in text.splitlines()))
+
+    def close(self):
+        if self.file is not None:
+            self.file.close()
 
 
 # --- step 1: find the CUDA runtime --------------------------------------------
@@ -206,10 +210,10 @@ def try_build(build, say, run=None):
         say.output("stdout", done.stdout)
         say.output("stderr", done.stderr)
         report = read_runtime(run=run)
-    except subprocess.CalledProcessError as exc:
-        say.output("stdout", exc.stdout)
-        say.output("stderr", exc.stderr)
-        return False, f"installer exited with code {exc.returncode}"
+    except subprocess.CalledProcessError as failure:
+        say.output("stdout", failure.stdout)
+        say.output("stderr", failure.stderr)
+        return False, f"installer exited with code {failure.returncode}"
     say(f"Verification payload for {build.tag}: {json.dumps(report, ensure_ascii=False)}")
     if not runtime_ok(report, build.is_cuda):
         return False, failure_summary(report)
