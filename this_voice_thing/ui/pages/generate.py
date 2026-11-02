@@ -295,16 +295,16 @@ class GeneratePage:
             params_layout.addWidget(widget, row, column + 1)
             return label
 
-        self.exaggeration_slider = self._create_slider(*SLIDER_RANGES["exaggeration"])
+        self.exaggeration_slider = SliderWithValue(*SLIDER_RANGES["exaggeration"])
         self.exaggeration_label = add_control(0, 0, "Expressiveness", self.exaggeration_slider,
                     "How animated and emotional the delivery sounds. 0.5 is neutral; "
                     "higher is more dramatic (and often a bit faster). [exaggeration]")
-        self.cfg_slider = self._create_slider(*SLIDER_RANGES["cfg_weight"])
+        self.cfg_slider = SliderWithValue(*SLIDER_RANGES["cfg_weight"])
         self.cfg_label = add_control(0, 2, "Pacing", self.cfg_slider,
                     "Lower gives slower, more deliberate speech; higher is brisker and "
                     "follows the reference voice's style more closely. Try 0.3 for "
                     "expressive or fast-talking voices. [cfg_weight]")
-        self.temp_slider = self._create_slider(*SLIDER_RANGES["temperature"])
+        self.temp_slider = SliderWithValue(*SLIDER_RANGES["temperature"])
         add_control(1, 0, "Variation", self.temp_slider,
                     "How different each take sounds. Higher is livelier but can become "
                     "unstable; lower is steadier and more predictable. [temperature]")
@@ -328,9 +328,6 @@ class GeneratePage:
         delivery_layout.addWidget(delivery_hint)
         self._build_finishing_panel(delivery_layout)
         return delivery_card
-
-    def _create_slider(self, min_val, max_val, step_val, default_val, value_format="{:.2f}"):
-        return SliderWithValue(min_val, max_val, step_val, default_val, value_format)
 
     def refresh_language_options(self):
         """Fill the Language list for the picked model and select its preferred language."""
