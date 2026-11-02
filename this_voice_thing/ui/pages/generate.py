@@ -2,6 +2,7 @@
 
 import os
 
+from PySide6.QtCore import QMargins
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QComboBox
 from PySide6.QtWidgets import QGridLayout
@@ -29,6 +30,48 @@ from this_voice_thing.ui.common import VIBEVOICE_BACKEND
 from this_voice_thing.ui.common import languages_for_backend
 from this_voice_thing.ui.widgets import ElidingChip
 from this_voice_thing.ui.widgets import SliderWithValue
+from this_voice_thing.ui.pages.generation import IDLE_LABEL
+
+# Delivery sliders: (minimum, maximum, step, default) per engine option.
+SLIDER_RANGES = {
+    "exaggeration": (0.25, 2.0, 0.05, 0.5),
+    "cfg_weight": (0.2, 1.0, 0.05, 0.5),
+    "temperature": (0.05, 5.0, 0.05, 0.8),
+}
+MAX_TAKE_NUMBER = 1_000_000_000
+# Backends with a real language choice; the English Chatterbox model speaks English only.
+MULTI_LANGUAGE_BACKENDS = frozenset({BACKEND_MULTILINGUAL, QWEN_BACKEND, KOKORO_BACKEND,
+                                     VIBEVOICE_BACKEND, *DUAL_MODE_BACKENDS})
+LANGUAGE_TIP = "Language of the text. The list depends on the selected model."
+ENGLISH_ONLY_TIP = "This model speaks English only."
+
+
+def language_choices(entry):
+    """For a model entry: ([(label, language id)], id to select or None, whether the list
+    can be changed). The entry's own language wins, then English, then the first listed."""
+    names = languages_for_backend(entry.get("backend", BACKEND_MULTILINGUAL))
+    rows = [(f"{name} [{code}]", code) for code, name in names.items()]
+    codes = [code for _label, code in rows]
+    preferred = [code for code in (entry.get("language_id", "en"), "en") if code in codes]
+    wanted = (preferred or codes or [None])[0]
+    return rows, wanted, entry.get("backend") in MULTI_LANGUAGE_BACKENDS
+
+
+def _sample_sources(entry, language):
+    """Sample texts in order of preference (some may be empty)."""
+    yield (entry.get("test_texts") or {}).get(language)
+    if entry.get("backend") == BACKEND_MULTILINGUAL:
+        builtin = DEFAULT_LANGUAGE_TEST_TEXTS
+        yield builtin.get(language) or builtin["en"]
+    yield entry.get("test_text")
+
+
+def sample_text(entry, language):
+    """The Sample button's text: the entry's own sample for the language; for multilingual
+    Chatterbox the built-in one (English when the language has none); then the entry's
+    general sample. None when there is nothing. No language means the entry's own."""
+    wanted = language or entry.get("language_id", "en")
+    return next(filter(None, _sample_sources(entry, wanted)), None)
 
 
 class GeneratePage:
@@ -56,10 +99,10 @@ class GeneratePage:
         voice_row.addWidget(change_voice_button)
         voice_row.addStretch(1)
         voice_row.addWidget(QLabel("Model"))
-        self.model_repo_combo = QComboBox()
-        self.model_repo_combo.setMinimumWidth(190)
-        self.model_repo_combo.currentIndexChanged.connect(self.on_model_repo_changed)
-        voice_row.addWidget(self.model_repo_combo)
+        model_picker = QComboBox(minimumWidth=190)
+        model_picker.currentIndexChanged.connect(self.on_model_repo_changed)
+        voice_row.addWidget(model_picker)
+        self.model_repo_combo = model_picker
         generate_layout.addLayout(voice_row)
 
         generate_layout.addWidget(self._build_text_card(), 3)
@@ -74,7 +117,7 @@ class GeneratePage:
         page = QWidget()
         page.setProperty("noScroll", True)
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(QMargins())   # the editor draws its own frame
         self.project_page_layout = layout
         self.pages.addWidget(page)
 
@@ -141,13 +184,10 @@ class GeneratePage:
         self.document_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         text_header.addWidget(self.document_label, 1)
         text_card_layout.addLayout(text_header)
-        self.text_input = QTextEdit()
-        self.text_input.setPlaceholderText(
-            "Enter text to synthesize, or open a document. Long text is split where a reader "
-            "would pause and stitched back together."
-        )
-        self.text_input.setMinimumHeight(90)
-        self.text_input.setAcceptRichText(False)
+        self.text_input = QTextEdit(
+            placeholderText=("Type or paste the text to read, or open a document. Long text is split "
+                             "where a reader would pause and joined back together."),
+            minimumHeight=90, acceptRichText=False)
         self.text_input.textChanged.connect(self.on_text_changed)
         # Fill the leftover height instead of forcing the page to scroll.
         self.text_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
@@ -190,7 +230,7 @@ class GeneratePage:
         status_row_widget.setFixedHeight(QPushButton("X").sizeHint().height())
         text_card_layout.addWidget(status_row_widget)
 
-        generate_actions_layout = QHBoxLayout()
+        actions = QHBoxLayout()
         self.open_document_button = QPushButton("Open...")
         self.open_document_button.setToolTip("Load a .txt, .md or .docx file, or a Google Doc, to read aloud.")
         open_menu = QMenu(self.open_document_button)
@@ -198,12 +238,13 @@ class GeneratePage:
         open_menu.addAction("From Google Docs...").triggered.connect(lambda _checked=False: self.open_google_doc())
         self.open_document_button.setMenu(open_menu)
         self.open_menu = open_menu
-        generate_actions_layout.addWidget(self.open_document_button)
-        self.use_preset_button = QPushButton("Sample")
-        self.use_preset_button.setToolTip("Fill in a short test sentence for the selected language.")
-        self.use_preset_button.clicked.connect(self.apply_selected_text_preset)
-        generate_actions_layout.addWidget(self.use_preset_button)
-        generate_actions_layout.addStretch()
+        actions.addWidget(self.open_document_button)
+        sample_button = QPushButton("Sample")
+        sample_button.setToolTip("Fill in a short test sentence for the selected language.")
+        sample_button.clicked.connect(self.fill_sample_text)
+        actions.addWidget(sample_button)
+        self.use_preset_button = sample_button
+        actions.addStretch(1)
         self.preview_length_combo = QComboBox()
         for label, characters in PREVIEW_LENGTHS:
             self.preview_length_combo.addItem(label, characters)
@@ -217,23 +258,24 @@ class GeneratePage:
         self.preview_length_combo.currentIndexChanged.connect(
             lambda _index: self.app_settings.update(preview_chars=self.preview_length_combo.currentData()))
         self.preview_length_combo.setFixedWidth(84)
-        generate_actions_layout.addWidget(self.preview_length_combo)
+        actions.addWidget(self.preview_length_combo)
         self.preview_button = QPushButton("Preview")
         self.preview_button.setToolTip(
             "Generate a short sample with the current settings before rendering everything: "
             "the selected text, or the opening of the text (length chosen on the left).")
         self.preview_button.clicked.connect(lambda: self.start_generation(preview=True))
         self.preview_button.setEnabled(False)
-        generate_actions_layout.addWidget(self.preview_button)
-        self.generate_button = self._accent(QPushButton("Generate Audio"))
-        self.generate_button.clicked.connect(self.handle_generate_stop_toggle)
+        actions.addWidget(self.preview_button)
+        generate = self._accent(QPushButton(IDLE_LABEL))
+        generate.clicked.connect(self.handle_generate_stop_toggle)
         # It turns into Stop while rendering: never let Space or Enter (say, meant for the
         # player) press it by accident and cut a long render short.
-        self.generate_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.generate_button.setEnabled(False)
-        self.generate_button.setMinimumWidth(140)
-        generate_actions_layout.addWidget(self.generate_button)
-        text_card_layout.addLayout(generate_actions_layout)
+        generate.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        generate.setEnabled(False)       # until a model is loaded
+        generate.setMinimumWidth(140)
+        actions.addWidget(generate)
+        self.generate_button = generate
+        text_card_layout.addLayout(actions)
         return text_card
 
     def _build_delivery_card(self):
@@ -242,8 +284,8 @@ class GeneratePage:
         params_layout = QGridLayout()
         params_layout.setHorizontalSpacing(14)
         params_layout.setVerticalSpacing(8)
-        params_layout.setColumnStretch(1, 1)
-        params_layout.setColumnStretch(3, 1)
+        for control_column in (1, 3):
+            params_layout.setColumnStretch(control_column, 1)
 
         def add_control(row, column, title, widget, tooltip):
             label = QLabel(title)
@@ -253,26 +295,24 @@ class GeneratePage:
             params_layout.addWidget(widget, row, column + 1)
             return label
 
-        self.exaggeration_slider = self._create_slider(0.25, 2.0, 0.05, 0.5)
+        self.exaggeration_slider = self._create_slider(*SLIDER_RANGES["exaggeration"])
         self.exaggeration_label = add_control(0, 0, "Expressiveness", self.exaggeration_slider,
                     "How animated and emotional the delivery sounds. 0.5 is neutral; "
                     "higher is more dramatic (and often a bit faster). [exaggeration]")
-        self.cfg_slider = self._create_slider(0.2, 1.0, 0.05, 0.5)
+        self.cfg_slider = self._create_slider(*SLIDER_RANGES["cfg_weight"])
         self.cfg_label = add_control(0, 2, "Pacing", self.cfg_slider,
                     "Lower gives slower, more deliberate speech; higher is brisker and "
                     "follows the reference voice's style more closely. Try 0.3 for "
                     "expressive or fast-talking voices. [cfg_weight]")
-        self.temp_slider = self._create_slider(0.05, 5.0, 0.05, 0.8)
+        self.temp_slider = self._create_slider(*SLIDER_RANGES["temperature"])
         add_control(1, 0, "Variation", self.temp_slider,
                     "How different each take sounds. Higher is livelier but can become "
                     "unstable; lower is steadier and more predictable. [temperature]")
-        self.seed_input = QSpinBox()
-        self.seed_input.setRange(0, 1_000_000_000)
-        self.seed_input.setValue(0)
+        self.seed_input = QSpinBox(minimum=0, maximum=MAX_TAKE_NUMBER, value=0)
         self.seed_input.setSpecialValueText("New take each time")
         self.seed_input.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
-        self.language_combo = QComboBox()
-        self.language_combo.currentIndexChanged.connect(lambda _i: self.on_language_changed())
+        self.language_combo = languages = QComboBox()
+        languages.currentIndexChanged.connect(lambda _i: self.on_language_changed())
         add_control(2, 0, "Language", self.language_combo,
                     "Language of the text. The list depends on the selected model.")
         add_control(1, 2, "Take number", self.seed_input,
@@ -293,47 +333,26 @@ class GeneratePage:
         return SliderWithValue(min_val, max_val, step_val, default_val, value_format)
 
     def refresh_language_options(self):
-        selected_entry = self.get_selected_model_entry()
-        supported_languages = languages_for_backend(
-            selected_entry.get("backend", BACKEND_MULTILINGUAL)
-        )
-        preferred_language = selected_entry.get("language_id", "en")
+        """Fill the Language list for the picked model and select its preferred language."""
+        rows, wanted, usable = language_choices(self.get_selected_model_entry())
+        combo = self.language_combo
+        combo.blockSignals(True)
+        try:
+            combo.clear()
+            for label, code in rows:
+                combo.addItem(label, code)
+            if wanted is not None:
+                combo.setCurrentIndex(combo.findData(wanted))
+            combo.setEnabled(usable)
+            combo.setToolTip(LANGUAGE_TIP if usable else ENGLISH_ONLY_TIP)
+        finally:
+            combo.blockSignals(False)
 
-        self.language_combo.blockSignals(True)
-        self.language_combo.clear()
-        for language_id, language_name in supported_languages.items():
-            self.language_combo.addItem(f"{language_name} [{language_id}]", language_id)
-
-        preferred_index = self.language_combo.findData(preferred_language)
-        if preferred_index < 0:
-            preferred_index = self.language_combo.findData("en")
-        if preferred_index < 0 and self.language_combo.count() > 0:
-            preferred_index = 0
-        if preferred_index >= 0:
-            self.language_combo.setCurrentIndex(preferred_index)
-
-        is_multilingual = selected_entry.get("backend") in (BACKEND_MULTILINGUAL, QWEN_BACKEND, KOKORO_BACKEND,
-                                                            VIBEVOICE_BACKEND, *DUAL_MODE_BACKENDS)
-        self.language_combo.setEnabled(is_multilingual)
-        self.language_combo.setToolTip(
-            "Language used by the multilingual Chatterbox backend."
-            if is_multilingual else
-            "Legacy English backend only."
-        )
-        self.language_combo.blockSignals(False)
-
-    def apply_selected_text_preset(self):
-        selected_entry = self.get_selected_model_entry()
-        selected_language = self.language_combo.currentData() or selected_entry.get("language_id", "en")
-        preset_text = selected_entry.get("test_texts", {}).get(selected_language)
-        if not preset_text and selected_entry.get("backend") == BACKEND_MULTILINGUAL:
-            preset_text = DEFAULT_LANGUAGE_TEST_TEXTS.get(
-                selected_language,
-                DEFAULT_LANGUAGE_TEST_TEXTS["en"],
-            )
-        if not preset_text:
-            preset_text = selected_entry.get("test_text")
-        if preset_text:
-            self.current_document_name = None
-            self.document_label.clear()
-            self.text_input.setPlainText(preset_text)
+    def fill_sample_text(self):
+        """Sample button: replace the text with a short test sentence for the model and language."""
+        text = sample_text(self.get_selected_model_entry(), self.language_combo.currentData())
+        if not text:
+            return
+        self.current_document_name = None   # a sample isn't a document
+        self.document_label.clear()
+        self.text_input.setPlainText(text)
