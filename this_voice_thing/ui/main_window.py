@@ -5,8 +5,8 @@ import os
 import sys
 
 import torch
-from PySide6.QtCore import QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtCore import QMargins, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QTextCursor
 from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
 from PySide6.QtWidgets import (
     QApplication,
@@ -35,18 +35,9 @@ from this_voice_thing.ui import common, taskbar
 from this_voice_thing.ui import theme as ui_theme
 from this_voice_thing.ui.api_bridge import ApiBridge
 from this_voice_thing.ui.common import (
-    APP_SETTINGS_FILENAME,
-    BACKEND_MULTILINGUAL,
-    CHATTERBOX_AVAILABLE,
-    DEFAULT_MODEL_REPO,
-    DEFAULT_MULTILINGUAL_T3_MODEL,
-    has_system_nvidia_gpu,
-    load_models_config,
-    MODEL_CONFIG_FILENAME,
-    read_json_payload,
-    REFERENCE_RECORDINGS_DIRNAME,
-    resolve_multilingual_t3_model,
-    WORKER_MODEL_TYPES,
+    APP_SETTINGS_FILENAME, BACKEND_MULTILINGUAL, CHATTERBOX_AVAILABLE, DEFAULT_MODEL_REPO,
+    DEFAULT_MULTILINGUAL_T3_MODEL, MODEL_CONFIG_FILENAME, REFERENCE_RECORDINGS_DIRNAME, WORKER_MODEL_TYPES,
+    has_system_nvidia_gpu, load_models_config, read_json_payload, resolve_multilingual_t3_model,
     write_json_payload,
 )
 from this_voice_thing.ui.pages.advanced import AdvancedPage
@@ -92,37 +83,68 @@ class SidebarDelegate(QStyledItemDelegate):
         painter.restore()
 
 
+# app_settings.json keys for the window's size, position and state. Settings files written by
+# older versions use the same keys, so they restore the window unchanged.
+GEOMETRY_KEY, MAXIMIZED_KEY, FULLSCREEN_KEY = "window_geometry", "window_maximized", "window_fullscreen"
+
+
+def read_app_settings(path):
+    """app_settings.json as a dict. A missing, damaged or non-object file gives {}: the problem
+    goes to the log and the file is left untouched."""
+    data, problem = read_json_payload(path)
+    if problem:
+        print(problem)
+    return data if isinstance(data, dict) else {}
+
+
+def geometry_to_text(geometry):
+    """saveGeometry() bytes as the base64 text stored under GEOMETRY_KEY."""
+    return base64.b64encode(bytes(geometry)).decode("ascii")
+
+
+def geometry_from_text(text):
+    """Bytes for restoreGeometry(), or None when nothing was saved. Raises on corrupt text."""
+    if not isinstance(text, str) or not text:
+        return None
+    return base64.b64decode(text)
+
+
+def _finish_thread(thread, ask_to_stop):
+    """Ask a worker thread that is still running to end, then wait for it."""
+    if thread is not None and thread.isRunning():
+        ask_to_stop(thread)
+        thread.wait()
+
+
 class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, EngineControls, Player,
                     LiveVoicePage, StudioPage, SoundscapePage, MusicPage, VoicePage, VoicePicker, Library, VoiceUse, Recording, TranscribePage, ModelPage, Discover, ModelLoading, ModelSettings,
                     AdvancedPage, ApiServer, Pronunciations, PerformancePage, QMainWindow):
-    log_message_signal = Signal(str)
+    console_text = Signal(str)   # console output, delivered to the log view on the UI thread
 
     def __init__(self):
         super().__init__()
         self.setWindowTitle(ui_theme.APP_NAME)
         self.setWindowIcon(ui_theme.app_icon())
         self.resize(1000, 820)
-        self.model = None
-        self.device_used = "cpu"
-        self.current_model_repo = DEFAULT_MODEL_REPO
-        self.current_model_backend = BACKEND_MULTILINGUAL
-        self.current_multilingual_t3_model = resolve_multilingual_t3_model(DEFAULT_MULTILINGUAL_T3_MODEL)
-        self.selected_model_repo = DEFAULT_MODEL_REPO
-        self.system_has_nvidia_gpu = has_system_nvidia_gpu()
-        self.cuda_runtime_issue = None
-        self.script_dir = paths.ROOT  # app data stays in the project folder
-        self.model_config_path = os.path.join(self.script_dir, MODEL_CONFIG_FILENAME)
-        self.app_settings_path = os.path.join(self.script_dir, APP_SETTINGS_FILENAME)
-        self.model_entries = load_models_config(self.model_config_path)
-        self.app_settings = self.load_app_settings()
+        # No model is loaded yet; the default Chatterbox model is selected.
+        self.model, self.device_used, self.cuda_runtime_issue = None, "cpu", None
+        self.current_model_repo = self.selected_model_repo = DEFAULT_MODEL_REPO
+        self.current_model_backend, self.current_multilingual_t3_model = (
+            BACKEND_MULTILINGUAL, resolve_multilingual_t3_model(DEFAULT_MULTILINGUAL_T3_MODEL))
+        gpu_present = has_system_nvidia_gpu()
+        self.system_has_nvidia_gpu = gpu_present
+        data_dir = paths.ROOT   # app data stays in the project folder
+        self.script_dir = data_dir
+        models_file = os.path.join(data_dir, MODEL_CONFIG_FILENAME)
+        self.model_config_path, self.model_entries = models_file, load_models_config(models_file)
+        self.app_settings_path = os.path.join(data_dir, APP_SETTINGS_FILENAME)
+        self.app_settings = read_app_settings(self.app_settings_path)
         self.apply_resource_limits()   # before any model or engine worker starts
         self.apply_hf_token_setting()
-        self.current_audio_file = None
         # In the project folder like all other app data, wherever the app was started from.
-        self.output_directory = os.path.join(paths.ROOT, "chatterbox_outputs")
-        if not os.path.exists(self.output_directory):
-            os.makedirs(self.output_directory)
-        self.last_reference_audio_dir = self.script_dir
+        self.output_directory = os.path.join(data_dir, "chatterbox_outputs")
+        os.makedirs(self.output_directory, exist_ok=True)
+        self.current_audio_file, self.last_reference_audio_dir = None, data_dir
         self.recordings_directory = os.path.join(
             self.script_dir, REFERENCE_RECORDINGS_DIRNAME)
         self.voice_library = voice_library.VoiceLibrary(self.script_dir, self.recordings_directory)
@@ -150,53 +172,48 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
 
         self._build_take_player()
 
-        self.generation_timer = QTimer(self)
-        self.generation_timer.timeout.connect(
-            self.update_generation_time_display)  # Renamed for clarity
-        self.generation_start_time = None
-        self.is_generating = False
+        self.generation_timer = self._make_timer(self.update_generation_time_display)
+        self.generation_start_time, self.is_generating = None, False
         self.model_is_warm = False
         self.generation_is_preview = False
         self.generation_started_at = None
         self.generation_char_count = 0
         self.current_document_name = None
         self.last_preview_seed = None
-        self.text_stats_timer = QTimer(self)
-        self.text_stats_timer.setSingleShot(True)
-        self.text_stats_timer.setInterval(350)
-        self.text_stats_timer.timeout.connect(self.update_text_stats)
+        self.text_stats_timer = self._make_timer(self.update_text_stats, interval=350, single_shot=True)
         sampling = self.app_settings.get("sampling", {})
         self.repetition_penalty = float(sampling.get("repetition_penalty", 1.2))
         self.min_p = float(sampling.get("min_p", 0.05))
         self.top_p = float(sampling.get("top_p", 1.0))
 
-        self.log_message_signal.connect(self.append_console_log)
+        self.console_text.connect(self.append_console_log)
         self._init_ui()
         self.update_minimum_size()
         self.fit_default_geometry()
-        self.restore_window_settings()
+        self.restore_window_state()
         self.fit_to_screen()   # a size saved on a bigger screen (or by older versions) may not fit
-        # Before show() the frame (title bar, borders) has no size yet; check again once it does.
-        QTimer.singleShot(0, self.fit_to_screen)
         self._wheel_guard = install_wheel_guard(QApplication.instance())
         self.attach_log_sink()
         self.update_output_log()
+
+        # Started once the event loop runs, in this order. Before show() the frame (title bar,
+        # borders) has no size yet, so the screen fit is checked again first.
+        deferred = [self.fit_to_screen]
         if CHATTERBOX_AVAILABLE:
-            if self.system_has_nvidia_gpu and not torch.cuda.is_available():
-                print(
-                    "WARNING: NVIDIA GPU detected, but the installed PyTorch build "
-                    "does not have CUDA enabled. The app will run on CPU."
-                )
-            self.set_status_message(
-                "Status: App ready. Default model load will start shortly. First run may download model files and can take several minutes."
-            )
-            QTimer.singleShot(0, self.start_default_model_load)
+            if gpu_present and not torch.cuda.is_available():
+                print("WARNING: this PC has an NVIDIA GPU, but the installed PyTorch has no CUDA "
+                      "support, so models run on the CPU.")
+            self.set_status_message("Ready. The default model starts loading in a moment; the first "
+                                    "run may download its files, which can take several minutes.")
+            deferred.append(self.start_default_model_load)
         else:
             # The Chatterbox engine can't load, but every other engine runs in its own environment.
             self.set_status_message(
                 "Status: The Chatterbox engine is unavailable (see the log in Settings); load another model on "
                 "the Models page.")
-        QTimer.singleShot(0, self.restart_api_server)
+        deferred.append(self.restart_api_server)
+        for job in deferred:
+            QTimer.singleShot(0, job)
 
     # Pages in the stack (build order). The sidebar is grouped by what you're doing: the Studio
     # brings everything together; MAKE holds the generators (each keeps its own page); PERFORM
@@ -228,7 +245,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         page = QWidget()
         layout = QVBoxLayout(page)
         if title is None:
-            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setContentsMargins(QMargins())
             layout.setSpacing(2)
             return page, layout
         # Cards carry their own shadow margin, so page spacing is tighter.
@@ -258,9 +275,9 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         return button
 
     def _init_ui(self):
-        main_widget = QWidget()
-        self.setCentralWidget(main_widget)
-        root_layout = QHBoxLayout(main_widget)
+        window_body = QWidget()
+        self.setCentralWidget(window_body)
+        root_layout = QHBoxLayout(window_body)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
@@ -336,34 +353,47 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
                 editor.setTabChangesFocus(True)
         self.show_page(self.PAGE_GENERATE)
 
-        qt_status_bar = self.statusBar()
-        qt_status_bar.setSizeGripEnabled(False)
-        self.status_bar = QLabel("Status: Initializing...")
-        self.status_bar.setWordWrap(False)
-        self.status_bar.setTextFormat(Qt.TextFormat.PlainText)
-        # Status text is elided to fit; it must never set the window's minimum width.
-        self.status_bar.setSizePolicy(
-            QSizePolicy.Policy.Ignored,
-            QSizePolicy.Policy.Fixed,
-        )
-        self.status_bar.setMinimumWidth(120)
-        self.status_bar.setFixedHeight(self.status_bar.sizeHint().height() + 4)
-        qt_status_bar.addWidget(self.status_bar, 1)
-        self.model_load_progress = QProgressBar()
-        self.model_load_progress.setRange(0, 1)
-        self.model_load_progress.setValue(0)
-        self.model_load_progress.setTextVisible(False)
-        self.model_load_progress.setFixedHeight(8)
-        self.model_load_progress.setFixedWidth(120)
-        self.model_load_progress.setEnabled(False)
-        qt_status_bar.addPermanentWidget(self.model_load_progress)
-        self.refresh_model_repo_options()
-        self.refresh_language_options()
-        self.refresh_models_page()
+        self._build_status_bar()
+        # Fill the model, language and models-page lists from model_entries.
+        for refresh in (self.refresh_model_repo_options, self.refresh_language_options, self.refresh_models_page):
+            refresh()
         self.update_hf_token_status()
         self.set_tuning_expanded(bool(self.app_settings.get("tuning_expanded", False)))
         self.refresh_recordings_list()
         self.set_reference_audio(None)
+
+    def _build_status_bar(self):
+        """One line of status text (elided to fit; the whole message is its tooltip) and, on
+        the right, the model-load progress bar (idle until a model loads)."""
+        message = QLabel("Status: Initializing...")
+        message.setTextFormat(Qt.TextFormat.PlainText)
+        message.setWordWrap(False)
+        # Status text is elided to fit; it must never set the window's minimum width.
+        message.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        message.setMinimumWidth(120)
+        message.setFixedHeight(message.sizeHint().height() + 4)
+
+        progress = QProgressBar()
+        progress.setTextVisible(False)
+        progress.setFixedSize(120, 8)
+        progress.setRange(0, 1)
+        progress.setValue(0)
+        progress.setEnabled(False)
+
+        bar = self.statusBar()
+        bar.setSizeGripEnabled(False)
+        bar.addWidget(message, 1)
+        bar.addPermanentWidget(progress)
+        self.status_bar, self.model_load_progress = message, progress
+
+    def _make_timer(self, on_timeout, interval=None, single_shot=False):
+        """A QTimer owned by the window that calls on_timeout (started by its users)."""
+        timer = QTimer(self)
+        timer.setSingleShot(single_shot)
+        if interval is not None:
+            timer.setInterval(interval)
+        timer.timeout.connect(on_timeout)
+        return timer
 
     def _build_voices_section(self):
         """Voices: the library and New voice (the voice studio) as tabs of one page."""
@@ -437,36 +467,32 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         hint = QLabel("Technical output from model loading and generation.")
         hint.setObjectName("Muted")
         log_layout.addWidget(hint)
-        self.console_log_view = QPlainTextEdit()
-        self.console_log_view.setReadOnly(True)
-        self.console_log_view.setMaximumBlockCount(1000)
-        self.console_log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self.console_log_view.setObjectName("LogView")
-        self.console_log_view.setMinimumHeight(160)
-        log_layout.addWidget(self.console_log_view, 1)
+        view = QPlainTextEdit()
+        view.setObjectName("LogView")
+        view.setReadOnly(True)
+        view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        view.setMaximumBlockCount(1000)   # oldest lines drop off
+        view.setMinimumHeight(160)
+        log_layout.addWidget(view, 1)
+        self.console_log_view = view
         return log_card
 
     def attach_log_sink(self):
-        # the console tee in common forwards to this sink
-        common.APP_LOG_SINK = self.log_message_signal.emit
+        # the console tee in common forwards to this sink; the signal hops to the UI thread
+        common.APP_LOG_SINK = self.console_text.emit
 
-    def append_console_log(self, text):
-        if not hasattr(self, "console_log_view"):
-            return
-        cursor = self.console_log_view.textCursor()
-        cursor.movePosition(cursor.MoveOperation.End)
-        cursor.insertText(str(text))
-        self.console_log_view.setTextCursor(cursor)
-        self.console_log_view.ensureCursorVisible()
+    def append_console_log(self, chunk):
+        """Add console output at the end of the Settings log and scroll to it."""
+        view = getattr(self, "console_log_view", None)
+        if view is None:
+            return   # output from before the log card was built
+        view.moveCursor(QTextCursor.MoveOperation.End)
+        view.insertPlainText(str(chunk))
+        view.ensureCursorVisible()
 
     def load_app_settings(self):
-        payload, load_error = read_json_payload(self.app_settings_path)
-        if load_error:
-            print(load_error)
-            return {}
-        if isinstance(payload, dict):
-            return payload
-        return {}
+        """The settings in app_settings.json ({} when there are none)."""
+        return read_app_settings(self.app_settings_path)
 
     # The window never has to be larger than this: pages scroll inside it instead.
     # 960 x 600 fits a 1366 x 768 laptop at 125% scaling with the taskbar showing.
@@ -520,62 +546,57 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         frame.moveCenter(available.center())
         self.move(frame.topLeft())
 
-    def restore_window_settings(self):
-        geometry_b64 = self.app_settings.get("window_geometry")
-        if isinstance(geometry_b64, str) and geometry_b64:
-            try:
-                geometry_bytes = base64.b64decode(geometry_b64.encode("ascii"))
-                self.restoreGeometry(geometry_bytes)
-            except Exception as exc:
-                print(f"Failed to restore saved window geometry: {exc}")
-
-        if self.app_settings.get("window_maximized"):
-            self.showMaximized()
-        elif self.app_settings.get("window_fullscreen"):
-            self.showFullScreen()
-
-    def save_window_settings(self):
+    def restore_window_state(self):
+        """Put the window back as the last session left it (see remember_window_state)."""
+        saved = self.app_settings
         try:
-            self.app_settings["window_geometry"] = base64.b64encode(
-                bytes(self.saveGeometry())
-            ).decode("ascii")
-            self.app_settings["window_maximized"] = self.isMaximized()
-            self.app_settings["window_fullscreen"] = self.isFullScreen()
+            geometry = geometry_from_text(saved.get(GEOMETRY_KEY))
+            if geometry is not None:
+                self.restoreGeometry(geometry)
         except Exception as exc:
-            print(f"Failed to save window settings: {exc}")
+            print(f"Could not restore the saved window size and position: {exc}")
+        # Maximized wins over full screen when a damaged file has both.
+        for key, show in ((MAXIMIZED_KEY, self.showMaximized), (FULLSCREEN_KEY, self.showFullScreen)):
+            if saved.get(key):
+                show()
+                break
+
+    def remember_window_state(self):
+        """Record the window's geometry and maximized/full-screen state in app_settings
+        (written to disk by save_app_settings)."""
+        try:
+            state = {GEOMETRY_KEY: geometry_to_text(self.saveGeometry()),
+                     MAXIMIZED_KEY: self.isMaximized(),
+                     FULLSCREEN_KEY: self.isFullScreen()}
+        except Exception as exc:
+            print(f"Could not record the window size and position: {exc}")
+            return
+        self.app_settings.update(state)
 
     def save_app_settings(self):
+        """Write app_settings.json; the Finishing panel's settings are included once it exists."""
+        settings = self.app_settings
         if hasattr(self, "speed_slider"):
-            self.app_settings["finishing"] = self.current_finishing_settings().to_dict()
-            self.app_settings["finishing_expanded"] = not self.finishing_panel.isHidden()
+            settings.update(finishing=self.current_finishing_settings().to_dict(),
+                                     finishing_expanded=not self.finishing_panel.isHidden())
         try:
-            write_json_payload(self.app_settings_path, self.app_settings)
-        except Exception as exc:
-            QMessageBox.warning(
-                self,
-                "Settings Error",
-                f"Failed to save {APP_SETTINGS_FILENAME}: {exc}",
-            )
+            write_json_payload(self.app_settings_path, settings)
+        except Exception as exc:   # e.g. a read-only folder: say so, but let the app close
+            QMessageBox.warning(self, "Settings Error", f"Could not save {APP_SETTINGS_FILENAME}: {exc}")
 
-    def set_status_message(self, message):
-        compact_message = " ".join(str(message).split())
-        # The bar itself says this is status; the old "Status: " prefix only crowded every message.
-        if compact_message.startswith("Status: "):
-            compact_message = compact_message[len("Status: "):]
-        self.status_bar.setToolTip(compact_message)
+    def set_status_message(self, text):
+        """Show a message on the status line; the full text stays in its tooltip."""
+        # One line, and without the old "Status: " prefix: the bar itself says this is status.
+        text = " ".join(str(text).split()).removeprefix("Status: ")
+        self.status_bar.setToolTip(text)
         self._elide_status()
 
     def _elide_status(self):
         """Fit the whole message (kept in the tooltip) to the bar's current width. Eliding only
         when a message arrived left it cut short if the window grew afterwards."""
-        compact_message = self.status_bar.toolTip()
-        metrics = self.status_bar.fontMetrics()
-        elided_message = metrics.elidedText(
-            compact_message,
-            Qt.TextElideMode.ElideRight,
-            max(120, self.status_bar.width() - 8),
-        )
-        self.status_bar.setText(elided_message)
+        label = self.status_bar
+        room = max(120, label.width() - 8)
+        label.setText(label.fontMetrics().elidedText(label.toolTip(), Qt.TextElideMode.ElideRight, room))
 
     OPENAI_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"}
 
@@ -596,9 +617,9 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        current_tooltip = self.status_bar.toolTip()
-        if current_tooltip:
-            self.set_status_message(current_tooltip)
+        # Re-fit the status line to the new width (the label starts out without a message).
+        if self.status_bar.toolTip():
+            self._elide_status()
 
     def closeEvent(self, event):
         # An open project editor asks about unsaved edits first; keep the app open if it stays.
@@ -618,22 +639,16 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         # the console tee in common forwards to this sink
         if self.api_server is not None:
             self.api_server.stop()
-        if common.APP_LOG_SINK == self.log_message_signal.emit:
+        if common.APP_LOG_SINK == self.console_text.emit:
             common.APP_LOG_SINK = None
-        self.save_window_settings()
+        self.remember_window_state()
         self.save_app_settings()
         # A buffered (non-streaming) engine can't be interrupted mid-line, so wait only after saving.
         if getattr(self, "live_speech_thread", None) is not None:
             self.live_speech_thread.wait()
-        if hasattr(self, 'model_loader_thread') and self.model_loader_thread.isRunning():
-            self.model_loader_thread.quit()
-            self.model_loader_thread.wait()
-        if hasattr(self, 'audio_generator_thread') and self.audio_generator_thread.isRunning():
-            self.audio_generator_thread.stop()  # Request stop
-            self.audio_generator_thread.wait()  # Wait for it to finish
-        if self.sound_render_thread is not None and self.sound_render_thread.isRunning():
-            self.sound_render_thread.stop()
-            self.sound_render_thread.wait()
+        _finish_thread(getattr(self, "model_loader_thread", None), lambda worker: worker.quit())
+        _finish_thread(getattr(self, "audio_generator_thread", None), lambda worker: worker.stop())
+        _finish_thread(self.sound_render_thread, lambda worker: worker.stop())
         discover = getattr(self, "discover_thread", None)
         if discover is not None and discover.isRunning():
             # A Hugging Face search can't be interrupted. Destroying its thread while it ran

@@ -4,7 +4,8 @@ NLTK, the Chatterbox backend, model config and engine tables."""
 
 import sys
 import os
-os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+if "PYTHONIOENCODING" not in os.environ:
+    os.environ["PYTHONIOENCODING"] = "utf-8"   # child processes print UTF-8 too
 
 # Keep device policy within individual engine loaders. The old import-time
 # torch.load monkeypatch altered the entire process, including other providers.
@@ -20,56 +21,70 @@ from this_voice_thing.core.console_io import (
     safe_console_text,
 )
 
+# The window sets this to a callable taking text; console output is copied to it.
 APP_LOG_SINK = None
 
 
+def _current_log_sink():
+    return APP_LOG_SINK
+
+
 class TeeStream(ForwardingStream):
-    def __init__(self, wrapped_stream):
-        super().__init__(wrapped_stream, sink_supplier=lambda: APP_LOG_SINK)
+    """A console stream that also feeds whatever APP_LOG_SINK is at the time of each write."""
+
+    def __init__(self, stream):
+        super().__init__(stream, sink_supplier=_current_log_sink)
 
 
-configure_console_stream(sys.stdout)
-configure_console_stream(sys.stderr)
-sys.stdout = TeeStream(sys.stdout)
-sys.stderr = TeeStream(sys.stderr)
+def _tee_console():
+    """UTF-8 console output, mirrored into the window's log once it exists."""
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name)
+        configure_console_stream(stream)
+        setattr(sys, name, TeeStream(stream))
 
-# --- NLTK Import and Setup (Same as your working version) ---
+
+_tee_console()
+
+
+# Sentence splitting (documents, subtitles, chunking) needs NLTK's Punkt data.
+PUNKT_DATA = (("punkt", "tokenizers/punkt"), ("punkt_tab", "tokenizers/punkt_tab"))
+
+
+def _install_punkt(nltk_module):
+    """Make sure each PUNKT_DATA package is installed, downloading missing ones once.
+
+    Returns False, after printing how to install it by hand, if one can't be made available."""
+    for package, data_path in PUNKT_DATA:
+        try:
+            nltk_module.data.find(data_path)
+        except LookupError:
+            print(f"NLTK data package '{package}' is missing; downloading it now...")
+        except Exception as exc:
+            print(f"ERROR: could not check NLTK data package '{package}': {exc}")
+            return False
+        else:
+            print(f"NLTK data package '{package}' is installed.")
+            continue
+        try:
+            nltk_module.download(package, quiet=False)
+            nltk_module.data.find(data_path)   # confirm the download is usable
+        except Exception as exc:
+            print(f"ERROR: NLTK data package '{package}' could not be downloaded: {exc}")
+            print(f"  To install it by hand: python -m nltk.downloader {package}")
+            return False
+        print(f"NLTK data package '{package}' downloaded.")
+    return True
+
+
 try:
     import nltk
-    NLTK_RESOURCES_OK = True
-    nltk_resources_to_check = {
-        "punkt": "tokenizers/punkt",
-        "punkt_tab": "tokenizers/punkt_tab"
-    }
-    for resource_id, resource_path in nltk_resources_to_check.items():
-        try:
-            nltk.data.find(resource_path)
-            print(
-                f"NLTK '{resource_id}' (path: {resource_path}) resource found.")
-        except LookupError:
-            print(
-                f"NLTK '{resource_id}' (path: {resource_path}) resource not found. Attempting to download '{resource_id}'...")
-            try:
-                nltk.download(resource_id, quiet=False)
-                nltk.data.find(resource_path)
-                print(
-                    f"NLTK '{resource_id}' resource downloaded and verified successfully.")
-            except Exception as e_download:
-                print(
-                    f"ERROR: Failed to download or verify NLTK '{resource_id}' resource: {e_download}")
-                print(f"  python -m nltk.downloader {resource_id}")
-                NLTK_RESOURCES_OK = False
-                break
-        except Exception as e_other:
-            print(
-                f"ERROR: Unexpected error while checking NLTK '{resource_id}' resource: {e_other}")
-            NLTK_RESOURCES_OK = False
-            break
 except ImportError:
-    print("FATAL ERROR: NLTK library not found.")
+    print("FATAL ERROR: the NLTK library is not installed; text can't be split into sentences.")
     nltk = None
     NLTK_RESOURCES_OK = False
-# --- END NLTK ---
+else:
+    NLTK_RESOURCES_OK = _install_punkt(nltk)
 
 from this_voice_thing.core import documents
 from this_voice_thing.core import model_registry
@@ -83,47 +98,46 @@ from this_voice_thing.engines import vibevoice as vibevoice_engine
 
 try:
     from this_voice_thing.engines import chatterbox_backend as chatterbox_backends
-    CHATTERBOX_AVAILABLE = True
 except ImportError:
     chatterbox_backends = None
-    CHATTERBOX_AVAILABLE = False
-    print("WARNING: chatterbox-tts library not found.")
+    print("WARNING: the chatterbox-tts library is not installed; Chatterbox models can't be loaded.")
+CHATTERBOX_AVAILABLE = chatterbox_backends is not None
 
-DEFAULT_MODEL_REPO = getattr(
-    chatterbox_backends, "DEFAULT_MODEL_REPO", "ResembleAI/chatterbox"
-)
-BACKEND_LEGACY = getattr(chatterbox_backends, "BACKEND_LEGACY", "legacy")
-BACKEND_MULTILINGUAL = getattr(
-    chatterbox_backends, "BACKEND_MULTILINGUAL", "multilingual"
-)
-DEFAULT_MULTILINGUAL_T3_MODEL = getattr(
-    chatterbox_backends, "DEFAULT_MULTILINGUAL_T3_MODEL", "v3"
-)
+
 class _ChatterboxUnavailableRepoError(RuntimeError):
     """Stand-in when chatterbox-tts is missing. Never RuntimeError itself: callers catch this
     to label Chatterbox repository problems, and other engines raise RuntimeError too."""
 
 
-UnsupportedChatterboxRepoError = getattr(
-    chatterbox_backends, "UnsupportedChatterboxRepoError", _ChatterboxUnavailableRepoError
-)
-get_supported_languages_for_backend = getattr(
-    chatterbox_backends,
-    "get_supported_languages_for_backend",
-    lambda _backend: {"en": "English"},
-)
-load_chatterbox_model = getattr(
-    chatterbox_backends,
-    "load_chatterbox_model",
-    lambda repo_id, backend, device, multilingual_t3_model=None: None,
-)
-resolve_multilingual_t3_model = getattr(
-    chatterbox_backends,
-    "resolve_multilingual_t3_model",
-    lambda multilingual_t3_model: str(
-        multilingual_t3_model or DEFAULT_MULTILINGUAL_T3_MODEL
-    ).strip(),
-)
+def _t3_choice_without_chatterbox(choice):
+    return str(choice or DEFAULT_MULTILINGUAL_T3_MODEL).strip()
+
+
+# What the window uses from the Chatterbox backend, with stand-ins for when it isn't installed.
+_CHATTERBOX_STAND_INS = {
+    "DEFAULT_MODEL_REPO": "ResembleAI/chatterbox",
+    "BACKEND_LEGACY": "legacy",
+    "BACKEND_MULTILINGUAL": "multilingual",
+    "DEFAULT_MULTILINGUAL_T3_MODEL": "v3",
+    "UnsupportedChatterboxRepoError": _ChatterboxUnavailableRepoError,
+    "get_supported_languages_for_backend": lambda _backend: {"en": "English"},
+    "load_chatterbox_model": lambda *_args, **_kwargs: None,
+    "resolve_multilingual_t3_model": _t3_choice_without_chatterbox,
+}
+
+
+def _from_chatterbox(name):
+    return getattr(chatterbox_backends, name, _CHATTERBOX_STAND_INS[name])
+
+
+DEFAULT_MODEL_REPO = _from_chatterbox("DEFAULT_MODEL_REPO")
+BACKEND_LEGACY = _from_chatterbox("BACKEND_LEGACY")
+BACKEND_MULTILINGUAL = _from_chatterbox("BACKEND_MULTILINGUAL")
+DEFAULT_MULTILINGUAL_T3_MODEL = _from_chatterbox("DEFAULT_MULTILINGUAL_T3_MODEL")
+UnsupportedChatterboxRepoError = _from_chatterbox("UnsupportedChatterboxRepoError")
+get_supported_languages_for_backend = _from_chatterbox("get_supported_languages_for_backend")
+load_chatterbox_model = _from_chatterbox("load_chatterbox_model")
+resolve_multilingual_t3_model = _from_chatterbox("resolve_multilingual_t3_model")
 
 MAX_TEXT_INPUT_LENGTH = documents.MAX_SECTION_LENGTH
 LOSSLESS_FORMATS = ["WAV", "FLAC"]
@@ -296,106 +310,116 @@ DEFAULT_MODELS_CONFIG = {
 }
 
 
-def read_models_config_payload(config_path):
+def read_models_config_payload(path):
+    """(decoded models.json, diagnostic). A missing file is reported, unlike app settings."""
     return config_io.read_json(
-        config_path,
-        missing_error=f"Model config '{config_path}' not found.",
-        error_label=f"model config '{config_path}'",
+        path,
+        missing_error=f"Model config '{path}' not found.",
+        error_label=f"model config '{path}'",
     )
 
 
-def load_models_config(config_path):
-    payload, load_error = read_models_config_payload(config_path)
-    if load_error or payload is None:
-        if load_error:
-            print(f"{load_error} Using built-in defaults.")
-        else:
-            print("Model config payload missing. Using built-in defaults.")
-        payload = DEFAULT_MODELS_CONFIG
+def _clean_test_texts(raw):
+    """{language: sample sentence} with lower-case language codes; blank keys/texts dropped."""
+    if not isinstance(raw, dict):
+        return {}
+    cleaned = {}
+    for language, sentence in raw.items():
+        code, text = str(language).strip().lower(), str(sentence).strip()
+        if code and text:
+            cleaned[code] = text
+    return cleaned
 
-    raw_models = payload.get("models", [])
-    normalized_models = []
-    seen_model_keys = set()
-    for item in raw_models:
-        if not isinstance(item, dict):
+
+def _model_entry(item):
+    """One models.json entry in the shape the window uses, or None if it has no repo_id."""
+    def text(key, default=""):
+        return str(item.get(key, default)).strip()
+
+    repo_id = text("repo_id")
+    if not repo_id:
+        return None
+    backend = text("backend", BACKEND_MULTILINGUAL) or BACKEND_MULTILINGUAL
+    # Only the multilingual backend has T3 model versions.
+    is_multilingual = backend == BACKEND_MULTILINGUAL
+    t3_model = (resolve_multilingual_t3_model(item.get("multilingual_t3_model", DEFAULT_MULTILINGUAL_T3_MODEL))
+                if is_multilingual else "")
+    entry = {}
+    # Optional fields come first and only when set (the key order is kept from older versions).
+    licence = text("license")
+    if licence:
+        entry["license"] = licence.lower()
+    size = item.get("download_bytes")
+    if isinstance(size, int) and size > 0:
+        entry["download_bytes"] = size
+    if backend in DUAL_MODE_BACKENDS:
+        entry["mode"] = model_registry.entry_mode(item)
+    entry.update(
+        repo_id=repo_id,
+        label=text("label", repo_id) or repo_id,
+        enabled=bool(item.get("enabled", True)),
+        # Anything but the default model counts as experimental unless the entry says otherwise.
+        experimental=bool(item.get("experimental", repo_id != DEFAULT_MODEL_REPO)),
+        test_text=text("test_text"),
+        notes=text("notes"),
+        backend=backend,
+        language_id=text("language_id", "en").lower() or "en",
+        multilingual_t3_model=t3_model,
+        qwen_variant=text("qwen_variant"),
+        test_texts=_clean_test_texts(item.get("test_texts", {})),
+    )
+    return entry
+
+
+def _entry_identity(entry, item):
+    """Entries that agree on all of these are duplicates; only the first is kept."""
+    variant = entry["multilingual_t3_model"] or str(item.get("mode") or item.get("voxcpm_mode") or "")
+    return entry["repo_id"], entry["backend"], entry["label"], variant
+
+
+def _built_in_default_entry():
+    """The official multilingual model, which the list always offers."""
+    # A copy of the first built-in entry, with its own copy of the sample sentences (last).
+    entry = {key: value for key, value in DEFAULT_MODELS_CONFIG["models"][0].items() if key != "test_texts"}
+    entry["test_texts"] = dict(DEFAULT_LANGUAGE_TEST_TEXTS)
+    return entry
+
+
+def load_models_config(path):
+    """The model list from models.json (built-in defaults if it is missing or unreadable).
+
+    Entries are cleaned up and de-duplicated, and the official multilingual model is always
+    first when the file leaves it out. The file itself is never changed."""
+    payload, problem = read_models_config_payload(path)
+    if problem:
+        print(f"{problem} Using built-in defaults.")
+        raw_entries = DEFAULT_MODELS_CONFIG["models"]
+    elif not isinstance(payload, dict):
+        print("Model config has no model list. Using built-in defaults.")
+        raw_entries = DEFAULT_MODELS_CONFIG["models"]
+    else:
+        raw_entries = payload.get("models", [])
+
+    models, seen = [], set()
+    for item in raw_entries:
+        entry = _model_entry(item) if isinstance(item, dict) else None
+        if entry is None:
             continue
-        repo_id = str(item.get("repo_id", "")).strip()
-        backend = str(item.get("backend", BACKEND_MULTILINGUAL)).strip() or BACKEND_MULTILINGUAL
-        label = str(item.get("label", repo_id)).strip() or repo_id
-        multilingual_t3_model = (
-            resolve_multilingual_t3_model(
-                item.get("multilingual_t3_model", DEFAULT_MULTILINGUAL_T3_MODEL)
-            )
-            if backend == BACKEND_MULTILINGUAL else ""
-        )
-        model_key = (
-            repo_id,
-            backend,
-            label,
-            multilingual_t3_model or str(item.get("mode") or item.get("voxcpm_mode") or ""),
-        )
-        if not repo_id or model_key in seen_model_keys:
-            continue
-        raw_test_texts = item.get("test_texts", {})
-        normalized_test_texts = {}
-        if isinstance(raw_test_texts, dict):
-            for language_id, preset_text in raw_test_texts.items():
-                language_key = str(language_id).strip().lower()
-                preset_value = str(preset_text).strip()
-                if language_key and preset_value:
-                    normalized_test_texts[language_key] = preset_value
-        optional = {}
-        if str(item.get("license", "")).strip():
-            optional["license"] = str(item["license"]).strip().lower()
-        if isinstance(item.get("download_bytes"), int) and item["download_bytes"] > 0:
-            optional["download_bytes"] = item["download_bytes"]
-        if backend in DUAL_MODE_BACKENDS:
-            optional["mode"] = model_registry.entry_mode(item)
-        normalized_models.append(
-            {
-                **optional,
-                "repo_id": repo_id,
-                "label": label,
-                "enabled": bool(item.get("enabled", True)),
-                "experimental": bool(item.get("experimental", repo_id != DEFAULT_MODEL_REPO)),
-                "test_text": str(item.get("test_text", "")).strip(),
-                "notes": str(item.get("notes", "")).strip(),
-                "backend": backend,
-                "language_id": str(item.get("language_id", "en")).strip().lower() or "en",
-                "multilingual_t3_model": multilingual_t3_model,
-                "qwen_variant": str(item.get("qwen_variant", "")).strip(),
-                "test_texts": normalized_test_texts,
-            }
-        )
-        seen_model_keys.add(model_key)
+        identity = _entry_identity(entry, item)
+        if identity not in seen:
+            seen.add(identity)
+            models.append(entry)
 
-    if not any(
-        entry["repo_id"] == DEFAULT_MODEL_REPO and
-        entry.get("backend") == BACKEND_MULTILINGUAL
-        for entry in normalized_models
-    ):
-        normalized_models.insert(
-            0,
-            {
-                "repo_id": DEFAULT_MODEL_REPO,
-                "label": "Official multilingual",
-                "enabled": True,
-                "experimental": False,
-                "test_text": DEFAULT_MODELS_CONFIG["models"][0]["test_text"],
-                "notes": "Recommended default model.",
-                "backend": BACKEND_MULTILINGUAL,
-                "language_id": "en",
-                "multilingual_t3_model": DEFAULT_MULTILINGUAL_T3_MODEL,
-                "test_texts": DEFAULT_LANGUAGE_TEST_TEXTS.copy(),
-            },
-        )
-
-    return normalized_models
+    has_default = any(m["repo_id"] == DEFAULT_MODEL_REPO and m["backend"] == BACKEND_MULTILINGUAL for m in models)
+    if not has_default:
+        models.insert(0, _built_in_default_entry())
+    return models
 
 
-def read_json_payload(config_path):
-    return config_io.read_json(config_path)
+def read_json_payload(path):
+    """(decoded JSON, diagnostic); a missing file is not an error (fresh installs)."""
+    return config_io.read_json(path)
 
 
-def write_json_payload(config_path, payload):
-    config_io.write_json(config_path, payload)
+def write_json_payload(path, payload):
+    config_io.write_json(path, payload)
