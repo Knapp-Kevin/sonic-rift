@@ -1,2 +1,3 @@
 # cmd.exe mis-parses labels in LF-only batch files; always check them out as CRLF.
 *.bat text eol=crlf
+*.cmd text eol=crlf
