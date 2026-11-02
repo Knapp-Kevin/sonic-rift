@@ -30,3 +30,5 @@ powershell -ExecutionPolicy Bypass -File packaging/windows/verify-signature.ps1 
 ## Releasing
 
 Push a `vMAJOR.MINOR.PATCH` tag. `.github/workflows/release-windows.yml` waits for the owner to approve the `release` environment, signs in to Azure with GitHub OIDC (no secrets), builds, signs and verifies the installer, and attaches it with a SHA-256 file to a **draft** GitHub Release. Publish the draft after checking it.
+
+Tag a commit whose message doesn't contain `[skip ci]`. GitHub skips push-triggered workflows, tag pushes included, when the tagged commit's message has it, and then no release run starts. Docs-only changes don't trigger the other workflows (they're path-scoped), so a docs commit without `[skip ci]` is a safe thing to tag.
