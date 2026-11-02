@@ -15,6 +15,7 @@ import threading
 import numpy as np
 
 from this_voice_thing import paths
+from this_voice_thing.core import resources
 
 BASE_DIR = paths.ROOT  # engines/<name>/ live in the project folder
 TORCH_INDEX = "https://download.pytorch.org/whl/cu128"
@@ -124,16 +125,23 @@ class WorkerProcess:
     """One long-lived worker process; requests are serialised with a lock."""
 
     def __init__(self, python, script, tag, log=print, skip=None, env=None):
-        """skip(line) -> True hides a noisy stderr line from the log (Settings); env adds variables."""
+        """skip(line) -> True hides a noisy stderr line from the log (Settings); env adds variables.
+
+        The worker runs within the app's resource limits (Settings > Performance): its thread
+        count and GPU memory cap come through the environment, and it starts at the chosen
+        process priority, which the engine's own child processes inherit."""
         self.tag = tag
         self.log = log
         self.skip = skip or (lambda _line: False)
         self.lock = threading.Lock()
-        env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8", **(env or {}))
+        limits = resources.current()
+        env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8",
+               **resources.worker_env(limits), **(env or {})}     # an engine's own setting wins
         self.process = subprocess.Popen(
             [python, script], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, text=True, encoding="utf-8", bufsize=1, env=env,
-            creationflags=NO_WINDOW)
+            creationflags=NO_WINDOW | resources.creation_flags(limits),
+            preexec_fn=resources.lower_priority_posix(limits))
         threading.Thread(target=self._pump_stderr, daemon=True).start()
         ready = self._read_reply()
         if not ready.get("ok"):

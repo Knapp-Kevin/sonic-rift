@@ -63,6 +63,7 @@ from this_voice_thing.ui.pages.live_voice import LiveVoicePage
 from this_voice_thing.ui.pages.model_loading import ModelLoading
 from this_voice_thing.ui.pages.model_settings import ModelSettings
 from this_voice_thing.ui.pages.models import ModelPage
+from this_voice_thing.ui.pages.performance import PerformancePage
 from this_voice_thing.ui.pages.player import Player
 from this_voice_thing.ui.pages.pronunciations import Pronunciations
 from this_voice_thing.ui.pages.recording import Recording
@@ -92,7 +93,7 @@ class SidebarDelegate(QStyledItemDelegate):
 
 class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, EngineControls, Player,
                     LiveVoicePage, StudioPage, SoundscapePage, VoicePage, VoicePicker, Library, VoiceUse, Recording, TranscribePage, ModelPage, Discover, ModelLoading, ModelSettings,
-                    AdvancedPage, ApiServer, Pronunciations, QMainWindow):
+                    AdvancedPage, ApiServer, Pronunciations, PerformancePage, QMainWindow):
     log_message_signal = Signal(str)
 
     def __init__(self):
@@ -113,6 +114,7 @@ class SonicRiftApp(GeneratePage, Generation, Documents, Estimates, Finishing, En
         self.app_settings_path = os.path.join(self.script_dir, APP_SETTINGS_FILENAME)
         self.model_entries = load_models_config(self.model_config_path)
         self.app_settings = self.load_app_settings()
+        self.apply_resource_limits()   # before any model or engine worker starts
         self.apply_hf_token_setting()
         self.current_audio_file = None
         # In the project folder like all other app data, wherever the app was started from.

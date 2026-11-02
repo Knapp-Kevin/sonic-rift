@@ -1,4 +1,4 @@
-"""The Settings page: pronunciation dictionary, local API and the log."""
+"""The Settings page: performance limits, pronunciation dictionary, local API and the log."""
 
 
 class AdvancedPage:
@@ -6,7 +6,8 @@ class AdvancedPage:
 
     def _build_advanced_page(self):
         advanced_page, advanced_layout = self._make_page(
-            "Settings", "Pronunciation, the local API, and the technical log.")
+            "Settings", "Performance limits, pronunciation, the local API, and the technical log.")
+        advanced_layout.addWidget(self._build_performance_card())
         advanced_layout.addWidget(self._build_pronunciation_card())
         self.update_pronunciation_summary()
         advanced_layout.addWidget(self._build_api_card())
