@@ -86,6 +86,19 @@ class Contract(unittest.TestCase):
     def test_seeds_are_consecutive_and_deterministic(self):
         self.assertEqual(request(candidates=3, seed=contract.MAX_SEED).seeds(), [contract.MAX_SEED, 0, 1])
 
+    def test_plan_first_needs_an_engine_with_a_planner(self):
+        self.assertEqual(contract.validate(request(plan=True), CAPS), [])
+        problems = contract.validate(request(plan=True), replace(CAPS, planner=False))
+        self.assertIn("planner", problems[0])
+
+    def test_plan_is_passed_to_the_engine_and_recorded(self):
+        svc = service.MusicService(FakeMusicModel())
+        result = svc.generate(request(candidates=1, plan=True))
+        self.assertTrue(svc.model.calls[0][3]["plan"])
+        library = AssetLibrary(svc.work_dir)
+        self.assertTrue(service.keep(library, result, result.takes[0], "x").settings["plan"])
+        svc.close()
+
     def test_a_newer_contract_version_is_refused(self):
         self.assertIn("version", contract.validate(request(contract_version=2), CAPS)[0])
 

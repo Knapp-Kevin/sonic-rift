@@ -93,7 +93,7 @@ class MusicService:
             reply = self.model.generate_take(
                 raw, request.caption(), request.seconds, seed, lyrics=request.lyrics,
                 instrumental=request.instrumental, bpm=request.bpm, key=request.key,
-                time_signature=request.time_signature)
+                time_signature=request.time_signature, plan=request.plan)
             audio, sample_rate = sf.read(raw, dtype="float32", always_2d=True)
             problems = validate_audio(audio, sample_rate, float(request.seconds))
             if problems:
@@ -138,7 +138,8 @@ def keep(library, result, take, name):
     request = result.request
     settings = {"seconds": request.seconds, "instrumental": request.instrumental, "genre": request.genre,
                 "mood": request.mood, "instrumentation": request.instrumentation, "bpm": request.bpm,
-                "key": request.key, "time_signature": request.time_signature, "target_lufs": MUSIC_LUFS,
+                "key": request.key, "time_signature": request.time_signature, "plan": request.plan,
+                "target_lufs": MUSIC_LUFS,
                 "model_revision": result.model_revision, "source_revision": result.source_revision,
                 "contract_version": result.contract_version, "engine_chose": take.engine_notes,
                 "device": result.device}

@@ -11,7 +11,7 @@ original stdout. Everything libraries print goes to stderr (the app's log).
 Requests:
   {"cmd": "load", "project_root": "...engines/acestep", "dit": "acestep-v15-turbo", "lm": "acestep-5Hz-lm-1.7B"}
   {"cmd": "generate", "out_path": "...wav", "caption": "...", "lyrics": "", "instrumental": true,
-   "seconds": 30, "seed": 7, "bpm": null, "key": "", "time_signature": null}
+   "seconds": 30, "seed": 7, "bpm": null, "key": "", "time_signature": null, "plan": true}
   {"cmd": "ping"} / {"cmd": "shutdown"}
 """
 
@@ -84,7 +84,7 @@ def main():
             instrumental=instrumental, duration=float(req["seconds"]), seed=int(req["seed"]),
             bpm=req.get("bpm"), keyscale=req.get("key") or "",
             timesignature=str(req["time_signature"]) if req.get("time_signature") else "",
-            thinking=True)
+            thinking=bool(req.get("plan", True)))
         config = GenerationConfig(batch_size=1, use_random_seed=False, seeds=[int(req["seed"])],
                                   audio_format="wav")
         work = tempfile.mkdtemp(prefix="acestep_take_")

@@ -46,6 +46,7 @@ class MusicCapabilities:
     key: bool = False
     time_signature: bool = False
     seed: bool = True
+    planner: bool = False           # can sketch tempo, key and structure before rendering
     unsupported: dict = field(default_factory=dict)   # control -> why it isn't offered
 
 
@@ -64,6 +65,7 @@ class MusicRequest:
     genre: str = ""
     mood: str = ""
     instrumentation: str = ""
+    plan: bool = False              # let the engine's planner shape the piece first (slower)
     contract_version: int = CONTRACT_VERSION
 
     def caption(self):
@@ -126,6 +128,8 @@ def validate(request, capabilities):
             problems.append(caps.unsupported.get("key", "This engine doesn't take a key."))
         elif request.key not in KEYS:
             problems.append(f"“{request.key}” isn't a key this app knows (for example “D minor”).")
+    if request.plan and not caps.planner:
+        problems.append(caps.unsupported.get("planner", "This engine has no planner; switch off Plan first."))
     if request.time_signature is not None:
         if not caps.time_signature:
             problems.append(caps.unsupported.get("time_signature", "This engine doesn't take a time signature."))

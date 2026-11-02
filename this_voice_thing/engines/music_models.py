@@ -121,10 +121,11 @@ class MusicModel:
         self.load_seconds = reply.get("seconds", 0.0)
 
     def generate_take(self, out_path, caption, seconds, seed, lyrics="", instrumental=True, bpm=None,
-                      key="", time_signature=None):
+                      key="", time_signature=None, plan=True):
         return self.worker.request(
             cmd="generate", out_path=out_path, caption=caption, lyrics=lyrics, instrumental=bool(instrumental),
-            seconds=float(seconds), seed=int(seed), bpm=bpm, key=key, time_signature=time_signature)
+            seconds=float(seconds), seed=int(seed), bpm=bpm, key=key, time_signature=time_signature,
+            plan=bool(plan))
 
     def alive(self):
         return self.worker.process.poll() is None

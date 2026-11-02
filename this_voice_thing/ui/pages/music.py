@@ -137,6 +137,12 @@ class MusicPage:
         self.music_instrumental_checkbox.setToolTip("No singing. Switch off to write lyrics for a song.")
         self.music_instrumental_checkbox.toggled.connect(self.refresh_music_controls)
         options.addWidget(self.music_instrumental_checkbox)
+        self.music_plan_checkbox = QCheckBox("Plan first")
+        self.music_plan_checkbox.setChecked(bool(settings.get("plan", True)))
+        self.music_plan_checkbox.setToolTip(
+            "The model sketches tempo, key and structure before it renders: a more shaped piece, "
+            "but several times slower. Off renders straight from your description.")
+        options.addWidget(self.music_plan_checkbox)
         options.addSpacing(10)
         options.addWidget(QLabel("Length"))
         self.music_seconds_spin = QSpinBox()
@@ -310,7 +316,8 @@ class MusicPage:
             self.music_instrumental_checkbox.setToolTip(caps.unsupported.get("vocals", "This model can't sing."))
         for widget in (self.music_lyrics_label, self.music_lyrics_input):
             widget.setVisible(vocal)
-        for control, flag, name in ((self.music_bpm_checkbox, caps.bpm, "bpm"), (self.music_key_combo, caps.key, "key"),
+        for control, flag, name in ((self.music_plan_checkbox, caps.planner, "planner"),
+                                    (self.music_bpm_checkbox, caps.bpm, "bpm"), (self.music_key_combo, caps.key, "key"),
                                     (self.music_meter_combo, caps.time_signature, "time_signature")):
             control.setEnabled(flag)
             control.setToolTip("" if flag else caps.unsupported.get(name, f"{engine.label} doesn't offer this."))
@@ -448,12 +455,13 @@ class MusicPage:
             candidates=self.music_takes_spin.value(), seed=self.music_seed_spin.value(),
             bpm=self.music_bpm_spin.value() if self.music_bpm_checkbox.isChecked() and engine.capabilities.bpm else None,
             key=self.music_key_combo.currentData() or "", time_signature=self.music_meter_combo.currentData(),
+            plan=self.music_plan_checkbox.isChecked() and engine.capabilities.planner,
             **{key: field.text().strip() for key, field in self.music_style_inputs.items()})
 
     def save_music_settings(self, request):
         stored = self.app_settings.setdefault("music", {})
         stored.update(engine=request.engine, prompt=request.prompt, seconds=request.seconds,
-                      instrumental=request.instrumental, lyrics=self.music_lyrics_input.toPlainText(),
+                      instrumental=request.instrumental, plan=self.music_plan_checkbox.isChecked(), lyrics=self.music_lyrics_input.toPlainText(),
                       takes=request.candidates, seed=request.seed, bpm_on=self.music_bpm_checkbox.isChecked(),
                       bpm=self.music_bpm_spin.value(), key=request.key, time_signature=request.time_signature,
                       genre=request.genre, mood=request.mood, instrumentation=request.instrumentation)

@@ -51,7 +51,7 @@ ACE_STEP_15 = MusicEngine(
     capabilities=MusicCapabilities(
         min_seconds=10.0, max_seconds=240.0, max_candidates=4, sample_rate=48000, channels=2,
         instrumental=True, vocals=True, bpm=True, bpm_range=(30, 300), key=True, time_signature=True,
-        seed=True,
+        seed=True, planner=True,
         unsupported={}),
     download_gb=10.0, env_gb=7.0,
     gpu="NVIDIA GPU with 12 GB or more; unload the voice and sound models first",
