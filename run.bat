@@ -1,24 +1,18 @@
 @echo off
+rem Bring the environment up to date, then start Sonic Rift without a console window.
 setlocal
+cd /d "%~dp0"
 
-set VENV_DIR=.venv
-set SCRIPT_NAME=main.py
-set PYTHON_GUI_EXE=%VENV_DIR%\Scripts\pythonw.exe
-set PYTHON_CONSOLE_EXE=%VENV_DIR%\Scripts\python.exe
-
-call "%~dp0setup_env.bat"
-if %ERRORLEVEL% neq 0 (
+call setup_env.bat
+if errorlevel 1 (
     echo.
-    echo Setup failed. See the newest log in the logs folder.
+    echo Setup failed. The newest logs\installer_*.log file explains why.
     pause
     exit /b 1
 )
 
-echo Launching %SCRIPT_NAME%...
-if exist "%PYTHON_GUI_EXE%" (
-    start "" "%PYTHON_GUI_EXE%" "%SCRIPT_NAME%"
-) else (
-    start "" "%PYTHON_CONSOLE_EXE%" "%SCRIPT_NAME%"
-)
-
+set "APP_PY=.venv\Scripts\pythonw.exe"
+if not exist "%APP_PY%" set "APP_PY=.venv\Scripts\python.exe"
+echo Launching main.py...
+start "" "%APP_PY%" main.py
 exit /b 0

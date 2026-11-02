@@ -1,290 +1,251 @@
+"""Pick, install and check the PyTorch build for this machine.
+
+setup_env.bat / setup_env.sh run this inside the app's venv. It looks for an
+NVIDIA CUDA runtime, then walks a short list of wheel builds (newest CUDA
+first, CPU last) until one installs and passes a real runtime check.
+Exit code 0 means a working build is installed; 1 means every build failed.
+Messages go to stdout and, when CHATTERBOX_INSTALL_LOG is set, to that file.
+"""
 import json
 import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
+
+TORCH_WHEEL_ROOT = "https://download.pytorch.org/whl/"
 
 
-TORCH_PACKAGES = ["torch", "torchvision", "torchaudio"]
-TORCH_VERSION = "2.6.0"
-TORCHVISION_VERSION = "0.21.0"
-TORCHAUDIO_VERSION = "2.6.0"
-OFFICIAL_CU128_TORCH_VERSION = "2.8.0"
-OFFICIAL_CU128_TORCHVISION_VERSION = "0.23.0"
-OFFICIAL_CU128_TORCHAUDIO_VERSION = "2.8.0"
-CPU_INDEX = "https://download.pytorch.org/whl/cpu"
-CUDA_CANDIDATES = [
-    ("cu128", "https://download.pytorch.org/whl/cu128", False, 128),
-    ("cu124", "https://download.pytorch.org/whl/cu124", False, 124),
-    ("cu121", "https://download.pytorch.org/whl/cu121", False, 121),
-    ("cu118", "https://download.pytorch.org/whl/cu118", False, 118),
-]
-CPU_CANDIDATE = ("cpu", CPU_INDEX, False, None)
-LOG_FILE = os.getenv("CHATTERBOX_INSTALL_LOG")
+@dataclass(frozen=True)
+class Build:
+    """One PyTorch wheel set and the CUDA runtime it needs (None = CPU)."""
+    tag: str
+    min_cuda: int | None
+    torch: str
+    torchvision: str
+    torchaudio: str
+
+    @property
+    def index_url(self):
+        return TORCH_WHEEL_ROOT + self.tag
+
+    @property
+    def is_cuda(self):
+        return self.min_cuda is not None
+
+    def requirements(self):
+        return [f"torch=={self.torch}", f"torchvision=={self.torchvision}",
+                f"torchaudio=={self.torchaudio}"]
 
 
-def log(message):
-    print(message)
-    if not LOG_FILE:
-        return
-    with open(LOG_FILE, "a", encoding="utf-8") as log_handle:
-        log_handle.write(message + "\n")
+# Newest CUDA first. cu128 (Blackwell-capable) ships 2.8.0; the older runtimes stay on 2.6.0.
+CUDA_BUILDS = (
+    Build("cu128", 128, "2.8.0", "0.23.0", "2.8.0"),
+    Build("cu124", 124, "2.6.0", "0.21.0", "2.6.0"),
+    Build("cu121", 121, "2.6.0", "0.21.0", "2.6.0"),
+    Build("cu118", 118, "2.6.0", "0.21.0", "2.6.0"),
+)
+CPU_BUILD = Build("cpu", None, "2.6.0", "0.21.0", "2.6.0")
+NEWEST_CUDA = CUDA_BUILDS[0]
 
 
-def log_block(prefix, payload):
-    if not payload:
-        return
-    for line in payload.splitlines():
-        log(f"{prefix}{line}")
+class InstallLog:
+    """Echo to the console and append to the installer log file, if any."""
+
+    def __init__(self, path=None):
+        self.path = path
+
+    def __call__(self, text):
+        print(text)
+        if self.path:
+            with open(self.path, "a", encoding="utf-8") as handle:
+                handle.write(f"{text}\n")
+
+    def output(self, stream_name, text):
+        """Copy captured tool output line by line, tagged with its stream."""
+        for line in (text or "").splitlines():
+            self(f"[uv {stream_name}] {line}")
 
 
-def _parse_version_token(version_str):
-    parts = version_str.strip().split(".")
-    if len(parts) < 2:
-        return None
-    try:
-        major = int(parts[0])
-        minor = int(parts[1])
-    except ValueError:
-        return None
-    return major, minor
+# --- step 1: find the CUDA runtime --------------------------------------------
+
+def cuda_number(text):
+    """'12.8' or '12.8.1' -> 128; anything unreadable -> None."""
+    match = re.match(r"\s*(\d+)\.(\d+)", text or "")
+    return int(match[1]) * 10 + int(match[2]) if match else None
 
 
-def _version_to_tag(version_str):
-    parsed = _parse_version_token(version_str)
-    if parsed is None:
-        return None
-    major, minor = parsed
-    return major * 10 + minor
+def _first_line(text):
+    return next((line for line in text.splitlines() if line.strip()), "")
 
 
-def detect_nvidia_cuda_version():
-    try:
-        output = subprocess.check_output(
-            [
-                "nvidia-smi",
-                "--query-gpu=cuda_version",
-                "--format=csv,noheader",
-            ],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        )
-        first_line = next(
-            (line.strip() for line in output.splitlines() if line.strip()),
-            None,
-        )
-        if first_line:
-            return _version_to_tag(first_line), "nvidia-smi"
-    except (FileNotFoundError, subprocess.CalledProcessError, StopIteration):
-        pass
+def _smi_header(text):
+    # Newer drivers print "CUDA UMD Version" and reject the cuda_version query.
+    match = re.search(r"CUDA (?:UMD )?Version:\s*(\d+\.\d+)", text)
+    return match[1] if match else ""
 
-    # Newer drivers reject the cuda_version query field and label the header
-    # "CUDA UMD Version" instead of "CUDA Version"; parse the plain header.
-    try:
-        output = subprocess.check_output(
-            ["nvidia-smi"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        )
-        match = re.search(r"CUDA (?:UMD )?Version:\s*([0-9]+\.[0-9]+)", output)
-        if match:
-            return _version_to_tag(match.group(1)), "nvidia-smi header"
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        pass
 
-    try:
-        output = subprocess.check_output(
-            ["nvcc", "--version"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        )
-        for line in output.splitlines():
-            if "release" in line:
-                version_str = line.split("release")[-1].strip().split(",")[0]
-                parsed = _version_to_tag(version_str)
-                if parsed is not None:
-                    return parsed, "nvcc"
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        pass
+def _nvcc_release(text):
+    match = re.search(r"release\s+(\d+\.\d+)", text)
+    return match[1] if match else ""
 
+
+# Tried in order; the first one that yields a version wins.
+CUDA_PROBES = (
+    ("nvidia-smi", ["nvidia-smi", "--query-gpu=cuda_version", "--format=csv,noheader"], _first_line),
+    ("nvidia-smi header", ["nvidia-smi"], _smi_header),
+    ("nvcc", ["nvcc", "--version"], _nvcc_release),
+)
+
+
+def find_cuda(run=None):
+    """Return (cuda number such as 128, probe name) or (None, None)."""
+    run = run or subprocess.check_output
+    for source, argv, extract in CUDA_PROBES:
+        try:
+            text = run(argv, text=True, stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        number = cuda_number(extract(text))
+        if number is not None:
+            return number, source
     return None, None
 
 
-def choose_install_candidates(cuda_version):
-    if cuda_version is None:
-        return [CPU_CANDIDATE]
+# --- step 2: decide which builds to try ---------------------------------------
 
-    # Newer NVIDIA generations need a matching modern wheel. Falling back to
-    # older CUDA runtime builds only wastes time because those builds do not
-    # contain kernels for the newer GPU architecture.
-    if cuda_version >= 128:
-        return [CUDA_CANDIDATES[0], CPU_CANDIDATE]
+def builds_to_try(cuda):
+    """Builds in the order they should be attempted for this CUDA number."""
+    if cuda is None:
+        return [CPU_BUILD]
+    if cuda >= NEWEST_CUDA.min_cuda:
+        # Older runtimes lack kernels for the newest GPUs, so don't bother with them.
+        return [NEWEST_CUDA, CPU_BUILD]
+    usable = [build for build in CUDA_BUILDS if build.min_cuda <= cuda]
+    return usable + [CPU_BUILD]
 
-    candidates = [
-        candidate
-        for candidate in CUDA_CANDIDATES
-        if cuda_version >= candidate[3]
+
+# --- step 3: install -----------------------------------------------------------
+
+def uv_command(build, python=None):
+    """The uv command that force-installs exactly this build into `python`."""
+    return [
+        "uv", "pip", "install", "--python", python or sys.executable,
+        "--upgrade", "--reinstall", "--strict", "--no-deps",
+        *build.requirements(),
+        "--index-url", build.index_url,
     ]
-    if not candidates:
-        return [CPU_CANDIDATE]
-    candidates.append(CPU_CANDIDATE)
-    return candidates
 
 
-def get_package_versions(label):
-    if label == "cu128":
-        return (
-            OFFICIAL_CU128_TORCH_VERSION,
-            OFFICIAL_CU128_TORCHVISION_VERSION,
-            OFFICIAL_CU128_TORCHAUDIO_VERSION,
-        )
-    return TORCH_VERSION, TORCHVISION_VERSION, TORCHAUDIO_VERSION
+# --- step 4: check the installed runtime ---------------------------------------
 
-
-def install_torch(label, index_url, prerelease):
-    log(f"Installing from: {index_url}")
-    torch_version, torchvision_version, torchaudio_version = get_package_versions(label)
-    cmd = [
-        "uv",
-        "pip",
-        "install",
-        "--python",
-        sys.executable,
-        "--upgrade",
-        "--reinstall",
-        "--strict",
-        "--no-deps",
-        f"torch=={torch_version}",
-        f"torchvision=={torchvision_version}",
-        f"torchaudio=={torchaudio_version}",
-        "--index-url",
-        index_url,
-    ]
-    if prerelease:
-        cmd.extend(["--prerelease", "allow"])
-
-    log(f"Running command: {' '.join(cmd)}")
-    result = subprocess.run(
-        cmd,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    log_block("[uv stdout] ", result.stdout)
-    log_block("[uv stderr] ", result.stderr)
-
-
-def verify_torch(expect_cuda):
-    verify_code = """
+# Runs in a fresh interpreter so a broken import cannot take this script down.
+RUNTIME_CHECK = r'''
 import json
-import sys
-
+info = {"ok": False, "error": None, "cuda_runtime_ok": False, "cuda_runtime_error": None}
 try:
     import torch
 except Exception as exc:
-    print(json.dumps({"ok": False, "error": repr(exc)}))
-    raise SystemExit(0)
-
-payload = {
-    "ok": True,
-    "torch_version": getattr(torch, "__version__", "unknown"),
-    "cuda_available": bool(torch.cuda.is_available()),
-    "torch_cuda_version": getattr(torch.version, "cuda", None),
-    "device_count": int(torch.cuda.device_count()) if torch.cuda.is_available() else 0,
-    "arch_list": list(torch.cuda.get_arch_list()) if torch.cuda.is_available() else [],
-    "device_capability": list(torch.cuda.get_device_capability(0)) if torch.cuda.is_available() else None,
-    "cuda_runtime_ok": False,
-    "cuda_runtime_error": None,
-}
-
-if payload["cuda_available"]:
-    try:
-        x = torch.randn((8, 8), device="cuda")
-        y = x @ x
-        _ = y.sum().item()
-        gru = torch.nn.GRU(4, 4).to("cuda")
-        gru(torch.randn((2, 1, 4), device="cuda"))
-        payload["cuda_runtime_ok"] = True
-    except Exception as exc:
-        payload["cuda_runtime_error"] = repr(exc)
-
-print(json.dumps(payload))
-"""
-    result = subprocess.run(
-        [sys.executable, "-c", verify_code],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-
-    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    payload = json.loads(lines[-1]) if lines else {"ok": False, "error": "No verification output"}
-    if not payload.get("ok"):
-        return False, payload
-    if expect_cuda and not payload.get("cuda_available"):
-        return False, payload
-    if expect_cuda and not payload.get("cuda_runtime_ok"):
-        return False, payload
-    return True, payload
-
-
-def main():
-    cuda_version, detection_source = detect_nvidia_cuda_version()
-    if cuda_version is None:
-        log("No NVIDIA CUDA runtime detected. Installing CPU PyTorch build.")
-    else:
-        log(f"Detected NVIDIA CUDA capability {cuda_version} via {detection_source}.")
-
-    candidates = choose_install_candidates(cuda_version)
-    log(f"Install candidates: {candidates}")
-    failures = []
-
-    for label, index_url, prerelease, minimum_cuda in candidates:
-        expect_cuda = label != "cpu"
-        log(f"Trying PyTorch target: {label}")
+    info["error"] = repr(exc)
+else:
+    cuda = torch.cuda
+    has_gpu = bool(cuda.is_available())
+    info.update(ok=True, torch_version=getattr(torch, "__version__", "unknown"),
+                torch_cuda_version=getattr(torch.version, "cuda", None),
+                cuda_available=has_gpu, device_count=0, arch_list=[], device_capability=None)
+    if has_gpu:
+        info.update(device_count=int(cuda.device_count()), arch_list=list(cuda.get_arch_list()),
+                    device_capability=list(cuda.get_device_capability(0)))
         try:
-            install_torch(label, index_url, prerelease)
-            ok, payload = verify_torch(expect_cuda=expect_cuda)
-            log(f"Verification payload for {label}: {json.dumps(payload, ensure_ascii=False)}")
-            if ok:
-                mode = "CUDA" if payload.get("cuda_available") else "CPU"
-                log(
-                    f"PyTorch verification succeeded. Mode={mode}, "
-                    f"torch={payload.get('torch_version')}, "
-                    f"torch_cuda={payload.get('torch_cuda_version')}, "
-                    f"devices={payload.get('device_count')}"
-                )
-                return 0
+            m = torch.randn((8, 8), device="cuda")
+            (m @ m).sum().item()
+            rnn = torch.nn.GRU(4, 4).to("cuda")
+            rnn(torch.randn((2, 1, 4), device="cuda"))
+            info["cuda_runtime_ok"] = True
+        except Exception as exc:
+            info["cuda_runtime_error"] = repr(exc)
+print(json.dumps(info))
+'''
 
-            reason = (
-                f"verification failed: cuda_available={payload.get('cuda_available')} "
-                f"torch_cuda={payload.get('torch_cuda_version')} "
-                f"arch_list={payload.get('arch_list')} "
-                f"device_capability={payload.get('device_capability')} "
-                f"runtime_error={payload.get('cuda_runtime_error')} "
-                f"error={payload.get('error')}"
-            )
-            log(f"PyTorch target {label} did not verify correctly: {reason}")
-            failures.append((label, reason))
-        except subprocess.CalledProcessError as exc:
-            reason = f"installer exited with code {exc.returncode}"
-            log_block("[uv stdout] ", exc.stdout)
-            log_block("[uv stderr] ", exc.stderr)
-            log(f"PyTorch target {label} failed: {reason}")
-            failures.append((label, reason))
 
-        if minimum_cuda is not None and not (
-            cuda_version is not None and cuda_version >= 128
-        ):
-            log("Falling back to the next compatible PyTorch runtime.")
+def read_runtime(python=None, run=None):
+    """Run RUNTIME_CHECK and return its JSON report."""
+    run = run or subprocess.run
+    done = run([python or sys.executable, "-c", RUNTIME_CHECK],
+               check=True, capture_output=True, text=True)
+    lines = [line for line in done.stdout.splitlines() if line.strip()]
+    if not lines:
+        return {"ok": False, "error": "No verification output"}
+    return json.loads(lines[-1])
 
-    log("Unable to install a working PyTorch configuration.")
-    if failures:
-        log("Attempts:")
-        for label, reason in failures:
-            log(f"  - {label}: {reason}")
+
+def runtime_ok(report, needs_cuda):
+    """True when torch imports and, for a CUDA build, the GPU actually computes."""
+    if not report.get("ok"):
+        return False
+    return not needs_cuda or bool(report.get("cuda_available") and report.get("cuda_runtime_ok"))
+
+
+def failure_summary(report):
+    keys = ("cuda_available", "torch_cuda", "arch_list", "device_capability", "runtime_error", "error")
+    values = (report.get("cuda_available"), report.get("torch_cuda_version"), report.get("arch_list"),
+              report.get("device_capability"), report.get("cuda_runtime_error"), report.get("error"))
+    return "verification failed: " + " ".join(f"{k}={v}" for k, v in zip(keys, values))
+
+
+# --- driver ------------------------------------------------------------------
+
+def try_build(build, say, run=None):
+    """Install one build and check it. Returns (worked, reason if it did not)."""
+    run = run or subprocess.run   # looked up per call so tests can replace it
+    command = uv_command(build)
+    say(f"Installing from: {build.index_url}")
+    say(f"Running command: {' '.join(command)}")
+    try:
+        done = run(command, check=True, capture_output=True, text=True)
+        say.output("stdout", done.stdout)
+        say.output("stderr", done.stderr)
+        report = read_runtime(run=run)
+    except subprocess.CalledProcessError as exc:
+        say.output("stdout", exc.stdout)
+        say.output("stderr", exc.stderr)
+        return False, f"installer exited with code {exc.returncode}"
+    say(f"Verification payload for {build.tag}: {json.dumps(report, ensure_ascii=False)}")
+    if not runtime_ok(report, build.is_cuda):
+        return False, failure_summary(report)
+    mode = "CUDA" if report.get("cuda_available") else "CPU"
+    say(f"PyTorch verification succeeded. Mode={mode}, torch={report.get('torch_version')}, "
+        f"torch_cuda={report.get('torch_cuda_version')}, devices={report.get('device_count')}")
+    return True, None
+
+
+def main(say=None):
+    say = say or InstallLog(os.getenv("CHATTERBOX_INSTALL_LOG"))
+    cuda, source = find_cuda()
+    if cuda is None:
+        say("No NVIDIA CUDA runtime detected. Installing CPU PyTorch build.")
+    else:
+        say(f"Detected NVIDIA CUDA capability {cuda} via {source}.")
+    plan = builds_to_try(cuda)
+    say("Install candidates: " + ", ".join(f"{b.tag} ({b.index_url})" for b in plan))
+
+    failed = {}
+    for position, build in enumerate(plan):
+        say(f"Trying PyTorch target: {build.tag}")
+        worked, reason = try_build(build, say)
+        if worked:
+            return 0
+        say(f"PyTorch target {build.tag} failed: {reason}")
+        failed[build.tag] = reason
+        if position + 1 < len(plan):
+            say("Falling back to the next compatible PyTorch runtime.")
+
+    say("Unable to install a working PyTorch configuration.")
+    say("Attempts:")
+    for tag, reason in failed.items():
+        say(f"  - {tag}: {reason}")
     return 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())
