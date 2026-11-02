@@ -88,6 +88,8 @@ class MusicPage:
         self.music_audio_output = QAudioOutput(self)
         self.music_player.setAudioOutput(self.music_audio_output)
         self.music_playing_row = None
+        self.music_pending_seek = 0
+        self.music_player.mediaStatusChanged.connect(self.on_music_media_status)
         self.music_work_dir = tempfile.mkdtemp(prefix="sonic_rift_music_")
         settings = self.app_settings.get("music", {})
 
@@ -572,11 +574,16 @@ class MusicPage:
         if not 0 <= row < len(takes):
             return
         self.music_player.stop()
+        self.music_pending_seek = position_ms     # applied once the take has loaded; Qt ignores it before
         self.music_player.setSource(QUrl.fromLocalFile(takes[row].path))
-        if position_ms:
-            self.music_player.setPosition(position_ms)
         self.music_player.play()
         self.music_playing_row = row
+
+    def on_music_media_status(self, status):
+        if self.music_pending_seek and status in (QMediaPlayer.MediaStatus.LoadedMedia,
+                                                  QMediaPlayer.MediaStatus.BufferedMedia):
+            position, self.music_pending_seek = self.music_pending_seek, 0
+            self.music_player.setPosition(position)
 
     def switch_music_take(self):
         """A/B: play the other take (or the next one) from the same moment."""

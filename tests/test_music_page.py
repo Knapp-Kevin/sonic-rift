@@ -177,6 +177,33 @@ class MusicPageTests(unittest.TestCase):
         self.assertFalse(any(os.path.exists(path) for path in first))
         self.assertEqual(len(os.listdir(w.music_work_dir)), 2)
 
+    def test_switch_a_b_continues_the_other_take_from_the_same_moment(self):
+        from PySide6.QtMultimedia import QMediaPlayer
+        w = self.window
+        w.music_audio_output.setVolume(0.0)
+        w.start_music()
+        self.wait_for_job()
+        w.play_music_take(0)
+        playing = self.pump_until(lambda: w.music_player.position() > 1500)
+        self.assertTrue(playing, "take A didn't play")
+        position = w.music_player.position()
+        w.switch_music_take()
+        self.pump_until(lambda: w.music_player.mediaStatus() == QMediaPlayer.MediaStatus.BufferedMedia
+                        and w.music_pending_seek == 0)
+        self.pump_until(lambda: False, 0.3)
+        self.assertEqual(w.music_playing_row, 1)
+        self.assertGreaterEqual(w.music_player.position(), position - 300)
+        w.music_player.stop()
+
+    def pump_until(self, condition, seconds=10.0):
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            self.app.processEvents()
+            if condition():
+                return True
+            time.sleep(0.02)
+        return False
+
     def test_keep_puts_a_music_asset_in_the_library_and_can_add_it_to_studio(self):
         w = self.window
         w.start_music()

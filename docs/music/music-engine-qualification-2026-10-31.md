@@ -29,7 +29,21 @@ ACE-Step's authors say their training data is licensed, royalty-free or syntheti
 
 ## Measurements on this PC
 
-MEASUREMENTS_PLACEHOLDER
+All runs: RTX 5070 Ti 16 GB, below-normal priority, within the app's recommended limits (8 of 16 CPU threads, 15.4 GB GPU cap), planner on, seed 4100 (4101 for a second take). Every take came back 48 kHz stereo at the requested length, mastered to −16.0 LUFS with true peak at or below −1.1 dBTP and no clipped samples. Times are per take, wall clock, including mastering.
+
+**Loading (final configuration, 2026-11-02):** the 2B renderer, VAE and text encoder stay on the GPU; only the 1.7B planner moves to the CPU between uses (about 1 s each way). After load the GPU holds 8.7 GB; the peak while composing is 10.0 GB. The worker loads the models in 34-43 s; the whole start is about 50 s on an idle PC and was 9 minutes when it competed with a test run at the same priority. A first start after a reboot was about 5 minutes (tokenizer and file cache cold).
+
+| Case | Request | Take times | Engine's plan (BPM, key, meter) |
+| --- | --- | --- | --- |
+| M01 | 30 s piano and cello underscore, 2 takes | 38.0 s, 17.7 s | 77, C major, 4 · 71, D major, 4 |
+| M02 | 60 s travel cue, 110 BPM, D major, 4/4, 2 takes | 34.6 s, 16.8 s | 110, D major, 4 · 110, D major, 4 |
+| M03 | 120 s orchestral exploration bed | 39.3 s | 125, F major, 4 |
+| M04 | 30 s ambient crescendo | 137 s (earlier, everything offloaded) | — |
+| M05 | 60 s folk song, own lyrics, vocal | 27.2 s | 100, F# minor, 2 |
+
+The first take after a start is slower (warm-up). Requested tempo, key and meter were passed through to the plan exactly in M02. The earlier configuration (every idle part offloaded to the CPU, 2026-10-31) took 137-225 s per 30 s take, mostly copying weights: diffusion itself took 0.4-2 s. Keeping everything resident needed more than 16 GB and spilled into shared memory at about 2% GPU use.
+
+**Not measured:** whether the result is musically good, whether the vocal is intelligible and whether the output matches the requested key by ear. That needs the owner's listening review (takes are kept in the scratch run folders, not in the repo).
 
 ## Tests
 
