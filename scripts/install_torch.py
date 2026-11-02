@@ -63,8 +63,10 @@ class InstallLog:
 
     def output(self, stream_name, text):
         """Copy captured tool output, each line tagged with its stream."""
-        if text:
-            self("\n".join(f"[uv {stream_name}] {line}" for line in text.splitlines()))
+        tag = f"[uv {stream_name}] "
+        lines = (text or "").splitlines()
+        if lines:
+            self("\n".join(tag + line for line in lines))
 
     def close(self):
         if self.file is not None:
