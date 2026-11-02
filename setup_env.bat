@@ -1,213 +1,169 @@
 @echo off
-setlocal enabledelayedexpansion
+rem Sonic Rift environment bootstrap for Windows.
+rem Steps: check tools, make the Python 3.11 venv, refresh the lock, sync packages, install PyTorch.
+rem Each step is skipped when its stamp file is newer than its inputs.
+rem Set UV_APP_DRY=1 to skip the PyTorch step. Exit code 0 = ready, 1 = a step failed.
+setlocal
+cd /d "%~dp0"
 
-set VENV_DIR=.venv
-set REQUIREMENTS_INPUT_FILE=requirements.in
-set REQUIREMENTS_LOCK_FILE=requirements.lock.txt
-set REQUIRED_PYTHON=3.11
-set DEPS_STAMP=%VENV_DIR%\.deps_installed
-set TORCH_STAMP=%VENV_DIR%\.torch_checked
-set LOG_DIR=logs
-set CREATED_VENV=0
-set RUNTIME_LOCK_FILE=%VENV_DIR%\.requirements.runtime.lock.txt
-set PYTHON_CONSOLE_EXE=%VENV_DIR%\Scripts\python.exe
+set "WANT_PY=3.11"
+set "VENV=.venv"
+set "VENV_PY=%VENV%\Scripts\python.exe"
+set "REQ_IN=requirements.in"
+set "REQ_LOCK=requirements.lock.txt"
+set "REQ_RUNTIME=%VENV%\.requirements.runtime.lock.txt"
+set "STAMP_DEPS=%VENV%\.deps_installed"
+set "STAMP_TORCH=%VENV%\.torch_checked"
+set "TORCH_SCRIPT=scripts\install_torch.py"
+if "%UV_APP_DRY%"=="" set "UV_APP_DRY=0"
 
-if not defined UV_APP_DRY set "UV_APP_DRY=0"
-
-if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
-for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set LOG_TIMESTAMP=%%i
-set LOG_FILE=%LOG_DIR%\installer_%LOG_TIMESTAMP%.log
-set CHATTERBOX_INSTALL_LOG=%CD%\%LOG_FILE%
+rem One log per run; install_torch.py appends to the same file.
+rem uv is run with "call" so a uv.cmd or uv.bat shim also returns here.
+if not exist logs mkdir logs
+for /f "usebackq" %%T in (`powershell -NoProfile -Command "(Get-Date).ToString('yyyyMMdd_HHmmss')"`) do set "RUN_ID=%%T"
+set "LOG_FILE=logs\installer_%RUN_ID%.log"
+set "CHATTERBOX_INSTALL_LOG=%CD%\%LOG_FILE%"
 
 echo.
-echo === Starting Sonic Rift Installer ===
-echo.
-echo Installer log: %LOG_FILE%
-call :LOG_MESSAGE "=== Starting Sonic Rift Installer ==="
-call :LOG_MESSAGE "Dry Run Mode: %UV_APP_DRY%"
+call :say "=== Starting Sonic Rift Installer ==="
+echo Writing the installer log to %LOG_FILE%
+call :note "Dry Run Mode: %UV_APP_DRY%"
 
-where python >nul
-if %ERRORLEVEL% neq 0 (
-    call :LOG_MESSAGE "ERROR: Python is missing from PATH."
-    echo ERROR: Python is missing!
-    echo Please install Python 3.11 or higher from: https://www.python.org/downloads/windows/
-    echo IMPORTANT: Make sure to check "Add Python to PATH" during installation. After installing Python, re-run this script.
-    exit /b 1
-)
+call :step_tools || goto failed
+call :step_venv || goto failed
+call :step_lock || goto failed
+call :step_packages || goto failed
+if not "%UV_APP_DRY%"=="0" goto dry_run
+call :step_torch || goto failed
+goto finished
 
-echo Checking for uv...
-call :LOG_MESSAGE "Checking for uv..."
-where uv >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    call :LOG_MESSAGE "ERROR: uv is missing."
-    echo ERROR: UV is missing.
-    echo Please install it first: https://github.com/astral-sh/uv#getting-started/installation
-    echo Easiest way on Windows: pip install uv
-    exit /b 1
-)
+:dry_run
+call :say "[Dry Run] Skipped PyTorch installation"
 
-if not exist "%VENV_DIR%" (
-    echo Creating venv...
-    call :LOG_MESSAGE "Creating venv at %VENV_DIR% with Python %REQUIRED_PYTHON%."
-    uv venv "%VENV_DIR%" --python %REQUIRED_PYTHON% >> "%LOG_FILE%" 2>&1 || (
-        call :LOG_MESSAGE "ERROR: Venv creation failed."
-        echo ERROR: Venv creation failed!
-        exit /b 1
-    )
-    set CREATED_VENV=1
-    call :LOG_MESSAGE "Venv created successfully."
-)
-
-if exist "%PYTHON_CONSOLE_EXE%" (
-    for /f %%i in ('call "%PYTHON_CONSOLE_EXE%" -c "import sys; print(str(sys.version_info[0]) + '.' + str(sys.version_info[1]))"') do set VENV_PYTHON_VERSION=%%i
-    call :LOG_MESSAGE "Detected venv Python version !VENV_PYTHON_VERSION!."
-    if not "!VENV_PYTHON_VERSION!"=="%REQUIRED_PYTHON%" (
-        call :LOG_MESSAGE "Rebuilding venv because Python version does not match requirement."
-        echo Existing venv uses Python !VENV_PYTHON_VERSION!, but this app requires Python %REQUIRED_PYTHON%.
-        rmdir /s /q "%VENV_DIR%"
-        uv venv "%VENV_DIR%" --python %REQUIRED_PYTHON% >> "%LOG_FILE%" 2>&1 || (
-            call :LOG_MESSAGE "ERROR: Venv recreation failed."
-            echo ERROR: Venv recreation failed!
-            exit /b 1
-        )
-        set CREATED_VENV=1
-        call :LOG_MESSAGE "Venv recreated successfully."
-    )
-)
-
-call "%VENV_DIR%\Scripts\activate"
-call :LOG_MESSAGE "Activated virtual environment."
-
-if "%CREATED_VENV%"=="1" (
-    call :LOG_MESSAGE "New virtual environment detected. Clearing installer stamp files."
-    if exist "%DEPS_STAMP%" del /q "%DEPS_STAMP%"
-    if exist "%TORCH_STAMP%" del /q "%TORCH_STAMP%"
-)
-
-set NEED_LOCK_COMPILE=0
-if not exist "%REQUIREMENTS_LOCK_FILE%" set NEED_LOCK_COMPILE=1
-if exist "%REQUIREMENTS_INPUT_FILE%" call :SET_NEWER_FLAG "%REQUIREMENTS_INPUT_FILE%" "%REQUIREMENTS_LOCK_FILE%" NEED_LOCK_COMPILE
-
-if "%NEED_LOCK_COMPILE%"=="1" (
-    echo Ensuring lock file is up to date...
-    call :LOG_MESSAGE "Running uv pip compile because the lock file is missing or stale."
-    uv pip compile "%REQUIREMENTS_INPUT_FILE%" -o "%REQUIREMENTS_LOCK_FILE%" >> "%LOG_FILE%" 2>&1 || (
-        call :LOG_MESSAGE "ERROR: Lock file generation failed."
-        echo ERROR: Lock file generation failed!
-        exit /b 1
-    )
-    call :LOG_MESSAGE "Lock file generation succeeded."
-) else (
-    call :LOG_MESSAGE "Lock file already up to date. Skipping uv pip compile."
-    echo Lock file already up to date.
-)
-
-call :BUILD_RUNTIME_LOCK
-if %ERRORLEVEL% neq 0 (
-    call :LOG_MESSAGE "ERROR: Failed to build runtime lock file without torch packages."
-    echo ERROR: Failed to build runtime dependency lock.
-    exit /b 1
-)
-
-set NEED_DEPS_SYNC=0
-if not exist "%DEPS_STAMP%" set NEED_DEPS_SYNC=1
-if exist "%REQUIREMENTS_LOCK_FILE%" call :SET_NEWER_FLAG "%REQUIREMENTS_LOCK_FILE%" "%DEPS_STAMP%" NEED_DEPS_SYNC
-if "%CREATED_VENV%"=="1" set NEED_DEPS_SYNC=1
-
-if "%NEED_DEPS_SYNC%"=="1" (
-    echo Installing dependencies from lock file...
-    call :LOG_MESSAGE "Running uv pip install from the runtime lock because dependencies are not stamped or the lock changed."
-    uv pip install --python "%PYTHON_CONSOLE_EXE%" -r "%RUNTIME_LOCK_FILE%" --strict >> "%LOG_FILE%" 2>&1 || (
-        call :LOG_MESSAGE "ERROR: Dependency installation from lock file failed."
-        echo ERROR: Dependency installation from lock file failed!
-        exit /b 1
-    )
-    > "%DEPS_STAMP%" echo Dependencies synced from %RUNTIME_LOCK_FILE%
-    call :LOG_MESSAGE "Dependency sync succeeded. Updated %DEPS_STAMP%."
-) else (
-    call :LOG_MESSAGE "Dependencies already installed. Skipping runtime dependency install."
-    echo Dependencies already installed. Skipping runtime dependency install.
-)
-
-if "%UV_APP_DRY%"=="0" (
-    set NEED_TORCH_INSTALL=0
-    if not exist "%TORCH_STAMP%" set NEED_TORCH_INSTALL=1
-    call :CHECK_TORCH_RUNTIME
-    if "!TORCH_RUNTIME_OK!"=="0" (
-        call :LOG_MESSAGE "Torch runtime import check failed. Forcing reinstall."
-        if exist "%TORCH_STAMP%" del /q "%TORCH_STAMP%"
-        set NEED_TORCH_INSTALL=1
-    )
-    if exist scripts\install_torch.py call :SET_NEWER_FLAG "scripts\install_torch.py" "%TORCH_STAMP%" NEED_TORCH_INSTALL
-    if exist "%REQUIREMENTS_LOCK_FILE%" call :SET_NEWER_FLAG "%REQUIREMENTS_LOCK_FILE%" "%TORCH_STAMP%" NEED_TORCH_INSTALL
-
-    if "!NEED_TORCH_INSTALL!"=="1" (
-        echo Installing PyTorch...
-        call :LOG_MESSAGE "Running install_torch.py because Torch is not stamped or inputs changed."
-        "%PYTHON_CONSOLE_EXE%" scripts\install_torch.py
-        if !ERRORLEVEL! neq 0 (
-            call :LOG_MESSAGE "WARNING: install_torch.py failed."
-            echo WARNING: PyTorch install failed. App may lack GPU support.
-            if exist "%TORCH_STAMP%" del /q "%TORCH_STAMP%"
-            exit /b 1
-        ) else (
-            > "%TORCH_STAMP%" echo PyTorch checked by install_torch.py
-            call :LOG_MESSAGE "Updated %TORCH_STAMP% after install_torch.py."
-        )
-    ) else (
-        call :LOG_MESSAGE "PyTorch already checked. Skipping install_torch.py."
-        echo PyTorch already checked. Skipping install_torch.py.
-    )
-) else (
-    call :LOG_MESSAGE "[Dry Run] Skipped PyTorch installation."
-    echo [Dry Run] Skipped PyTorch installation
-)
-
-echo Setup complete.
+:finished
+call :say "Setup complete."
 exit /b 0
 
-:LOG_MESSAGE
->> "%LOG_FILE%" echo [%date% %time%] %~1
-goto :EOF
+:failed
+call :note "Setup stopped after a failed step."
+exit /b 1
 
-:CHECK_TORCH_RUNTIME
-set TORCH_RUNTIME_OK=0
-"%PYTHON_CONSOLE_EXE%" -c "import torch, torchaudio, torchvision" >nul 2>nul
-if %ERRORLEVEL%==0 set TORCH_RUNTIME_OK=1
-goto :EOF
 
-:BUILD_RUNTIME_LOCK
-call :LOG_MESSAGE "Building runtime lock file without torch, torchvision, and torchaudio pins."
-powershell -NoProfile -Command ^
-    "$inputPath = '%REQUIREMENTS_LOCK_FILE%';" ^
-    "$outputPath = '%RUNTIME_LOCK_FILE%';" ^
-    "$lines = Get-Content -LiteralPath $inputPath;" ^
-    "$filtered = $lines | Where-Object { $_ -notmatch '^(torch|torchaudio|torchvision)=='};" ^
-    "Set-Content -LiteralPath $outputPath -Value $filtered -Encoding UTF8"
-if %ERRORLEVEL% neq 0 exit /b 1
-call :LOG_MESSAGE "Runtime lock file written to %RUNTIME_LOCK_FILE%."
-goto :EOF
+rem ---- steps -----------------------------------------------------------------
 
-:SET_NEWER_FLAG
-setlocal
-set "SOURCE_FILE=%~1"
-set "TARGET_FILE=%~2"
-set "RESULT_FLAG=%~3"
-if not exist "%SOURCE_FILE%" (
-    >> "%LOG_FILE%" echo [%date% %time%] Skipping timestamp check because "%SOURCE_FILE%" does not exist.
-    endlocal & goto :EOF
+:step_tools
+where python >nul 2>nul
+if errorlevel 1 (
+    call :say "ERROR: Python was not found on PATH."
+    echo Install Python %WANT_PY% from https://www.python.org/downloads/windows/
+    echo and tick the installer's "Add python.exe to PATH" box, then run this again.
+    exit /b 1
 )
-if not exist "%TARGET_FILE%" (
-    >> "%LOG_FILE%" echo [%date% %time%] Marking "%RESULT_FLAG%=1" because "%TARGET_FILE%" does not exist.
-    endlocal & set "%RESULT_FLAG%=1" & goto :EOF
+where uv >nul 2>nul
+if errorlevel 1 (
+    call :say "ERROR: uv was not found on PATH."
+    echo Install it with "pip install uv" or see https://github.com/astral-sh/uv#getting-started/installation
+    exit /b 1
 )
-powershell -NoProfile -Command ^
-    "$src = Get-Item -LiteralPath '%SOURCE_FILE%';" ^
-    "$dst = Get-Item -LiteralPath '%TARGET_FILE%';" ^
-    "if ($src.LastWriteTimeUtc -gt $dst.LastWriteTimeUtc) { exit 0 } else { exit 1 }"
-if %ERRORLEVEL%==0 (
-    >> "%LOG_FILE%" echo [%date% %time%] "%SOURCE_FILE%" is newer than "%TARGET_FILE%". Marking "%RESULT_FLAG%=1".
-    endlocal & set "%RESULT_FLAG%=1" & goto :EOF
+call :note "python and uv are on PATH."
+exit /b 0
+
+:step_venv
+if not exist "%VENV_PY%" goto venv_create
+"%VENV_PY%" -c "import sys; sys.exit('.'.join(map(str, sys.version_info[:2])) != '%WANT_PY%')" >nul 2>nul
+if not errorlevel 1 (
+    call :note "%VENV% already runs Python %WANT_PY%."
+    exit /b 0
 )
->> "%LOG_FILE%" echo [%date% %time%] "%SOURCE_FILE%" is not newer than "%TARGET_FILE%". Leaving "%RESULT_FLAG%" unchanged.
-endlocal & goto :EOF
+call :say "%VENV% does not run Python %WANT_PY%; rebuilding it."
+:venv_create
+rem A new venv has no stamps, so every later step runs again.
+if exist "%VENV%" rmdir /s /q "%VENV%"
+call :say "Creating venv with Python %WANT_PY%..."
+call uv venv "%VENV%" --python %WANT_PY% >>"%LOG_FILE%" 2>&1
+if errorlevel 1 (
+    call :say "ERROR: Could not create the virtual environment."
+    exit /b 1
+)
+exit /b 0
+
+:step_lock
+call :is_stale "%REQ_LOCK%" "%REQ_IN%"
+if "%STALE%"=="0" (
+    call :say "Lock file already up to date."
+    exit /b 0
+)
+call :say "Compiling %REQ_LOCK% from %REQ_IN%..."
+call uv pip compile "%REQ_IN%" -o "%REQ_LOCK%" >>"%LOG_FILE%" 2>&1
+if errorlevel 1 (
+    call :say "ERROR: Lock file generation failed."
+    exit /b 1
+)
+exit /b 0
+
+:step_packages
+rem PyTorch comes from its own index in step_torch, so drop its pins here.
+findstr /v /r /c:"^torch==" /c:"^torchaudio==" /c:"^torchvision==" "%REQ_LOCK%" >"%REQ_RUNTIME%"
+if errorlevel 1 (
+    call :say "ERROR: Could not write %REQ_RUNTIME%."
+    exit /b 1
+)
+call :is_stale "%STAMP_DEPS%" "%REQ_LOCK%"
+if "%STALE%"=="0" (
+    call :say "Dependencies already installed. Skipping runtime dependency install."
+    exit /b 0
+)
+call :say "Installing dependencies from lock file..."
+call uv pip install --python "%VENV_PY%" -r "%REQ_RUNTIME%" --strict >>"%LOG_FILE%" 2>&1
+if errorlevel 1 (
+    call :say "ERROR: Dependency installation from lock file failed."
+    exit /b 1
+)
+>"%STAMP_DEPS%" echo Dependencies synced from %REQ_RUNTIME%
+exit /b 0
+
+:step_torch
+call :is_stale "%STAMP_TORCH%" "%TORCH_SCRIPT%" "%REQ_LOCK%"
+"%VENV_PY%" -c "import torch, torchaudio, torchvision" >nul 2>nul
+if errorlevel 1 (
+    call :note "PyTorch does not import; reinstalling it."
+    set "STALE=1"
+)
+if "%STALE%"=="0" (
+    call :say "PyTorch already checked. Skipping install_torch.py."
+    exit /b 0
+)
+if exist "%STAMP_TORCH%" del /q "%STAMP_TORCH%"
+call :say "Installing PyTorch..."
+"%VENV_PY%" "%TORCH_SCRIPT%"
+if errorlevel 1 (
+    call :say "WARNING: PyTorch install failed. App may lack GPU support."
+    exit /b 1
+)
+>"%STAMP_TORCH%" echo PyTorch checked by install_torch.py
+exit /b 0
+
+
+rem ---- helpers ---------------------------------------------------------------
+
+rem say TEXT: show it and log it.  note TEXT: log only.
+:say
+echo %~1
+:note
+>>"%LOG_FILE%" echo [%date% %time%] %~1
+exit /b 0
+
+rem is_stale TARGET SOURCE...: STALE=1 when TARGET is missing or older than any existing SOURCE.
+:is_stale
+set "STALE=1"
+if not exist "%~1" exit /b 0
+set "STALE=0"
+set "STALE_TARGET=%~1"
+:is_stale_next
+shift
+if "%~1"=="" exit /b 0
+if exist "%~1" (
+    powershell -NoProfile -Command "exit [int]((Get-Item -LiteralPath '%~1').LastWriteTimeUtc -gt (Get-Item -LiteralPath '%STALE_TARGET%').LastWriteTimeUtc)"
+    if errorlevel 1 set "STALE=1"
+)
+goto is_stale_next
