@@ -7,7 +7,7 @@ Windows binaries and installers this repository distributes **must be Authentico
 - Endpoint `https://eus.codesigning.azure.net/`, account `MythologIQ-Labs-Signing`, certificate profile `mythologiq-labs-public-release` (Public Trust). Publisher shown to users: `MythologIQ Labs, LLC`. Timestamp server: `http://timestamp.acs.microsoft.com`.
 - Canonical procedure, verified tooling and framework integration: `MythologIQ-Labs-LLC/Myth-Tech-Forge` at `docs/WINDOWS_CODE_SIGNING_STANDARD.md`. Follow it; don't invent another signing path.
 - Sign release builds only (release tag or manual release), never PR or routine CI builds. Windows runners bill at 2x Actions minutes.
-- Signing requires the Artifact Signing Certificate Profile Signer role. Today only the owner's local `az login` identity has it. A CI signing identity (GitHub OIDC) doesn't exist yet, and creating one, or any secret or role assignment, needs owner approval. Never commit credentials.
+- Signing requires the Artifact Signing Certificate Profile Signer role. The owner's local `az login` identity has it, and so does the GitHub OIDC app `github-sonic-rift-signing`, but only from this repository's `release` environment (owner approval, `v*` tags only). Creating any other identity, secret or role assignment needs owner approval. Never commit credentials.
 - A release is signed only after `signtool verify /pa` passes, the signer is `MythologIQ Labs, LLC`, and the signature is timestamped. Record that output in the release evidence.
 
-**This repository:** it has no Windows packaging yet. When a Windows build is added, sign its executables and installers per the standard.
+**This repository:** `packaging/windows/` builds the Inno Setup installer, and `.github/workflows/release-windows.yml` signs and verifies it for `v*` tags. The installer and its uninstaller are the signed files. Bundled third-party binaries (uv) keep their publishers' signatures. See `packaging/windows/README.md`.
