@@ -47,8 +47,16 @@ The first take after a start is slower (warm-up). Requested tempo, key and meter
 
 ## Tests
 
-TESTS_PLACEHOLDER
+- **Unit and window tests:** `tests/test_music_contract.py`, `tests/test_music_page.py` (real window, fake engine), `tests/test_music_studio.py`, plus `tests/test_resource_limits.py` and `tests/test_worker_kill_tree.py` merged in from #135 and #134. Full suite on 2026-11-02: **583 tests, OK** (below-normal priority).
+- **Real window, real ACE-Step** (off-screen window, disposable profile, below-normal priority, 2026-11-02), **20 of 20 checks passed in the light theme**: page opens; an empty prompt is explained; the cost warning appears before the job (2 takes of 30 s: about 4 minutes, 10 GB of 15.4 GB); the model starts off the UI thread (52 s); the longest event-loop gap while composing was 0.52 s; two takes listed; take A plays; Switch A/B continues take B from the same moment (1536 to 2048 ms); keep makes a verified music asset with the pinned revision at −16 LUFS; Keep and add to Studio places it as a sound clip; the project saves, reopens with clip gain and fades, and exports; Cancel returns in 0.1 s, ends the worker tree, frees GPU memory and leaves no partial files; Generate works again afterwards (65 s including the restart); closing the app leaves no worker.
+- **Dark theme run:** 17 of 20 passed. Switch A/B restarted take B from 0 (a real bug: Qt ignores a seek before the new file has loaded), fixed with a regression test that fails without the fix. The two worker-count failures were the harness counting its own PowerShell query; no worker was running, and GPU memory was back at baseline.
+- **Not done:** listening (the owner's review) and playing audio aloud. The window ran off-screen with volume at 0.
 
 ## Outstanding
 
-OUTSTANDING_PLACEHOLDER
+- **Owner listening review:** quality, vocal intelligibility and whether takes follow the prompt and requested key by ear. Without it this slice is a **CONDITIONAL GO**: functionally complete and measured, musically unreviewed.
+- **The same seed doesn't give the same plan across runs:** two real-window runs with seed 2026 planned 77 BPM A minor and 91 BPM D major. The renderer is seeded, but the 1.7B planner samples. Turning off **Plan first** or setting tempo and key pins them; making the planner deterministic is follow-up work.
+- **First start after a reboot** is several minutes; later starts about 50 s. The estimate assumes 3 minutes.
+- **The estimate shows on every Generate:** 10 GB is more than 60% of the default GPU cap, so each job counts as heavy. Users can switch warnings off in Settings › Performance.
+- **Later engines:** HeartMuLa (vocals) and DiffRhythm as comparators; Stable Audio 3 only if the owner reopens it.
+- **Agent adapter (#130)** calls `MusicService` and doesn't exist yet.
