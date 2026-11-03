@@ -4,6 +4,20 @@ All notable changes to **Sonic Rift** are recorded here. The project began as **
 
 Versions follow [Semantic Versioning](https://semver.org/) from 0.9.0-alpha. Earlier work had no version numbers (the `ui-v0.2.0` tag predates the rename).
 
+## 0.9.1 (2026-11-03)
+
+Studio music placement and mix controls. Like 0.9.0-alpha, it runs from source or from the signed Windows installer (the installer sets up Python and PyTorch on first launch).
+
+### Fixed
+- **Music and ambience stay on separate Studio tracks.** Kept music does not join a selected waves/effects lane unless it is empty or contains music already. Ambience added when music is selected also gets an appropriate independent track. Undo and project compatibility remain intact ([#144](https://github.com/Knapp-Kevin/sonic-rift/pull/144)).
+- **Upgrading keeps your model list.** Installing over an earlier copy no longer resets `models.json`, so models added or removed on the Models page survive the upgrade (and an uninstall).
+
+### Improved
+- **Adjust sound levels directly in the timeline.** Each Studio lane now has a gain slider with dB readout and a Mute button. Slider drags create one undoable edit, and track-header selection makes it clearer where new sounds go.
+- **Check Balance** alongside Play mix analyzes the same rendered signal used for playback/export and shows per-lane comparisons with dialogue. Measurements are advisory, not a substitute for listening.
+- **Add to Studio looks the same everywhere.** On Speech it is now the same full button as on Sounds and Music, instead of a small link.
+- **Project → Mix settings** includes adjustable Duck under voices; the setting is persisted and reflected in playback, balance, and export. Projects that keep the default stay readable by 0.9.0-alpha. The clip list is available via Clips so the timeline has more space ([#145](https://github.com/Knapp-Kevin/sonic-rift/pull/145)).
+
 ## 0.9.0-alpha (2026-11-02)
 
 The first numbered version, an alpha. It runs from source, or from the signed Windows installer the release workflow builds for this tag (the installer sets up Python and PyTorch on first launch). Entries describe code in this version, **not** a universally verified model/device matrix.
