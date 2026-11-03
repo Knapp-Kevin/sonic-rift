@@ -1,0 +1,38 @@
+{
+  "version": "0.9.0-alpha",
+  "prompt": "Understated original instrumental underscore for a quiet seaside night: soft felt piano, warm low strings, slow and calm, gentle, sparse, no percussion, no vocals",
+  "seconds": 30,
+  "takes": 2,
+  "seed": 1103,
+  "tracks": [
+    [
+      "voice",
+      "Dialogue",
+      []
+    ],
+    [
+      "sound",
+      "Harbor light underscore",
+      [
+        [
+          "sound",
+          "sound_21bef0f5a68f",
+          1440000
+        ]
+      ]
+    ]
+  ],
+  "project": "C:\\LocalAI\\Voice\\Chatterbox\\sr-film\\film_work\\rehearsal\\Evening Tide - The Beacon.sonicrift.json",
+  "preview": "C:\\Users\\krkna\\AppData\\Local\\Temp\\sonicrift_preview__ibcy5zq\\preview.wav",
+  "export_folder": "C:\\LocalAI\\Voice\\Chatterbox\\sr-film\\film_work\\rehearsal\\exports\\Rehearsal_Mix_124144",
+  "export_files": [
+    "manifest.json",
+    "master.wav",
+    "stems",
+    "track_001_8aece83358e5.wav",
+    "track_002_dd527c089871.wav"
+  ],
+  "heavy_jobs": [
+    "2 take(s) of 30 s with ACE-Step 1.5 (2B turbo)"
+  ]
+}

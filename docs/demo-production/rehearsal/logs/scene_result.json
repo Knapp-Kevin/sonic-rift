@@ -1,0 +1,132 @@
+{
+  "version": "0.9.0-alpha",
+  "prompt": "Understated original instrumental underscore for a quiet seaside night: soft felt piano, warm low strings, slow and calm, gentle, sparse, no percussion, no vocals",
+  "music_seconds": 30,
+  "music_takes": 3,
+  "seed": 2026,
+  "tracks": [
+    {
+      "name": "Dialogue",
+      "kind": "voice",
+      "gain_db": 0.0,
+      "clips": [
+        {
+          "kind": "voice",
+          "asset": "voice_a3ca5015885eb0c6ca6f144e649480988c1bd1334827b2f11675351a5b0ac96d",
+          "start_s": 0.0,
+          "len_s": 3.1733333333333333,
+          "fade_in_s": 0.0,
+          "fade_out_s": 0.0
+        },
+        {
+          "kind": "voice",
+          "asset": "voice_700458057ed6f5010a7d74ed4385e8cf488eca19bbe30dad747f9dfdd25010ed",
+          "start_s": 4.173333333333333,
+          "len_s": 2.192,
+          "fade_in_s": 0.0,
+          "fade_out_s": 0.0
+        },
+        {
+          "kind": "voice",
+          "asset": "voice_559b9f8588e3d84274b223676ef43ee658b5b24e0d0311687c7dba4ae57bc32d",
+          "start_s": 7.365333333333333,
+          "len_s": 2.042666666666667,
+          "fade_in_s": 0.0,
+          "fade_out_s": 0.0
+        }
+      ]
+    },
+    {
+      "name": "Shoreline waves",
+      "kind": "sound",
+      "gain_db": -6.0,
+      "clips": [
+        {
+          "kind": "sound",
+          "asset": "sound_0c96aacac72a",
+          "start_s": 0.0,
+          "len_s": 20.0,
+          "fade_in_s": 0.0,
+          "fade_out_s": 0.0
+        }
+      ]
+    },
+    {
+      "name": "Music",
+      "kind": "sound",
+      "gain_db": -14.0,
+      "clips": [
+        {
+          "kind": "sound",
+          "asset": "sound_722bc8910f68",
+          "start_s": 0.0,
+          "len_s": 30.0,
+          "fade_in_s": 2.0,
+          "fade_out_s": 4.0
+        }
+      ]
+    }
+  ],
+  "project": "C:\\LocalAI\\Voice\\Chatterbox\\sr-film\\film_work\\scene\\Evening Tide - The Beacon.sonicrift.json",
+  "export": "C:\\LocalAI\\Voice\\Chatterbox\\sr-film\\film_work\\scene\\exports\\Scene_Rehearsal_124856",
+  "export_files": [
+    "manifest.json",
+    "master.wav",
+    "stems",
+    "stems\\track_001_8ac8cce10014.wav",
+    "stems\\track_002_7c1adf88c186.wav",
+    "stems\\track_003_29c59811bd49.wav"
+  ],
+  "manifest": {
+    "schema_version": 1,
+    "project_id": "eeb74e40609c4f3e8299e6f27ee22beb",
+    "project_revision": 10,
+    "sample_rate": 48000,
+    "target_lufs": -16.0,
+    "ducking_enabled": true,
+    "master_stage": "normalized_and_peak_limited",
+    "stem_stage": "post_duck_pre_master",
+    "master_files": {
+      "wav": "master.wav"
+    },
+    "stems": {
+      "f53b816e4cba47c1b5e3c1182fe50c44": "stems/track_001_8ac8cce10014.wav",
+      "faef527960e64199ab409ce3ef25428a": "stems/track_002_7c1adf88c186.wav",
+      "9491e75d9c0343c9a849b0742e697df7": "stems/track_003_29c59811bd49.wav"
+    },
+    "asset_ids": {
+      "f53b816e4cba47c1b5e3c1182fe50c44": [
+        "voice_a3ca5015885eb0c6ca6f144e649480988c1bd1334827b2f11675351a5b0ac96d",
+        "voice_700458057ed6f5010a7d74ed4385e8cf488eca19bbe30dad747f9dfdd25010ed",
+        "voice_559b9f8588e3d84274b223676ef43ee658b5b24e0d0311687c7dba4ae57bc32d"
+      ],
+      "faef527960e64199ab409ce3ef25428a": [
+        "sound_0c96aacac72a"
+      ],
+      "9491e75d9c0343c9a849b0742e697df7": [
+        "sound_722bc8910f68"
+      ]
+    },
+    "metrics": {
+      "seconds": 30.0,
+      "sample_rate": 48000,
+      "integrated_lufs": -16.17,
+      "true_peak_db": -1.1,
+      "clipped_samples": 0,
+      "loudness_range_db": 11.1,
+      "opening_vs_median_db": 7.4
+    }
+  },
+  "screenshots": [
+    "01_studio_empty_project.png",
+    "02_studio_three_lines.png",
+    "03_sounds_ocean_takes.png",
+    "04_music_request.png",
+    "05_music_composing.png",
+    "06_music_takes.png",
+    "07_studio_music_added.png",
+    "08_studio_balanced_saved.png",
+    "09_studio_play_mix_playing.png",
+    "10_studio_export_complete.png"
+  ]
+}

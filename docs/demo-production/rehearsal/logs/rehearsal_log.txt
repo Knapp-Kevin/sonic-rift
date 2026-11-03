@@ -1,0 +1,39 @@
+[12:41:47] Sonic Rift 0.9.0-alpha window up; ROOT=C:\LocalAI\Voice\Chatterbox\sr-film
+[12:41:47] dialog QInputDialog.getText 'New project/Project title' -> 'Evening Tide: The Beacon'
+[12:41:47] dialog QInputDialog.getItem 'Track/Type' -> 'voice'
+[12:41:47] dialog QInputDialog.getText 'Track/Name' -> 'Dialogue'
+[12:41:47] dialog QFileDialog.getSaveFileName 'Save project' -> C:\LocalAI\Voice\Chatterbox\sr-film\film_work\rehearsal\Evening Tide - The Beacon.sonicrift.json
+[12:41:48] screenshot 01_studio_empty_project.png
+[12:41:48] screenshot 02_music_request.png
+[12:41:48] Generate: engine=ACE-Step 1.5 (2B turbo) seconds=30 takes=2 seed=1103
+[12:41:48] heavy-job warning shown and accepted by script: 2 take(s) of 30 s with ACE-Step 1.5 (2B turbo) (~4.0 min, 10.0 GB GPU)
+[12:42:32] music model start: done in 44.3 s
+[12:42:32] status line: Composing 2 take(s) with ACE-Step 1.5 (2B turbo)...
+[12:42:32] music model on cuda, load 30 s
+[12:42:32] music job begins: done in 0.0 s
+[12:42:33] screenshot 03_music_composing.png
+[12:43:31] music takes: done in 58.5 s
+[12:43:31] music status: 2 take(s) in 59 s (wall 103 s incl. start)
+[12:43:31] take A: C:\Users\krkna\AppData\Local\Temp\sonic_rift_music_wabp0c__\take_1_seed1103.wav 30.0
+[12:43:31] take B: C:\Users\krkna\AppData\Local\Temp\sonic_rift_music_wabp0c__\take_2_seed1104.wav 30.0
+[12:43:32] screenshot 04_music_takes.png
+[12:43:32] dialog QInputDialog.getText 'Keep music/Name' -> 'Harbor light underscore'
+[12:43:32] music clip import into Studio: done in 0.1 s
+[12:43:32] project tracks after Keep and add to Studio: [('voice', 'Dialogue', []), ('sound', 'Harbor light underscore', [('sound', 'sound_21bef0f5a68f', 1440000)])]
+[12:43:32] editor note: Saved sound attached. Save the project to keep the new clip.
+[12:43:33] screenshot 05_studio_music_clip_added.png
+[12:43:33] saved project: C:\LocalAI\Voice\Chatterbox\sr-film\film_work\rehearsal\Evening Tide - The Beacon.sonicrift.json
+[12:43:33] Play mix render: done in 0.5 s
+[12:43:33] preview file: C:\Users\krkna\AppData\Local\Temp\sonicrift_preview__ibcy5zq\preview.wav; note: Playing the arranged mix (not mastered). Export makes the final file.
+[12:43:36] screenshot 06_studio_play_mix.png
+[12:43:36] dialog QFileDialog.getExistingDirectory 'Choose export location' -> C:\LocalAI\Voice\Chatterbox\sr-film\film_work\rehearsal\exports
+[12:43:36] dialog QInputDialog.getItem 'Export formats/Master format' -> 'WAV'
+[12:43:36] dialog QInputDialog.getText 'Export folder/New folder name' -> 'Rehearsal_Mix_124144'
+[12:43:37] dialog QMessageBox 'Project exported': Master WAV, premaster stems and manifest saved to:
+C:\LocalAI\Voice\Chatterbox\sr-film\film_work\rehearsal\exports\Rehearsal_Mix_124144
+[12:43:37] Export mix: done in 1.7 s
+[12:43:37] export note: Export complete: “Rehearsal_Mix_124144” — the master, one stem per track and a manifest.
+[12:43:38] screenshot 07_studio_exported.png
+[12:43:38] export folder files: ['manifest.json', 'master.wav', 'stems', 'track_001_8aece83358e5.wav', 'track_002_dd527c089871.wav']
+[12:43:38] manifest asset_ids: {'9eb092224af34a3bbc561a9773e9f29e': [], '0ea2b82a62b94c03a06bebab203d393e': ['sound_21bef0f5a68f']}
+[12:43:41] rehearsal complete
