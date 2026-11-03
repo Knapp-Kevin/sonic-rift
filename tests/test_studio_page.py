@@ -86,6 +86,17 @@ class StudioPage(unittest.TestCase):
         editor.undo()
         editor._mark_clean()
 
+    def test_add_to_studio_is_the_same_primary_button_on_every_page(self):
+        from PySide6.QtWidgets import QPushButton
+        w = self.window
+        buttons = [b for b in w.findChildren(QPushButton) if b.text() == "Add to Studio"]
+        pages = {w.pages.indexOf(next(p for p in (w.pages.widget(i) for i in range(w.pages.count()))
+                                      if p.isAncestorOf(b))) for b in buttons}
+        self.assertEqual(pages, {w.PAGE_GENERATE, w.PAGE_SOUNDSCAPE, w.PAGE_MUSIC})   # Speech, Sounds, Music
+        for button in buttons:
+            self.assertEqual(button.property("role"), "primary")
+            self.assertFalse(button.isFlat())                      # a button, not a link
+
     def test_speech_take_goes_to_the_studio(self):
         w = self.window
         path = os.path.join(self.tmp, "take.wav")

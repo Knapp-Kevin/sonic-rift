@@ -147,7 +147,7 @@ class Player:
         list_header = QHBoxLayout()
         hint = QLabel("Recent takes (Enter or double-click to play)")
         hint.setObjectName("Muted")
-        to_studio = set_role(QPushButton("Add to Studio"), "tertiary")
+        to_studio = set_role(QPushButton("Add to Studio"), "primary")     # the same button as on Sounds and Music
         to_studio.setToolTip("Add the selected take, or the newest result, to the Studio timeline.")
         to_studio.clicked.connect(self.add_take_to_studio)
         list_header.addWidget(hint, 1)
