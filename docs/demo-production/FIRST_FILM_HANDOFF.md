@@ -1,3 +1,5 @@
+> **2026-11-03 production correction:** This handoff contains early concepts that required newly generated illustrations. The owner rejected those visuals. **Authoritative replacement:** [CLAUDE_START_HERE.md](./CLAUDE_START_HERE.md) + [SCRIPT_LOCK.md](./SCRIPT_LOCK.md). Only use approved existing media and exact silver logo sourced from website revamp. No image generation is assigned to Claude. The lighthouse illustration requirement below is **cancelled** for first production; use approved empty-Studio imagery instead. The final recording is pending technical rehearsal and owner review.
+
 # First production pilot — Sonic Rift: A World in Sound
 **State:** creative preproduction / final recording **HOLD** until approved brand graphics, human opener, exact-build rehearsal, model licenses and soundtrack are qualified.
 **Production owner:** local Claude session operating the real Windows alpha and Sonic Rift, with owner approval.
