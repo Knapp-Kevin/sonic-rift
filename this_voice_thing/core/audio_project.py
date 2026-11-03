@@ -18,6 +18,10 @@ SCHEMA_VERSION = 1
 TRACK_KINDS = frozenset({"voice", "sound", "effect"})
 MAX_TRACKS = 128
 MAX_CLIPS_PER_TRACK = 4096
+# How far sound tracks dip while a voice speaks. Optional in v1 files: left out at the default,
+# so projects that don't change it stay readable by builds from before the setting existed.
+DEFAULT_DUCK_DB = -10.0
+DUCK_DB_RANGE = (-36.0, 0.0)          # 0 dB: no ducking
 
 
 def new_id():
@@ -121,6 +125,7 @@ class AudioProject:
     tracks: list[Track] = field(default_factory=list)
     schema_version: int = SCHEMA_VERSION
     revision: int = 0
+    duck_db: float = DEFAULT_DUCK_DB
 
     def validate(self):
         _text(self.id, "project ID", 128)
@@ -132,6 +137,8 @@ class AudioProject:
         if self.sample_rate not in (44100, 48000) or type(self.sample_rate) is not int:
             raise ValueError("Unsupported project sample rate")
         _integer(self.revision, "project revision")
+        if not DUCK_DB_RANGE[0] <= _real(self.duck_db, "ducking amount") <= DUCK_DB_RANGE[1]:
+            raise ValueError("Ducking amount outside supported range")
         if len(self.tracks) > MAX_TRACKS:
             raise ValueError("Too many tracks")
         seen_tracks, seen_clips = set(), set()
@@ -170,8 +177,10 @@ def from_dict(data):
 
 def to_dict(project):
     """The saved form: like asdict(), minus fields at their defaults that earlier builds
-    don't know (source_offset_frames), so files without trims stay readable by them."""
+    don't know (source_offset_frames, duck_db), so files without trims stay readable by them."""
     data = asdict(project)
+    if data.get("duck_db") == DEFAULT_DUCK_DB:
+        data.pop("duck_db")
     for track in data["tracks"]:
         for clip in track["clips"]:
             if not clip.get("source_offset_frames"):

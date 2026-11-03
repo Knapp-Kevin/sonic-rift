@@ -149,6 +149,90 @@ class StudioPage(unittest.TestCase):
         add(waves, select_track="Harbor light")           # ambience doesn't stack on the music either
         self.assertEqual(len(editor.session.project.tracks), 3)
 
+    def test_lane_headers_balance_tracks_and_check_balance_reports_on_them(self):
+        from PySide6.QtCore import QPoint, Qt
+        from PySide6.QtTest import QTest
+        from PySide6.QtWidgets import QDialog
+        from this_voice_thing.core.audio_project import AudioProject
+        from this_voice_thing.core.audio_project_session import ProjectSession
+        from this_voice_thing.ui.pages import project_editor
+        w = self.window
+        editor = w.open_project_editor()
+        previous = editor.session
+        editor.session = ProjectSession(AudioProject("scene", "Evening Tide"))
+        editor.refresh()
+        self.addCleanup(lambda: (setattr(editor, "session", previous), editor.refresh(), editor._mark_clean()))
+        rate = 48000
+        t = np.arange(6 * rate) / rate
+        bed = np.stack([0.3 * np.sin(2 * np.pi * 330 * t)] * 2, axis=1).astype("float32")
+        music = w.sound_library.add(bed, rate, "Cello theme", "ace_step_15", False, kind="music")
+        path = os.path.join(self.tmp, "line.wav")
+        line = np.concatenate([np.zeros(rate), 0.3 * np.sin(2 * np.pi * 220 * t[:2 * rate])]).astype("float32")
+        sf.write(path, line, rate)
+        editor.add_voice_take(path)
+        self.assertTrue(self.pump(lambda: editor.import_worker is None))
+        editor.tree.setCurrentItem(None)
+        editor.add_sound(music)
+        self.assertTrue(self.pump(lambda: editor.import_worker is None))
+        voice, theme = editor.session.project.tracks
+        timeline = editor.timeline
+        self.assertEqual(set(timeline.controls), {voice.id, theme.id})
+        self.assertFalse(editor.tree.isVisibleTo(editor))          # one view: the clip list is behind Clips
+        editor.clips_button.click()
+        self.assertTrue(editor.tree.isVisibleTo(editor))
+        editor.clips_button.click()
+
+        # A drag on the music lane's slider: nothing changes until release, then one undo step
+        slider = timeline.controls[theme.id]["slider"]
+        revision = editor.session.project.revision
+        slider.setSliderDown(True)
+        slider.setValue(round(-14 / 0.5))
+        self.assertEqual(editor.session.project.revision, revision)
+        slider.setSliderDown(False)
+        slider.sliderReleased.emit()
+        self.assertEqual(editor.session.project.tracks[1].gain_db, -14.0)
+        self.assertEqual(editor.session.project.revision, revision + 1)
+        editor.undo()
+        self.assertEqual(editor.session.project.tracks[1].gain_db, 0.0)
+        self.assertEqual(slider.value(), 0)                         # the slider follows undo
+        editor.redo()
+        QTest.keyClick(slider, Qt.Key.Key_Left)                     # keys commit at once, 0.5 dB a step
+        self.assertEqual(editor.session.project.tracks[1].gain_db, -14.5)
+        self.assertIs(timeline.controls[theme.id]["slider"], slider)  # the same control after each edit
+
+        mute = timeline.controls[theme.id]["mute"]
+        mute.click()
+        self.assertTrue(editor.session.project.tracks[1].muted)
+        self.assertFalse(timeline.controls[theme.id]["slider"].isEnabled())
+        timeline.controls[theme.id]["mute"].click()
+        self.assertFalse(editor.session.project.tracks[1].muted)
+
+        # A click on a lane header selects that track (so Keep and add to Studio knows the lane)
+        y = timeline.RULER + timeline.LANE + timeline.LANE // 2 + 22
+        QTest.mouseClick(timeline, Qt.MouseButton.LeftButton, pos=QPoint(40, y))
+        self.assertEqual(editor._selected(), ("track", theme.id))
+        self.assertEqual(timeline.selected_track, theme.id)
+
+        # Project > Mix settings: how far sound tracks duck under voices
+        class Accept(project_editor.MixSettingsDialog):
+            def exec(self):
+                self.slider.setValue(round(-16 / 0.5))
+                return QDialog.DialogCode.Accepted
+        with patch.object(project_editor, "MixSettingsDialog", Accept):
+            editor.edit_mix_settings()
+        self.assertEqual(editor.session.project.duck_db, -16.0)
+
+        editor.balance_button.click()
+        self.assertTrue(self.pump(lambda: editor.balance_worker is None, timeout=30))
+        badge = timeline.badges[theme.id]
+        self.assertTrue(badge.endswith("dB under the voices"), badge)
+        self.assertAlmostEqual(float(badge.split(" dB")[0]), 14.5 + 16.0, delta=1.5)   # track gain + ducking
+        self.assertTrue(timeline.badges[voice.id].startswith("Voices "))
+        self.assertIn("Closest to the voices: Cello theme", editor.balance_note.text())
+        timeline.controls[theme.id]["slider"].setValue(round(-10 / 0.5))   # any edit makes the result stale
+        self.assertEqual(timeline.badges, {})
+        self.assertIn("Changed since the last check", editor.balance_note.text())
+
     @staticmethod
     def _select_track(editor, track_id):
         from PySide6.QtCore import Qt

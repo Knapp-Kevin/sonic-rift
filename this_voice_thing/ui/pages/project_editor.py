@@ -28,6 +28,8 @@ from this_voice_thing.core.audio_project_session import (
 )
 from this_voice_thing.core.audio_project_media import ProjectMedia
 from this_voice_thing.core.audio_project_export import export_project
+from this_voice_thing.core.audio_project_balance import balance_report, describe as describe_balance, summary as balance_summary
+from this_voice_thing.ui.project_levels import MixSettingsDialog
 from this_voice_thing.ui.project_timeline import TimelineView, envelope, preview_mix, seconds_label
 from this_voice_thing.ui.threads import TaskThread
 from this_voice_thing.ui.widgets import MenuButton, set_empty_text, set_role
@@ -124,6 +126,8 @@ class ProjectEditorDialog(QDialog):
         self.narration_job = None        # in-editor narration render: thread, target clip, then import
         self.peak_worker = None
         self.preview_worker = None
+        self.balance_worker = None
+        self.balance_revision = None     # project revision the Levels readouts were measured on
         self.preview_revision = None     # project revision the preview file was rendered from
         self.preview_file = None
         self.media = ProjectMedia(owner.script_dir, owner.sound_library)
@@ -143,6 +147,8 @@ class ProjectEditorDialog(QDialog):
             ("Open\u2026", self.open_project),
             ("Save", self.save_project),
             ("Rename\u2026", self.rename_project),
+            None,
+            ("Mix settings\u2026", self.edit_mix_settings),
         ]))
         layout.addLayout(title_row)
         self.heading = QLabel()
@@ -159,6 +165,15 @@ class ProjectEditorDialog(QDialog):
         self.position_label.setObjectName("Muted")
         transport.addWidget(self.position_label)
         transport.addStretch()
+        self.balance_note = QLabel()
+        self.balance_note.setObjectName("Muted")
+        transport.addWidget(self.balance_note)
+        self.balance_button = self._button(transport, "Check balance", self.check_balance)
+        self.balance_button.setToolTip("Measure how far each track sits under the voices. "
+                                       "Results appear on each track.")
+        self.clips_button = self._button(transport, "Clips", self.toggle_clip_list)
+        self.clips_button.setCheckable(True)
+        self.clips_button.setToolTip("Show the list of clips with exact times and gains.")
         layout.addLayout(transport)
         self.player = QMediaPlayer(self)
         self.audio_out = QAudioOutput(self)
@@ -172,6 +187,9 @@ class ProjectEditorDialog(QDialog):
                                                              self.edit_selected()))
         self.timeline.seekRequested.connect(self._seek_preview)
         self.timeline.clipPlaced.connect(self._clip_placed)
+        self.timeline.trackSelected.connect(self._select_track_in_tree)
+        self.timeline.gainCommitted.connect(self.set_track_gain)
+        self.timeline.muteToggled.connect(self.set_track_muted)
 
         self.tree = QTreeWidget()
         set_empty_text(self.tree, "Add a saved sound or narration to start. Each kind gets its own track.")
@@ -185,6 +203,7 @@ class ProjectEditorDialog(QDialog):
         self.tree.setAlternatingRowColors(True)
         self.tree.itemDoubleClicked.connect(lambda *_: self.edit_selected())
         self.tree.currentItemChanged.connect(self._tree_selection_changed)
+        self.tree.setVisible(False)       # the timeline is the Studio; Clips shows exact numbers
         split = QSplitter(Qt.Orientation.Vertical)
         split.addWidget(self.timeline)
         split.addWidget(self.tree)
@@ -278,6 +297,10 @@ class ProjectEditorDialog(QDialog):
         self.undo_button.setEnabled(self.session.can_undo)
         self.redo_button.setEnabled(self.session.can_redo)
         self.timeline.set_project(project)
+        if self.balance_revision is not None and self.balance_revision != project.revision:
+            self.balance_revision = None
+            self.timeline.set_badges({})
+            self.balance_note.setText("Changed since the last check")
         self._request_peaks()
         self.tree.clear()
         for track in project.tracks:
@@ -332,6 +355,7 @@ class ProjectEditorDialog(QDialog):
     def _tree_selection_changed(self, current, _previous):
         data = current.data(0, Qt.ItemDataRole.UserRole) if current else None
         self.timeline.set_selected(data[1] if data and data[0] == "clip" else None)
+        self.timeline.set_selected_track(data[1] if data and data[0] == "track" else None)
 
     def _request_peaks(self):
         """Waveforms for clips that have audio, computed off the UI thread, once per asset."""
@@ -519,6 +543,67 @@ class ProjectEditorDialog(QDialog):
 
     def redo(self):
         self._mutate(self.session.redo)
+
+    # ---- levels ----
+    def set_track_gain(self, track_id, gain_db):
+        """From the Levels panel: one undoable edit per slider release."""
+        self._mutate(lambda: self.session.update_track(track_id, gain_db=float(gain_db)), track_id)
+
+    def set_track_muted(self, track_id, muted):
+        self._mutate(lambda: self.session.update_track(track_id, muted=bool(muted)), track_id)
+
+    def set_duck_db(self, duck_db):
+        self._mutate(lambda: self.session.apply(lambda p: setattr(p, "duck_db", float(duck_db))))
+
+    def edit_mix_settings(self):
+        dialog = MixSettingsDialog(self.session.project.duck_db, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.set_duck_db(dialog.duck_db())
+
+    def toggle_clip_list(self):
+        self.tree.setVisible(self.clips_button.isChecked())
+
+    def _select_track_in_tree(self, track_id):
+        for index in range(self.tree.topLevelItemCount()):
+            item = self.tree.topLevelItem(index)
+            if item.data(0, Qt.ItemDataRole.UserRole) == ("track", track_id):
+                self.tree.setCurrentItem(item)
+                return
+
+    def check_balance(self):
+        if self.balance_worker is not None:
+            return
+        if not any(clip.asset_id for track in self.session.project.tracks for clip in track.clips):
+            self.balance_note.setText("Add a sound or a narration take first")
+            return
+        snapshot = deepcopy(self.session.project)
+        media = self.media
+        self.balance_button.setEnabled(False)
+        self.balance_note.setText("Measuring\u2026")
+        self.balance_worker = TaskThread(lambda: (balance_report(snapshot, media.resolve), snapshot.revision), self)
+        self.balance_worker.done.connect(self._balance_done)
+        self.balance_worker.finished.connect(self._balance_finished)
+        self.balance_worker.finished.connect(self.balance_worker.deleteLater)
+        self.balance_worker.start()
+
+    @Slot(object, str)
+    def _balance_done(self, result, error):
+        if error:
+            self.balance_note.setText("Couldn't measure the balance")
+            self._error(error)
+            return
+        report, revision = result
+        if revision != self.session.project.revision:
+            self.balance_note.setText("Changed while measuring: check again")
+            return
+        self.balance_revision = revision
+        self.timeline.set_badges({row["track_id"]: describe_balance(row) for row in report["tracks"]})
+        self.balance_note.setText(balance_summary(report))
+
+    @Slot()
+    def _balance_finished(self):
+        self.balance_worker = None
+        self.balance_button.setEnabled(True)
 
     def add_track(self):
         kind, ok = QInputDialog.getItem(self, "Track", "Type", ["voice", "sound", "effect"], 0, False)
@@ -1098,9 +1183,10 @@ class ProjectEditorDialog(QDialog):
         self.export_button.setEnabled(True)
 
     def _finish_quick_jobs(self):
-        """Peaks and the preview render only read media; let them finish before closing."""
+        """Peaks, the preview render and the balance check only read media; let them finish
+        before closing."""
         self.player.stop()
-        for job in (self.peak_worker, self.preview_worker):
+        for job in (self.peak_worker, self.preview_worker, self.balance_worker):
             if job is not None:
                 job.wait(10000)
 

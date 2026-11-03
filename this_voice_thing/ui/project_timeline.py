@@ -1,4 +1,5 @@
 """The project timeline: one lane per track, clips as blocks with their waveform, a playhead.
+Each lane header carries the track's level slider and Mute switch, and its Check balance badge.
 
 Painted with QPainter from the theme tokens, so it follows light/dark like the rest of the app.
 It only draws and reports clicks; the project and its edits stay in ProjectSession.
@@ -9,20 +10,24 @@ from dataclasses import replace
 import numpy as np
 from PySide6.QtCore import QEvent, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import QSizePolicy, QWidget
+from PySide6.QtWidgets import QPushButton, QSizePolicy, QWidget
 
 from this_voice_thing.core.timeline_visual_math import PEAKS_PER_SECOND, envelope, ruler_tick_step
 from this_voice_thing.ui import theme as ui_theme
+from this_voice_thing.ui.project_levels import GAIN_RANGE, LevelSlider, gain_text
 
 class TimelineView(QWidget):
     clipSelected = Signal(str)        # clip id
     clipActivated = Signal(str)       # double-click: edit
     seekRequested = Signal(float)     # seconds, from a click on the ruler
     clipPlaced = Signal(str, int, int, int)   # drag finished: clip id, start, length, source offset (frames)
+    trackSelected = Signal(str)       # a click on a lane header
+    gainCommitted = Signal(str, float)  # track id, dB: a level slider was released (or keyed)
+    muteToggled = Signal(str, bool)
 
     RULER = 26
     LANE = 72
-    HEADER = 148
+    HEADER = 196
     MIN_SECONDS = 10.0
     EDGE = 7                          # px at each end of a clip that trims instead of moving
     MIN_CLIP_SECONDS = 0.05           # trimming stops here: no near-zero clips
@@ -38,6 +43,9 @@ class TimelineView(QWidget):
         self._hits = []               # (QRectF, clip_id)
         self.source_lengths = {}      # asset_id -> (source samples, source rate): the trim limit
         self._drag = None             # the clip being moved or trimmed, while the button is down
+        self.selected_track = None
+        self.controls = {}            # track id -> {"slider": LevelSlider, "mute": QPushButton}
+        self.badges = {}              # track id -> short Check balance result
         self.setMouseTracking(True)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.setMinimumHeight(self.RULER + self.LANE + 8)
@@ -48,7 +56,67 @@ class TimelineView(QWidget):
         self._drag = None             # the clip may have changed under the pointer
         self.project = project
         self.setMinimumHeight(self.RULER + max(1, len(project.tracks if project else [])) * self.LANE + 8)
+        self._sync_controls()
         self.updateGeometry()
+        self.update()
+
+    def _sync_controls(self):
+        """One slider and one Mute switch per track, kept in step with the project."""
+        tracks = self.project.tracks if self.project else []
+        current = {track.id for track in tracks}
+        for track_id in [t for t in self.controls if t not in current]:
+            for widget in self.controls.pop(track_id).values():
+                widget.hide()
+                widget.setParent(None)
+                widget.deleteLater()
+        for track in tracks:
+            controls = self.controls.get(track.id)
+            if controls is None:
+                slider = LevelSlider(*GAIN_RANGE, f"{track.name} level", self)
+                slider.setToolTip("Drag to set this track's level. Play mix and Export use it.")
+                slider.committed.connect(lambda db, track_id=track.id: self.gainCommitted.emit(track_id, db))
+                slider.valueChanged.connect(lambda _v: self.update())      # the dB readout follows the drag
+                mute = QPushButton("Mute", self)
+                mute.setCheckable(True)
+                mute.setToolTip("Silence this track in Play mix and Export.")
+                mute.toggled.connect(lambda on, track_id=track.id: self.muteToggled.emit(track_id, on))
+                controls = self.controls[track.id] = {"slider": slider, "mute": mute}
+                slider.show()
+                mute.show()
+            controls["slider"].setAccessibleName(f"{track.name} level")
+            controls["mute"].setAccessibleName(f"Mute {track.name}")
+            controls["slider"].set_db(track.gain_db)
+            controls["slider"].setEnabled(not track.muted)
+            controls["mute"].blockSignals(True)
+            controls["mute"].setChecked(track.muted)
+            controls["mute"].blockSignals(False)
+        self._place_controls()
+
+    def _place_controls(self):
+        if not self.project:
+            return
+        for index, track in enumerate(self.project.tracks):
+            controls = self.controls.get(track.id)
+            if controls is None:
+                continue
+            top = self.RULER + index * self.LANE
+            mute = controls["mute"]
+            mute.setFixedHeight(24)
+            mute.adjustSize()
+            mute.move(int(self.HEADER - 10 - mute.width()), int(top + 5))
+            controls["slider"].setGeometry(12, int(top + 31), self.HEADER - 12 - 66, 18)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._place_controls()
+
+    def set_badges(self, badges):
+        """Check balance results, one short line per track id (an empty dict clears them)."""
+        self.badges = dict(badges)
+        self.update()
+
+    def set_selected_track(self, track_id):
+        self.selected_track = track_id
         self.update()
 
     def set_peaks(self, asset_id, peaks, source_length=None):
@@ -140,18 +208,30 @@ class TimelineView(QWidget):
         painter.fillRect(lane, QColor(c["surface"] if index % 2 == 0 else c["surface_alt"]))
         painter.setPen(QColor(c["border"]))
         painter.drawLine(lane.bottomLeft(), lane.bottomRight())
-        # header: name, kind and mute state
+        # header: the name with its Mute switch, the level slider with its dB, the balance badge
+        if track.id == self.selected_track:
+            painter.fillRect(QRectF(0, top, 3, self.LANE), QColor(c["focus"]))
+        controls = self.controls.get(track.id)
+        name_width = int(self.HEADER - 26 - (controls["mute"].width() if controls else 0))
         painter.setPen(QColor(c["muted"] if track.muted else c["text"]))
         name_font = QFont(self.font())
         name_font.setBold(True)
         painter.setFont(name_font)
-        painter.drawText(QRectF(12, top + 8, self.HEADER - 18, 18), Qt.AlignmentFlag.AlignLeft,
-                         painter.fontMetrics().elidedText(track.name, Qt.TextElideMode.ElideRight, self.HEADER - 18))
+        painter.drawText(QRectF(12, top + 8, name_width, 18), Qt.AlignmentFlag.AlignLeft,
+                         painter.fontMetrics().elidedText(track.name, Qt.TextElideMode.ElideRight, name_width))
         painter.setFont(self.font())
-        painter.setPen(QColor(c["muted"]))
-        detail = track.kind.capitalize() + ("  ·  muted" if track.muted else "") + (
-            f"  ·  {track.gain_db:+.1f} dB" if track.gain_db else "")
-        painter.drawText(QRectF(12, top + 28, self.HEADER - 18, 18), Qt.AlignmentFlag.AlignLeft, detail)
+        level = controls["slider"].db() if controls else track.gain_db
+        painter.drawText(QRectF(self.HEADER - 64, top + 30, 54, 20),
+                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, gain_text(level))
+        badge = "Muted" if track.muted else self.badges.get(track.id, "")
+        if badge:
+            small = QFont(self.font())
+            small.setPointSizeF(max(7.0, small.pointSizeF() - 1.0))
+            painter.setFont(small)
+            painter.setPen(QColor(c["muted"]))
+            painter.drawText(QRectF(12, top + 51, self.HEADER - 22, 16), Qt.AlignmentFlag.AlignLeft,
+                             painter.fontMetrics().elidedText(badge, Qt.TextElideMode.ElideRight, self.HEADER - 22))
+            painter.setFont(self.font())
         rate = self.project.sample_rate
         tint = QColor(c["accent"] if track.kind == "voice" else c["brand_secondary"] if track.kind == "sound"
                       else c["brand_blue"])
@@ -278,6 +358,11 @@ class TimelineView(QWidget):
             return
         if point.y() <= self.RULER and point.x() >= self.HEADER:
             self.seekRequested.emit(self._seconds_at(point.x()))
+            return
+        if point.x() < self.HEADER and point.y() > self.RULER and self.project:
+            index = int((point.y() - self.RULER) // self.LANE)
+            if 0 <= index < len(self.project.tracks):
+                self.trackSelected.emit(self.project.tracks[index].id)
             return
         clip_id = self._clip_at(point)
         if not clip_id:

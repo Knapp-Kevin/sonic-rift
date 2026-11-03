@@ -11,14 +11,30 @@ import numpy as np
 from this_voice_thing.core.audio_timeline_mix import TimelineMix
 
 
-def duck_ambience(project, raw_mix, attenuation_db=-10.0, threshold_db=-42.0,
+def voice_activity(narration, sample_rate, threshold_db=-42.0):
+    """Per-frame True where the summed voice stems are speaking (10 ms RMS over the threshold)."""
+    frames = len(narration)
+    energy = np.mean(narration.astype(np.float64) ** 2, axis=1)
+    window = max(1, int(0.01 * sample_rate))
+    cumulative = np.concatenate(([0.0], np.cumsum(energy)))
+    indices = np.arange(frames)
+    end = np.minimum(indices + window, frames)
+    rms_power = (cumulative[end] - cumulative[indices]) / np.maximum(1, end - indices)
+    return rms_power >= 10 ** (threshold_db / 10)
+
+
+def duck_ambience(project, raw_mix, attenuation_db=None, threshold_db=-42.0,
                   attack_ms=20.0, release_ms=350.0):
     """Lower sound-track stems while voice PCM is active; preserve voice/effects.
+
+    `attenuation_db` defaults to the project's own ducking amount (Studio's Levels panel).
 
     Duck gain rises smoothly over attack time and recovers over release time.
     The signal remains unmastered; a finishing pass is required before export.
     """
     project.validate()
+    if attenuation_db is None:
+        attenuation_db = project.duck_db
     if raw_mix.sample_rate != project.sample_rate:
         raise ValueError("Mix sample rate differs from project")
     for value, lower, upper, label in (
@@ -44,13 +60,7 @@ def duck_ambience(project, raw_mix, attenuation_db=-10.0, threshold_db=-42.0,
     if not any(t.kind == "sound" and not t.muted for t in project.tracks) or attenuation_db == 0:
         return TimelineMix(sum(stems.values(), np.zeros_like(narration)), project.sample_rate, stems)
 
-    energy = np.mean(narration.astype(np.float64) ** 2, axis=1)
-    window = max(1, int(0.01 * project.sample_rate))
-    cumulative = np.concatenate(([0.0], np.cumsum(energy)))
-    indices = np.arange(frames)
-    end = np.minimum(indices + window, frames)
-    rms_power = (cumulative[end] - cumulative[indices]) / np.maximum(1, end - indices)
-    active = rms_power >= 10 ** (threshold_db / 10)
+    active = voice_activity(narration, project.sample_rate, threshold_db)
 
     attack_coeff = math.exp(-1.0 / (attack_ms / 1000 * project.sample_rate))
     release_coeff = math.exp(-1.0 / (release_ms / 1000 * project.sample_rate))
