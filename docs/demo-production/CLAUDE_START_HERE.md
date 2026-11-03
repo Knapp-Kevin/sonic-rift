@@ -1,3 +1,5 @@
+> **Release transition checkpoint (2026-11-03):** v0.9.1 tag is now at commit `9e5ded1fba5d0f9f19b5c1ed32253a74ac087696`. Signed Windows installer workflow run [41720271010](https://github.com/Knapp-Kevin/sonic-rift/actions/runs/41720271010) passed and attached `SonicRift-Setup-0.9.1.exe` (GitHub asset SHA-256 `f5f192c1da11b24e0b3d093efeecb0aaf2c15b30bc2ee395b2f4cecc2d968456`). **However the GitHub Release is still DRAFT at inspection time**, not a published download. Use the **v0.9.1 tagged commit** for the next rehearsal. Once the draft is published and the signed installed application passes acceptance, use that exact released installer/build for final capture. Do not call the older `06ff4c0` dev SHA the release baseline or update website download links before the GitHub Release is public. No recording starts solely because the tag or CI is green; creative approvals and exact installer verification remain required.
+
 # Claude start here: Sonic Rift film revision
 **Status:** PREPRODUCTION READY FOR LOCAL REHEARSAL; FINAL FILM NOT APPROVED.  
 **Do not use the rejected image-generated storyboard sheets, ZIP, lighthouse art or alternate logo.**  
