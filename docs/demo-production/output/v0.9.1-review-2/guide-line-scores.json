@@ -1,0 +1,47 @@
+{
+ "line": "Now give the scene its own music. Describe the mood, generate a few possibilities, and keep the one that feels right.",
+ "approved_reference": [
+  "C:/LocalAI/Voice/Chatterbox/sr-demo/docs/marketing/audio\\01-guide-a-world-can-begin.wav",
+  "C:/LocalAI/Voice/Chatterbox/sr-demo/docs/marketing/audio\\03-guide-someone-answers.wav",
+  "C:/LocalAI/Voice/Chatterbox/sr-demo/docs/marketing/audio\\05-guide-a-shoreline.wav",
+  "C:/LocalAI/Voice/Chatterbox/sr-demo/docs/marketing/audio\\07-guide-a-character-can-return.wav",
+  "C:/LocalAI/Voice/Chatterbox/sr-demo/docs/marketing/audio\\09-guide-place-every-line.wav",
+  "C:/LocalAI/Voice/Chatterbox/sr-demo/docs/marketing/audio\\10-guide-together.wav"
+ ],
+ "approved_guide_words_per_second": 3.77,
+ "takes": [
+  {
+   "take": "guide-music-take1.wav",
+   "seconds": 6.61,
+   "similarity_to_approved_guide": 0.9515,
+   "words_per_second": 4.36,
+   "heard": "Now give this scene its own music, describe the mood, generate a few possibilities, and keep the one that feels right.",
+   "missing_words": []
+  },
+  {
+   "take": "guide-music-take2.wav",
+   "seconds": 6.61,
+   "similarity_to_approved_guide": 0.9507,
+   "words_per_second": 4.3,
+   "heard": "Now give the scene its own music, describe the mood, generate a few possibilities, and keep the one that feels right.",
+   "missing_words": []
+  },
+  {
+   "take": "guide-music-take3.wav",
+   "seconds": 6.9,
+   "similarity_to_approved_guide": 0.9495,
+   "words_per_second": 4.17,
+   "heard": "Now give the scene its own music, describe the mood, generate a few possibilities, and keep the one that feels right.",
+   "missing_words": []
+  },
+  {
+   "take": "guide-music-take4.wav",
+   "seconds": 7.04,
+   "similarity_to_approved_guide": 0.9563,
+   "words_per_second": 4.01,
+   "heard": "Now give the scene its own music, describe the mood, generate a few possibilities, and keep the one that feels right.",
+   "missing_words": []
+  }
+ ],
+ "picked": "guide-music-take4.wav"
+}

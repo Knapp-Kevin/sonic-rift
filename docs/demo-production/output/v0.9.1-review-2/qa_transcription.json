@@ -1,0 +1,221 @@
+{
+ "captions": [
+  {
+   "at": 3.26,
+   "speaker": "Guide",
+   "caption": "A world can begin with just a few words.",
+   "heard": "A world can begin with just a few words.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 9.32,
+   "speaker": "Keeper",
+   "caption": "The beacon is still burning.",
+   "heard": "The beacon is still burning.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 11.44,
+   "speaker": "Keeper",
+   "caption": "Follow it toward shore.",
+   "heard": "Follow it towards shore.",
+   "missing_words": [
+    "toward"
+   ],
+   "pass": false
+  },
+  {
+   "at": 14.02,
+   "speaker": "Guide",
+   "caption": "Then someone answers from across the water.",
+   "heard": "Then someone answers from across the water.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 17.5,
+   "speaker": "Traveler",
+   "caption": "I see it now.",
+   "heard": "I see it now.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 18.76,
+   "speaker": "Traveler",
+   "caption": "Keep the light on.",
+   "heard": "Keep the light on.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 20.84,
+   "speaker": "Guide",
+   "caption": "Give their conversation a shoreline.",
+   "heard": "Give their conversation a shoreline.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 29.97,
+   "speaker": "Guide",
+   "caption": "A character can return without losing their voice.",
+   "heard": "A character can return without losing their voice.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 35.56,
+   "speaker": "Keeper (clone)",
+   "caption": "I'll keep it burning until you're home.",
+   "heard": "I'll keep it burning until you're home.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 38.88,
+   "speaker": "Guide",
+   "caption": "Now give the scene its own music.",
+   "heard": "Now give the scene its own music.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 41.09,
+   "speaker": "Guide",
+   "caption": "Describe the mood, generate a few possibilities, and keep the one that feels right.",
+   "heard": "Describe the mood, generate a few possibilities, and keep the one that feels right.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 55.19,
+   "speaker": "Guide",
+   "caption": "Place every line where it belongs, and let the sea sit underneath.",
+   "heard": "Place every line where it belongs, and let the sea sit underneath.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 60.93,
+   "speaker": "Guide",
+   "caption": "A voice... an answer... the sound of the sea.",
+   "heard": "A voice, an answer, the sound of the sea.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 64.33,
+   "speaker": "Guide",
+   "caption": "Together, they become a scene.",
+   "heard": "Together they become a scene.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 68.44,
+   "speaker": "Keeper",
+   "caption": "The beacon is still burning.",
+   "heard": "the beacon is still burning.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 70.56,
+   "speaker": "Keeper",
+   "caption": "Follow it toward shore.",
+   "heard": "Follow it towards shore.",
+   "missing_words": [
+    "toward"
+   ],
+   "pass": false
+  },
+  {
+   "at": 72.56,
+   "speaker": "Traveler",
+   "caption": "I see it now.",
+   "heard": "I see it now.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 73.83,
+   "speaker": "Traveler",
+   "caption": "Keep the light on.",
+   "heard": "Keep the light on.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 75.59,
+   "speaker": "Keeper (clone)",
+   "caption": "I'll keep it burning until you're home.",
+   "heard": "I'll keep it burning until you're home.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 83.5,
+   "speaker": "Brand narrator",
+   "caption": "Sonic Rift.",
+   "heard": "Sonic Rift",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "at": 85.28,
+   "speaker": "Brand narrator",
+   "caption": "Make worlds you can hear.",
+   "heard": "Make worlds you can hear.",
+   "missing_words": [],
+   "pass": true
+  }
+ ],
+ "takes": [
+  {
+   "role": "Keeper",
+   "script": "The beacon is still burning. Follow it toward shore.",
+   "heard": "The beacon is still burning, follow it toward shore.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "role": "Traveler",
+   "script": "I see it now. Keep the light on.",
+   "heard": "I see it now. Keep the light on.",
+   "missing_words": [],
+   "pass": true
+  },
+  {
+   "role": "Keeper (clone)",
+   "script": "I'll keep it burning until you're home.",
+   "heard": "I'll keep it burning until you're home.",
+   "missing_words": [],
+   "pass": true
+  }
+ ],
+ "music": [
+  {
+   "file": "take D (kept, used in the scene)",
+   "heard": "Thank you.",
+   "words": 2
+  },
+  {
+   "file": "new on-camera take",
+   "heard": "Thank you for listening.",
+   "words": 4
+  }
+ ],
+ "summary": {
+  "captions_pass": 19,
+  "captions_total": 21,
+  "takes_pass": 3,
+  "takes_total": 3,
+  "music_words": {
+   "take D (kept, used in the scene)": 2,
+   "new on-camera take": 4
+  }
+ }
+}

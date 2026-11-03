@@ -1,0 +1,658 @@
+{
+ "total": 88.304,
+ "opener_seconds": 2.6,
+ "end_card": [
+  83.21441266877004,
+  5.09
+ ],
+ "levels": [
+  {
+   "role": "Guide",
+   "at": 3.2,
+   "seconds": 2.49,
+   "source_lufs": -18.8,
+   "target_lufs": -20.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-01.wav"
+  },
+  {
+   "role": "Keeper",
+   "at": 9.216,
+   "seconds": 3.51,
+   "source_lufs": -18.4,
+   "target_lufs": -20.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\chatterbox_outputs\\chatterbox_20261103_163714_seed812445_full_stitched.wav"
+  },
+  {
+   "role": "Guide",
+   "at": 13.955,
+   "seconds": 2.32,
+   "source_lufs": -18.1,
+   "target_lufs": -20.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-02.wav"
+  },
+  {
+   "role": "Traveler",
+   "at": 17.478,
+   "seconds": 2.08,
+   "source_lufs": -18.0,
+   "target_lufs": -20.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\chatterbox_outputs\\chatterbox_20261103_163727_seed900747_full_stitched.wav"
+  },
+  {
+   "role": "Guide",
+   "at": 20.778,
+   "seconds": 1.93,
+   "source_lufs": -18.0,
+   "target_lufs": -20.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-03.wav"
+  },
+  {
+   "role": "Ocean",
+   "at": 22.906,
+   "seconds": 6.9,
+   "source_lufs": -23.7,
+   "target_lufs": -27.0,
+   "source": "C:/Users/krkna/AppData/Local/Temp/soundscape_mihtao3w/take_0_53.wav"
+  },
+  {
+   "role": "Guide",
+   "at": 29.906,
+   "seconds": 2.72,
+   "source_lufs": -17.8,
+   "target_lufs": -20.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-04.wav"
+  },
+  {
+   "role": "Keeper (clone)",
+   "at": 35.496,
+   "seconds": 1.79,
+   "source_lufs": -18.6,
+   "target_lufs": -20.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\chatterbox_outputs\\chatterbox_20261103_163901_seed683781_full_stitched.wav"
+  },
+  {
+   "role": "Guide",
+   "at": 38.805,
+   "seconds": 7.04,
+   "source_lufs": -18.7,
+   "target_lufs": -20.0,
+   "source": "C:/LocalAI/Voice/Chatterbox/demo-v091/guide/guide-music.wav"
+  },
+  {
+   "role": "Music (new take)",
+   "at": 46.198,
+   "seconds": 4.12,
+   "source_lufs": -18.8,
+   "target_lufs": -27.0,
+   "source": "C:\\Users\\krkna\\AppData\\Local\\Temp\\sonic_rift_music_fdkjus72\\take_1_seed3201.wav"
+  },
+  {
+   "role": "Music (kept)",
+   "at": 49.123,
+   "seconds": 5.84,
+   "source_lufs": -16.6,
+   "target_lufs": -27.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\sound_library\\audio\\Round_2_D_ce6859b87755.wav"
+  },
+  {
+   "role": "Guide",
+   "at": 55.067,
+   "seconds": 3.86,
+   "source_lufs": -18.4,
+   "target_lufs": -20.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-05.wav"
+  },
+  {
+   "role": "Guide",
+   "at": 60.872,
+   "seconds": 4.96,
+   "source_lufs": -18.5,
+   "target_lufs": -20.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-06.wav"
+  },
+  {
+   "role": "Studio mix",
+   "at": 66.335,
+   "seconds": 14.48,
+   "source_lufs": -19.8,
+   "target_lufs": -19.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\studio-preview-mix.wav"
+  },
+  {
+   "role": "Music (ending)",
+   "at": 80.815,
+   "seconds": 7.49,
+   "source_lufs": -15.0,
+   "target_lufs": -29.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\sound_library\\audio\\Round_2_D_ce6859b87755.wav"
+  },
+  {
+   "role": "Brand narrator",
+   "at": 83.464,
+   "seconds": 3.44,
+   "source_lufs": -18.2,
+   "target_lufs": -19.0,
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\brand-tagline.wav"
+  }
+ ],
+ "dead_air_removed": [
+  {
+   "quiet": [
+    0.0,
+    1.5
+   ],
+   "removed_seconds": 0.9
+  },
+  {
+   "quiet": [
+    3.09,
+    9.58
+   ],
+   "removed_seconds": 2.96
+  },
+  {
+   "quiet": [
+    10.13,
+    13.23
+   ],
+   "removed_seconds": 1.88
+  },
+  {
+   "quiet": [
+    13.68,
+    15.86
+   ],
+   "removed_seconds": 0.98
+  },
+  {
+   "quiet": [
+    16.96,
+    20.04
+   ],
+   "removed_seconds": 1.87
+  },
+  {
+   "quiet": [
+    30.03,
+    36.78
+   ],
+   "removed_seconds": 3.88
+  },
+  {
+   "quiet": [
+    34.68,
+    38.38
+   ],
+   "removed_seconds": 2.17
+  },
+  {
+   "quiet": [
+    50.12,
+    52.52
+   ],
+   "removed_seconds": 0.06
+  },
+  {
+   "quiet": [
+    56.33,
+    61.23
+   ],
+   "removed_seconds": 2.96
+  }
+ ],
+ "playback_retimed": [
+  {
+   "role": "Keeper",
+   "frames": 47,
+   "shown_seconds": 3.92,
+   "played_seconds": 4.12
+  },
+  {
+   "role": "Ocean",
+   "frames": 43,
+   "shown_seconds": 3.58,
+   "played_seconds": 3.8
+  },
+  {
+   "role": "Keeper (clone)",
+   "frames": 28,
+   "shown_seconds": 2.33,
+   "played_seconds": 2.39
+  },
+  {
+   "role": "Music (new take)",
+   "frames": 29,
+   "shown_seconds": 2.42,
+   "played_seconds": 2.6
+  },
+  {
+   "role": "Music (kept)",
+   "frames": 42,
+   "shown_seconds": 3.5,
+   "played_seconds": 3.6
+  },
+  {
+   "role": "Studio mix",
+   "frames": 154,
+   "shown_seconds": 12.83,
+   "played_seconds": 14.48
+  }
+ ],
+ "story_edits": [
+  {
+   "edit": "composing frame held longer for the Guide line",
+   "seconds": 3.42
+  },
+  {
+   "edit": "Guide line for the music step",
+   "at": 50.84,
+   "seconds": 7.04
+  },
+  {
+   "edit": "new take audition shortened",
+   "kept_seconds": 1.52,
+   "removed_seconds": 1.08
+  },
+  {
+   "edit": "take D selection held",
+   "seconds": 1.4,
+   "crossfade_seconds": 0.6
+  },
+  {
+   "edit": "ending",
+   "export_result_seconds": 2.0,
+   "tagline_after_card_seconds": 0.25,
+   "tail_after_tagline_seconds": 1.4,
+   "music_bed": "take D from 14.48 s into the file, from the end of the Studio playback, 0.5 s fade in, faded out under the ending"
+  }
+ ],
+ "mix_lufs_before": -20.92,
+ "limiter_max_reduction_db": 3.46,
+ "final_peak": 0.891,
+ "cues": [
+  [
+   3.26,
+   5.87,
+   "<v Guide>A world can begin with just a few words."
+  ],
+  [
+   9.316,
+   11.086,
+   "<v Keeper>The beacon is still burning."
+  ],
+  [
+   11.436,
+   12.866,
+   "<v Keeper>Follow it toward shore."
+  ],
+  [
+   14.015,
+   16.485,
+   "<v Guide>Then someone answers from across the water."
+  ],
+  [
+   17.498,
+   18.508,
+   "<v Traveler>I see it now."
+  ],
+  [
+   18.758,
+   19.788,
+   "<v Traveler>Keep the light on."
+  ],
+  [
+   20.838,
+   22.866,
+   "<v Guide>Give their conversation a shoreline."
+  ],
+  [
+   22.906,
+   29.805999999999997,
+   "[Ocean waves]"
+  ],
+  [
+   29.966,
+   32.856,
+   "<v Guide>A character can return without losing their voice."
+  ],
+  [
+   35.556,
+   37.446,
+   "<v Keeper (clone)>I'll keep it burning until you're home."
+  ],
+  [
+   38.885,
+   40.835,
+   "<v Guide>Now give the scene its own music."
+  ],
+  [
+   41.085,
+   46.035,
+   "<v Guide>Describe the mood, generate a few possibilities, and keep the one that feels right."
+  ],
+  [
+   46.198,
+   47.683,
+   "[A new take: cello and strings]"
+  ],
+  [
+   47.723,
+   54.967,
+   "[Take D, kept earlier: cello and strings]"
+  ],
+  [
+   55.187,
+   59.017,
+   "<v Guide>Place every line where it belongs, and let the sea sit underneath."
+  ],
+  [
+   60.932,
+   64.222,
+   "<v Guide>A voice... an answer... the sound of the sea."
+  ],
+  [
+   64.332,
+   66.002,
+   "<v Guide>Together, they become a scene."
+  ],
+  [
+   66.335,
+   68.235,
+   "[Ocean waves and music under the scene]"
+  ],
+  [
+   68.435,
+   70.205,
+   "<v Keeper>The beacon is still burning."
+  ],
+  [
+   70.555,
+   71.985,
+   "<v Keeper>Follow it toward shore."
+  ],
+  [
+   72.565,
+   73.575,
+   "<v Traveler>I see it now."
+  ],
+  [
+   73.825,
+   74.855,
+   "<v Traveler>Keep the light on."
+  ],
+  [
+   75.585,
+   77.475,
+   "<v Keeper (clone)>I'll keep it burning until you're home."
+  ],
+  [
+   80.815,
+   82.41499999999999,
+   "[Music continues under the ending]"
+  ],
+  [
+   83.504,
+   84.554,
+   "<v Brand narrator>Sonic Rift."
+  ],
+  [
+   85.284,
+   86.934,
+   "<v Brand narrator>Make worlds you can hear."
+  ]
+ ],
+ "chapters": [
+  [
+   2.6,
+   "An empty world"
+  ],
+  [
+   6.39,
+   "Give it a keeper"
+  ],
+  [
+   13.75,
+   "Someone answers"
+  ],
+  [
+   20.58,
+   "Give it a shoreline"
+  ],
+  [
+   29.71,
+   "Keep a character's voice"
+  ],
+  [
+   38.31,
+   "Give it music"
+  ],
+  [
+   54.92,
+   "Arrange, balance and save"
+  ],
+  [
+   66.33,
+   "Hear the scene"
+  ],
+  [
+   81.21,
+   "Export the mix"
+  ],
+  [
+   83.21,
+   "Sonic Rift"
+  ]
+ ],
+ "events": [
+  {
+   "at": 3.2,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\vo-01.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-01.wav",
+   "role": "Guide",
+   "length": 2.493333333333333,
+   "gain_db": 0.0,
+   "fade": 0.02,
+   "text": "A world can begin with just a few words.",
+   "file_seconds": 2.493,
+   "session_at": 1.5,
+   "fade_out": 0.02
+  },
+  {
+   "at": 9.216,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\01-keeper.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\chatterbox_outputs\\chatterbox_20261103_163714_seed812445_full_stitched.wav",
+   "role": "Keeper",
+   "length": 3.514666666666667,
+   "gain_db": 0.0,
+   "fade": 0.25,
+   "text": "The beacon is still burning. Follow it toward shore.",
+   "file_seconds": 3.515,
+   "session_at": 10.477,
+   "fade_out": 0.25
+  },
+  {
+   "at": 13.955,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\vo-02.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-02.wav",
+   "role": "Guide",
+   "length": 2.3226666666666667,
+   "gain_db": 0.0,
+   "fade": 0.02,
+   "text": "Then someone answers from across the water.",
+   "file_seconds": 2.323,
+   "session_at": 17.091,
+   "fade_out": 0.02
+  },
+  {
+   "at": 17.478,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\03-traveler.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\chatterbox_outputs\\chatterbox_20261103_163727_seed900747_full_stitched.wav",
+   "role": "Traveler",
+   "length": 2.08,
+   "gain_db": 0.0,
+   "fade": 0.25,
+   "text": "I see it now. Keep the light on.",
+   "file_seconds": 2.08,
+   "session_at": 21.591,
+   "fade_out": 0.25
+  },
+  {
+   "at": 20.778,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\vo-03.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-03.wav",
+   "role": "Guide",
+   "length": 1.928,
+   "gain_db": 0.0,
+   "fade": 0.02,
+   "text": "Give their conversation a shoreline.",
+   "file_seconds": 1.928,
+   "session_at": 26.758,
+   "fade_out": 0.02
+  },
+  {
+   "at": 22.906,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\05-ocean.wav",
+   "source": "C:/Users/krkna/AppData/Local/Temp/soundscape_mihtao3w/take_0_53.wav",
+   "role": "Ocean",
+   "length": 6.9,
+   "gain_db": 0.0,
+   "fade": 0.6,
+   "text": "[ocean waves]",
+   "file_seconds": 20.0,
+   "session_at": 28.886,
+   "fade_out": 2.3000000000000003
+  },
+  {
+   "at": 29.906,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\vo-04.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-04.wav",
+   "role": "Guide",
+   "length": 2.7226666666666666,
+   "gain_db": 0.0,
+   "fade": 0.02,
+   "text": "A character can return without losing their voice.",
+   "file_seconds": 2.723,
+   "session_at": 35.886,
+   "fade_out": 0.02
+  },
+  {
+   "at": 35.496,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\07-keeper-clone.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\chatterbox_outputs\\chatterbox_20261103_163901_seed683781_full_stitched.wav",
+   "role": "Keeper (clone)",
+   "length": 1.7866666666666666,
+   "gain_db": 0.0,
+   "fade": 0.25,
+   "text": "I'll keep it burning until you're home.",
+   "file_seconds": 1.787,
+   "session_at": 45.359,
+   "fade_out": 0.25
+  },
+  {
+   "at": 38.805,
+   "path": "C:/LocalAI/Voice/Chatterbox/demo-v091/guide/guide-music.wav",
+   "source": "C:/LocalAI/Voice/Chatterbox/demo-v091/guide/guide-music.wav",
+   "role": "Guide",
+   "length": 7.042666666666666,
+   "gain_db": 0.0,
+   "fade": 0.02,
+   "text": "Now give the scene its own music. Describe the mood, generate a few possibilities, and keep the one that feels right.",
+   "file_seconds": 7.043,
+   "session_at": 50.838,
+   "fade_out": 0.02
+  },
+  {
+   "at": 46.198,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\08-music-new-take.wav",
+   "source": "C:\\Users\\krkna\\AppData\\Local\\Temp\\sonic_rift_music_fdkjus72\\take_1_seed3201.wav",
+   "role": "Music (new take)",
+   "length": 4.125,
+   "gain_db": 0.0,
+   "fade": 0.5,
+   "text": "[a new take plays]",
+   "file_seconds": 30.0,
+   "crossfade_out": 1.8,
+   "session_at": 58.231,
+   "fade_out": 1.8
+  },
+  {
+   "at": 49.123,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\09-music-kept.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\sound_library\\audio\\Round_2_D_ce6859b87755.wav",
+   "role": "Music (kept)",
+   "length": 5.844,
+   "gain_db": 0.0,
+   "fade": 0.6,
+   "text": "[cello and strings]",
+   "file_seconds": 30.0,
+   "session_at": 61.156,
+   "fade_out": 1.9480000000000002
+  },
+  {
+   "at": 55.067,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\vo-05.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-05.wav",
+   "role": "Guide",
+   "length": 3.864,
+   "gain_db": 0.0,
+   "fade": 0.02,
+   "text": "Place every line where it belongs, and let the sea sit underneath.",
+   "file_seconds": 3.864,
+   "session_at": 67.156,
+   "fade_out": 0.02
+  },
+  {
+   "at": 60.872,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\vo-06.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\guide-06.wav",
+   "role": "Guide",
+   "length": 4.962666666666666,
+   "gain_db": 0.0,
+   "fade": 0.02,
+   "text": "A voice... an answer... the sound of the sea. Together, they become a scene.",
+   "file_seconds": 4.963,
+   "session_at": 75.922,
+   "fade_out": 0.02
+  },
+  {
+   "at": 66.335,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\12-studio-mix.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\studio-preview-mix.wav",
+   "role": "Studio mix",
+   "length": 14.48,
+   "gain_db": 0.0,
+   "fade": 0.3,
+   "text": "[scene]",
+   "file_seconds": 14.48,
+   "session_at": 81.385,
+   "fade_out": 3.0
+  },
+  {
+   "at": 80.815,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\sound_library\\audio\\Round_2_D_ce6859b87755.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\profile\\sound_library\\audio\\Round_2_D_ce6859b87755.wav",
+   "role": "Music (ending)",
+   "length": 7.489,
+   "offset": 14.48,
+   "gain_db": 0.0,
+   "fade": 0.5,
+   "text": "[Music continues under the ending]",
+   "file_seconds": 30.0,
+   "session_at": 95.865,
+   "fade_out": 2.6
+  },
+  {
+   "at": 83.464,
+   "path": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\capture1\\audio\\vo-brand.wav",
+   "source": "C:\\LocalAI\\Voice\\Chatterbox\\demo-v091\\guide\\brand-tagline.wav",
+   "role": "Brand narrator",
+   "length": 3.44,
+   "gain_db": 0.0,
+   "fade": 0.02,
+   "text": "Sonic Rift. Make worlds you can hear.",
+   "file_seconds": 3.44,
+   "session_at": 98.514,
+   "fade_out": 0.02
+  }
+ ]
+}
