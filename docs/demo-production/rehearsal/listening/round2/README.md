@@ -30,7 +30,7 @@ Every music clip went in with **Keep and add to Studio** while the waves track w
 | scene_with_F.wav | `45db16c1faa1e34aa53a26c490a8b2057001c5b1533a1b31afd1c4eb9963d631` |
 
 ## Provenance
-Sonic Rift development build `bc84a4a` (post-0.9.0-alpha; the recording baseline), run from source in a disposable profile, 2026-11-03.
+Sonic Rift development build `bc84a4a` (post-0.9.0-alpha: the music-track fix; the Music page is unchanged in the current baseline `59d1322`, which adds the Levels panel), run from source in a disposable profile, 2026-11-03.
 ACE-Step 1.5 (2B turbo), weights `19671f406d603126926c1b7e2adc169acbcade22`, source `ca1e85fe9430179831e6bc6be790c332190a3866`,
 MIT License. Seeds 3101–3103 (one take per prompt). Takes are not reproducible from the seed, so the picked file is the cue.
 Log: `round2_log.txt`. Harness: `round2_music.py` (uses `../../fix-verification/bc84a4a-rehearse_scene.py`).

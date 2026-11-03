@@ -1,0 +1,9 @@
+[13:37:39] screenshot 01_levels_before_check.png
+[13:37:40] Check balance: done in 1.0 s
+[13:37:40] Dialogue: +0.0 dB | Voices: -17.8 LUFS
+[13:37:40] Shoreline waves: −6.0 dB | 21.3 dB under the voices · -31.0 LUFS on its own
+[13:37:40] Round 2 D: −14.0 dB | 22.7 dB under the voices · -30.5 LUFS on its own
+[13:37:40] Round 2 E: −14.0 dB | Muted
+[13:37:40] Round 2 F: −14.0 dB | Muted
+[13:37:40] summary: Voices speak for 5.5 s. | duck −10 dB
+[13:37:40] screenshot 02_levels_after_check.png

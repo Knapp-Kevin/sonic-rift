@@ -52,8 +52,8 @@ Findings:
 1. **Defect: music lands on the selected sound track.** If a sound track (the waves) is selected, "Keep and add to
    Studio…" adds the music clip to that same track, overlapping the waves. The labels overlap on screen and the two can't be balanced
    separately (`scene_try1`, kept locally). Workaround in the real UI: Add › Empty track… (sound, "Music"), select it, then
-   Keep and add to Studio. **Fixed** on branch `fix/music-own-studio-track` (commit `bc84a4a`, draft PR #144, not merged): music
-   and other sounds join a selected sound track only if it holds the same kind or is empty. The full suite passes (669 tests,
+   Keep and add to Studio. **Fixed** on branch `fix/music-own-studio-track` (commits `bc84a4a` and `1c67a10`, draft PR #144, not merged; `bc84a4a` alone fails `test_version` because of a CHANGELOG heading, removed in `1c67a10`): music
+   and other sounds join a selected sound track only if it holds the same kind or is empty. The full suite passes at fix head `1c67a10` (669 tests,
    Windows platform). Verified in the real app: with the waves selected, the music got its own "Harbor light underscore" track.
 2. **Not reproducible by seed:** the same seed gave different audio in two runs (hashes differ). The owner-picked take
    must be kept as a file. The final film must use the kept asset, not a regeneration.
@@ -76,7 +76,7 @@ Plan first on. **Not verified: absence of sung vocals** (no transcriber in this 
 | S00 | Static 2.0–2.5 s hold of the exact mark on the navy background, no animation, silence. Only after §3 is cleared | The logo isn't verified, and there are no animation tools for an approved mark |
 | S01 | Start on the approved empty-Studio still for ≤1.5 s, then cut to the real saved empty project. Guide line starts ≤0.4 s after the cut | Remove the 2.2 s head silence |
 | S02–S05 | Cap each generation wait at 1.0–2.0 s of visible progress (jump cut), and keep about 3–4 s waves-only in S04 with visible take playback | Removes about 30 s of the measured dead air |
-| S06 | Add the music beat: Music page → prompt → takes → **Keep and add to Studio** with the waves track selected → music arrives on its own track (fix `bc84a4a`) → track gain −14 dB → fades. New Guide line *not* proposed: the existing "Place every line… let the sea sit underneath" stays | Verified on `bc84a4a`; see `fix-verification/` (before and after) |
+| S06 | Add the music beat: Music page → prompt → takes → **Keep and add to Studio** with the waves track selected → music arrives on its own track → balance in the **Levels panel** (music about −14 dB, Check balance on screen) → fades. New Guide line *not* proposed: the existing "Place every line… let the sea sit underneath" stays | Verified on `bc84a4a`; see `fix-verification/` (before and after) |
 | S07 | Play mix with dialogue + waves + music. Music clip trimmed to the scene with a 4 s fade-out. **No Guide speech** | The rehearsal confirms the balance is about 13 dB under the dialogue |
 | S08 | Real Export mix into a new folder; show the "Export complete" note (real) for about 2 s | Fills the 3.8 s pre-tagline gap with real action |
 | S09 | Approved end card plus the existing tagline WAV 12. "Windows alpha" only if rechecked at filming (v0.9.0-alpha is a GitHub pre-release) | Unchanged |
@@ -85,8 +85,8 @@ Plan first on. **Not verified: absence of sung vocals** (no transcriber in this 
 ## 7. Remaining blockers before final recording
 1. Owner confirms the silver mark against their reference, or supplies the master (and decides on the wordmark).
 2. ~~Music cue~~: **picked 2026-11-03: round 2 take D** (`listening/round2/music_candidate_D_seed3101.wav`, SHA-256 `e6ce1041…9b88`, cello + strings, 70 BPM, A major). The owner still needs to approve the script edits in §6 and the creative treatment.
-3. **Recording baseline (decided 2026-11-03):** development build `bc84a4a` (post-v0.9.0-alpha, not the published release),
-   run from source. See SCRIPT_LOCK.md "Recording baseline". The fix is in draft PR [#144](https://github.com/Knapp-Kevin/sonic-rift/pull/144) and not merged.
+3. **Recording baseline (updated 2026-11-03):** development build `59d1322` (post-v0.9.0-alpha, not the published release), run
+   from source: the music-track fix (draft PR #144) plus the Studio Levels panel (draft PR #145). See SCRIPT_LOCK.md "Recording baseline". Neither is merged.
 
 ## 8. Final assembly capability (local)
 `ffmpeg` 7.1 (Gyan essentials) is available. It can cut, concatenate, mix, side-chain duck, measure loudness (ebur128),
