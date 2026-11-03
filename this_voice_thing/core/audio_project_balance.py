@@ -58,14 +58,27 @@ def balance_report(project, resolve):
     return {"voices": voices, "speaking_seconds": float(np.count_nonzero(speaking)) / rate, "tracks": rows}
 
 
+def _lufs(value):
+    return "silent" if not math.isfinite(value) else f"{value:.1f} LUFS".replace("-", "−")
+
+
 def describe(row):
-    """A short readout for one track, as Studio shows it."""
-    def lufs(value):
-        return "silent" if not math.isfinite(value) else f"{value:.1f} LUFS"
+    """The short badge Studio shows on a track after Check balance."""
     if row["muted"]:
         return "Muted"
     if row["kind"] == "voice":
-        return f"Voices: {lufs(row['with_voice'])}"
+        return f"Voices {_lufs(row['with_voice'])}"
     if row["under_voice"] is not None:
-        return f"{row['under_voice']:.1f} dB under the voices · {lufs(row['without_voice'])} on its own"
-    return f"{lufs(row['without_voice'])} (no voice over it)"
+        return f"{row['under_voice']:.1f} dB under the voices"
+    return f"{_lufs(row['without_voice'])}, no voice over it"
+
+
+def summary(report):
+    """One line for the whole mix: the non-voice track that comes closest to the voices."""
+    if report["speaking_seconds"] < MIN_SECONDS:
+        return "No voice long enough to compare against"
+    gaps = [row for row in report["tracks"] if row["under_voice"] is not None]
+    if not gaps:
+        return f"Voices {_lufs(report['voices'])}, nothing under them"
+    closest = min(gaps, key=lambda row: row["under_voice"])
+    return f"Closest to the voices: {closest['name']}, {closest['under_voice']:.1f} dB under"
