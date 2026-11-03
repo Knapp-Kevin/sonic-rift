@@ -149,6 +149,70 @@ class StudioPage(unittest.TestCase):
         add(waves, select_track="Harbor light")           # ambience doesn't stack on the music either
         self.assertEqual(len(editor.session.project.tracks), 3)
 
+    def test_levels_panel_balances_tracks_and_checks_the_balance(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        from this_voice_thing.core.audio_project import AudioProject
+        from this_voice_thing.core.audio_project_session import ProjectSession
+        w = self.window
+        editor = w.open_project_editor()
+        previous = editor.session
+        editor.session = ProjectSession(AudioProject("scene", "Evening Tide"))
+        editor.refresh()
+        self.addCleanup(lambda: (setattr(editor, "session", previous), editor.refresh(), editor._mark_clean()))
+        rate = 48000
+        t = np.arange(6 * rate) / rate
+        bed = np.stack([0.3 * np.sin(2 * np.pi * 330 * t)] * 2, axis=1).astype("float32")
+        music = w.sound_library.add(bed, rate, "Cello theme", "ace_step_15", False, kind="music")
+        path = os.path.join(self.tmp, "line.wav")
+        line = np.concatenate([np.zeros(rate), 0.3 * np.sin(2 * np.pi * 220 * t[:2 * rate])]).astype("float32")
+        sf.write(path, line, rate)
+        editor.add_voice_take(path)
+        self.assertTrue(self.pump(lambda: editor.import_worker is None))
+        editor.tree.setCurrentItem(None)
+        editor.add_sound(music)
+        self.assertTrue(self.pump(lambda: editor.import_worker is None))
+        tracks = editor.session.project.tracks
+        voice, theme = tracks[0], tracks[1]
+        panel = editor.levels
+        self.assertEqual(set(panel.rows), {voice.id, theme.id})
+
+        # Dragging the music slider: nothing changes until release, then one undo step
+        slider = panel.rows[theme.id]["slider"]
+        revision = editor.session.project.revision
+        slider.setSliderDown(True)
+        slider.setValue(round(-14 / 0.5))
+        self.assertEqual(editor.session.project.revision, revision)
+        self.assertEqual(panel.rows[theme.id]["value"].text(), "−14.0 dB")
+        slider.setSliderDown(False)
+        slider.sliderReleased.emit()
+        self.assertEqual(editor.session.project.tracks[1].gain_db, -14.0)
+        self.assertEqual(editor.session.project.revision, revision + 1)
+        editor.undo()
+        self.assertEqual(editor.session.project.tracks[1].gain_db, 0.0)
+        self.assertEqual(slider.value(), 0)                       # the slider follows undo
+        editor.redo()
+        QTest.keyClick(slider, Qt.Key.Key_Left)                   # keys commit at once, 0.5 dB a step
+        self.assertEqual(editor.session.project.tracks[1].gain_db, -14.5)
+
+        panel.rows[theme.id]["mute"].setChecked(True)
+        self.assertTrue(editor.session.project.tracks[1].muted)
+        panel.rows[theme.id]["mute"].setChecked(False)
+        panel.duck_slider.setValue(round(-16 / 0.5))
+        self.assertEqual(editor.session.project.duck_db, -16.0)
+        self.assertEqual(panel.duck_value.text(), "−16 dB")
+
+        panel.check_button.click()
+        self.assertTrue(self.pump(lambda: editor.balance_worker is None, timeout=30))
+        readout = panel.rows[theme.id]["readout"].text()
+        self.assertIn("dB under the voices", readout)
+        gap = float(readout.split(" dB")[0])
+        self.assertAlmostEqual(gap, 14.5 + 16.0, delta=1.5)        # track gain + ducking, same-level sources
+        self.assertIn("Voices speak for 2.0 s", panel.summary.text())
+        panel.duck_slider.setValue(round(-10 / 0.5))             # any edit makes the readout stale
+        self.assertEqual(panel.rows[theme.id]["readout"].text(), "")
+        self.assertIn("Check balance again", panel.summary.text())
+
     @staticmethod
     def _select_track(editor, track_id):
         from PySide6.QtCore import Qt

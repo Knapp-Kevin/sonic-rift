@@ -149,9 +149,11 @@ class TimelineView(QWidget):
                          painter.fontMetrics().elidedText(track.name, Qt.TextElideMode.ElideRight, self.HEADER - 18))
         painter.setFont(self.font())
         painter.setPen(QColor(c["muted"]))
-        detail = track.kind.capitalize() + ("  ·  muted" if track.muted else "") + (
-            f"  ·  {track.gain_db:+.1f} dB" if track.gain_db else "")
-        painter.drawText(QRectF(12, top + 28, self.HEADER - 18, 18), Qt.AlignmentFlag.AlignLeft, detail)
+        # "Muted" stands in for the kind, so the gain still fits the header ("Sound · muted · -14." was cut)
+        detail = ("Muted" if track.muted else track.kind.capitalize()) + (
+            f" · {track.gain_db:+.1f} dB" if track.gain_db else "")
+        painter.drawText(QRectF(12, top + 28, self.HEADER - 18, 18), Qt.AlignmentFlag.AlignLeft,
+                         painter.fontMetrics().elidedText(detail, Qt.TextElideMode.ElideRight, self.HEADER - 18))
         rate = self.project.sample_rate
         tint = QColor(c["accent"] if track.kind == "voice" else c["brand_secondary"] if track.kind == "sound"
                       else c["brand_blue"])

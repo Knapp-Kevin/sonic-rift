@@ -28,6 +28,8 @@ from this_voice_thing.core.audio_project_session import (
 )
 from this_voice_thing.core.audio_project_media import ProjectMedia
 from this_voice_thing.core.audio_project_export import export_project
+from this_voice_thing.core.audio_project_balance import balance_report, describe as describe_balance
+from this_voice_thing.ui.project_levels import LevelsPanel
 from this_voice_thing.ui.project_timeline import TimelineView, envelope, preview_mix, seconds_label
 from this_voice_thing.ui.threads import TaskThread
 from this_voice_thing.ui.widgets import MenuButton, set_empty_text, set_role
@@ -124,6 +126,8 @@ class ProjectEditorDialog(QDialog):
         self.narration_job = None        # in-editor narration render: thread, target clip, then import
         self.peak_worker = None
         self.preview_worker = None
+        self.balance_worker = None
+        self.balance_revision = None     # project revision the Levels readouts were measured on
         self.preview_revision = None     # project revision the preview file was rendered from
         self.preview_file = None
         self.media = ProjectMedia(owner.script_dir, owner.sound_library)
@@ -185,12 +189,24 @@ class ProjectEditorDialog(QDialog):
         self.tree.setAlternatingRowColors(True)
         self.tree.itemDoubleClicked.connect(lambda *_: self.edit_selected())
         self.tree.currentItemChanged.connect(self._tree_selection_changed)
+        self.levels = LevelsPanel()
+        self.levels.gainCommitted.connect(self.set_track_gain)
+        self.levels.muteToggled.connect(self.set_track_muted)
+        self.levels.duckCommitted.connect(self.set_duck_db)
+        self.levels.checkRequested.connect(self.check_balance)
+        lower = QSplitter(Qt.Orientation.Horizontal)
+        lower.addWidget(self.tree)
+        lower.addWidget(self.levels)
+        lower.setStretchFactor(0, 3)
+        lower.setStretchFactor(1, 2)
+        lower.setChildrenCollapsible(False)
         split = QSplitter(Qt.Orientation.Vertical)
         split.addWidget(self.timeline)
-        split.addWidget(self.tree)
+        split.addWidget(lower)
         split.setStretchFactor(0, 1)      # a few tracks no longer leave half the page empty
         split.setStretchFactor(1, 1)
-        split.setSizes([360, 300])        # the timeline's size hint otherwise takes most of the height
+        split.setSizes([330, 330])        # the timeline's size hint otherwise takes most of the height;
+        # the lower half holds the clip list and the Levels panel side by side
         split.setChildrenCollapsible(False)
         layout.addWidget(split, 1)
 
@@ -278,6 +294,10 @@ class ProjectEditorDialog(QDialog):
         self.undo_button.setEnabled(self.session.can_undo)
         self.redo_button.setEnabled(self.session.can_redo)
         self.timeline.set_project(project)
+        self.levels.set_project(project)
+        if self.balance_revision is not None and self.balance_revision != project.revision:
+            self.balance_revision = None
+            self.levels.clear_balance("Levels changed: Check balance again.")
         self._request_peaks()
         self.tree.clear()
         for track in project.tracks:
@@ -519,6 +539,54 @@ class ProjectEditorDialog(QDialog):
 
     def redo(self):
         self._mutate(self.session.redo)
+
+    # ---- levels ----
+    def set_track_gain(self, track_id, gain_db):
+        """From the Levels panel: one undoable edit per slider release."""
+        self._mutate(lambda: self.session.update_track(track_id, gain_db=float(gain_db)), track_id)
+
+    def set_track_muted(self, track_id, muted):
+        self._mutate(lambda: self.session.update_track(track_id, muted=bool(muted)), track_id)
+
+    def set_duck_db(self, duck_db):
+        self._mutate(lambda: self.session.apply(lambda p: setattr(p, "duck_db", float(duck_db))))
+
+    def check_balance(self):
+        if self.balance_worker is not None:
+            return
+        if not any(clip.asset_id for track in self.session.project.tracks for clip in track.clips):
+            self.levels.clear_balance("Add a sound or a narration take first.")
+            return
+        snapshot = deepcopy(self.session.project)
+        media = self.media
+        self.levels.set_checking(True)
+        self.balance_worker = TaskThread(lambda: (balance_report(snapshot, media.resolve), snapshot.revision), self)
+        self.balance_worker.done.connect(self._balance_done)
+        self.balance_worker.finished.connect(self._balance_finished)
+        self.balance_worker.finished.connect(self.balance_worker.deleteLater)
+        self.balance_worker.start()
+
+    @Slot(object, str)
+    def _balance_done(self, result, error):
+        if error:
+            self.levels.clear_balance("The balance couldn't be measured.")
+            self._error(error)
+            return
+        report, revision = result
+        if revision != self.session.project.revision:
+            self.levels.clear_balance("Levels changed while measuring: Check balance again.")
+            return
+        texts = {row["track_id"]: describe_balance(row) for row in report["tracks"]}
+        speaking = report["speaking_seconds"]
+        summary = (f"Voices speak for {speaking:.1f} s." if speaking >= 0.4
+                   else "No voice speaks long enough to compare against.")
+        self.balance_revision = revision
+        self.levels.show_balance(texts, summary)
+
+    @Slot()
+    def _balance_finished(self):
+        self.balance_worker = None
+        self.levels.set_checking(False)
 
     def add_track(self):
         kind, ok = QInputDialog.getItem(self, "Track", "Type", ["voice", "sound", "effect"], 0, False)
@@ -1098,9 +1166,10 @@ class ProjectEditorDialog(QDialog):
         self.export_button.setEnabled(True)
 
     def _finish_quick_jobs(self):
-        """Peaks and the preview render only read media; let them finish before closing."""
+        """Peaks, the preview render and the balance check only read media; let them finish
+        before closing."""
         self.player.stop()
-        for job in (self.peak_worker, self.preview_worker):
+        for job in (self.peak_worker, self.preview_worker, self.balance_worker):
             if job is not None:
                 job.wait(10000)
 
