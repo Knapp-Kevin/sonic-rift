@@ -1,0 +1,52 @@
+[13:06:56] Sonic Rift 0.9.0-alpha up (dark theme), ROOT=C:\LocalAI\Voice\Chatterbox\sr-musictrack
+[13:06:56] dialog getText 'New project/Project title' -> 'Evening Tide: The Beacon'
+[13:06:56] dialog getItem 'Track/Type' -> 'voice'
+[13:06:56] dialog getText 'Track/Name' -> 'Dialogue'
+[13:06:56] dialog getSaveFileName 'Save project' -> C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\scene\Evening Tide - The Beacon.sonicrift.json
+[13:06:57] screenshot 01_studio_empty_project.png
+[13:06:57] dialog getOpenFileName 'Import rendered narration' -> C:\LocalAI\Voice\Chatterbox\sr-demo\docs\marketing\audio\02-keeper-the-beacon.wav
+[13:06:57] narration file import: done in 0.1 s
+[13:06:57] dialog getOpenFileName 'Import rendered narration' -> C:\LocalAI\Voice\Chatterbox\sr-demo\docs\marketing\audio\04-traveler-i-see-it-now.wav
+[13:06:57] narration file import: done in 0.1 s
+[13:06:57] dialog getOpenFileName 'Import rendered narration' -> C:\LocalAI\Voice\Chatterbox\sr-demo\docs\marketing\audio\08-keeper-clone-ill-keep-it-burning.wav
+[13:06:57] narration file import: done in 0.1 s
+[13:06:58] screenshot 02_studio_three_lines.png
+[13:07:01] ocean waves render: done in 3.0 s
+[13:07:01] sounds status: 2 take(s) in 3.0 s
+[13:07:01] screenshot 03_sounds_ocean_takes.png
+[13:07:01] dialog getText 'Keep in library/Name' -> 'Shoreline waves'
+[13:07:01] waves into Studio: done in 0.1 s
+[13:07:02] screenshot 04_music_request.png
+[13:07:02] heavy-job warning accepted by script: 3 take(s) of 30 s with ACE-Step 1.5 (2B turbo) (~4.4 min, 10.0 GB GPU)
+[13:07:54] music model start: done in 52.6 s
+[13:07:54] music job begins: done in 0.0 s
+[13:08:00] screenshot 05_music_composing.png
+[13:09:04] music takes: done in 64.1 s
+[13:09:04] music status: 3 take(s) in 70 s
+[13:09:04] candidate A -> music_candidate_A_seed2026.wav
+[13:09:04] candidate B -> music_candidate_B_seed2027.wav
+[13:09:04] candidate C -> music_candidate_C_seed2028.wav
+[13:09:05] screenshot 06_music_takes.png
+[13:09:05] selected track before Keep and add to Studio: Shoreline waves
+[13:09:05] dialog getText 'Keep music/Name' -> 'Harbor light underscore'
+[13:09:05] music into Studio: done in 0.1 s
+[13:09:05] screenshot 07_studio_music_added.png
+[13:09:05] dialog getText 'Track name/Name' -> 'Shoreline waves'
+[13:09:05] dialog getDouble 'Track gain/Gain (dB)' -> -6.0
+[13:09:06] dialog getText 'Track name/Name' -> 'Harbor light underscore'
+[13:09:06] dialog getDouble 'Track gain/Gain (dB)' -> -14.0
+[13:09:06] music clip fades 2 s in / 4 s out via ProjectSession.update_clip (Clip properties model)
+[13:09:06] tracks: [{"name": "Dialogue", "kind": "voice", "gain_db": 0.0, "clips": [{"kind": "voice", "asset": "voice_a3ca5015885eb0c6ca6f144e649480988c1bd1334827b2f11675351a5b0ac96d", "start_s": 0.0, "len_s": 3.1733333333333333, "fade_in_s": 0.0, "fade_out_s": 0.0}, {"kind": "voice", "asset": "voice_700458057ed6f5010a7d74ed4385e8cf488eca19bbe30dad747f9dfdd25010ed", "start_s": 4.173333333333333, "len_s": 2.192, "fade_in_s": 0.0, "fade_out_s": 0.0}, {"kind": "voice", "asset": "voice_559b9f8588e3d84274b223676ef43ee658b5b24e0d0311687c7dba4ae57bc32d", "start_s": 7.365333333333333, "len_s": 2.042666666666667, "fade_in_s": 0.0, "fade_out_s": 0.0}]}, {"name": "Shoreline waves", "kind": "sound", "gain_db": -6.0, "clips": [{"kind": "sound", "asset": "sound_76cc0cbfca4e", "start_s": 0.0, "len_s": 20.0, "fade_in_s": 0.0, "fade_out_s": 0.0}]}, {"name": "Harbor light underscore", "kind": "sound", "gain_db": -14.0, "clips": [{"kind": "sound", "asset": "sound_a075f3b0c826", "start_s": 0.0, "len_s": 30.0, "fade_in_s": 2.0, "fade_out_s": 4.0}]}]
+[13:09:06] screenshot 08_studio_balanced_saved.png
+[13:09:07] Play mix render: done in 0.5 s
+[13:09:12] screenshot 09_studio_play_mix_playing.png
+[13:09:12] dialog getExistingDirectory 'Choose export location' -> C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\scene\exports
+[13:09:12] dialog getItem 'Export formats/Master format' -> 'WAV'
+[13:09:12] dialog getText 'Export folder/New folder name' -> 'Scene_Rehearsal_130654'
+[13:09:15] dialog QMessageBox 'Project exported': Master WAV, premaster stems and manifest saved to:
+C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\scene\exports\Scene_Rehearsal_130654
+[13:09:15] Export mix: done in 3.1 s
+[13:09:15] export note: Export complete: “Scene_Rehearsal_130654” — the master, one stem per track and a manifest.
+[13:09:16] screenshot 10_studio_export_complete.png
+[13:09:16] export files: ['manifest.json', 'master.wav', 'stems', 'stems\\track_001_3ec1dba13820.wav', 'stems\\track_002_2b767849d95a.wav', 'stems\\track_003_4c52349b7656.wav']
+[13:09:19] scene rehearsal complete

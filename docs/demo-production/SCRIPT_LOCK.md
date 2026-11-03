@@ -1,4 +1,4 @@
-# Sonic Rift | A World in Sound — SCRIPT LOCK v0.2, OWNER REVIEW REQUIRED
+# Sonic Rift | A World in Sound — SCRIPT LOCK v0.3 (proposed), OWNER REVIEW REQUIRED
 **Fictional scene:** Evening Tide: The Beacon. **Intent:** Show a complete, genuine creative journey: distinct characters + ambience + optional original music → arranged, saved, auditioned and exported in Sonic Rift. **Target:** 100–125 seconds; trim dead air based on measured durations rather than forcing timestamps. **No new fictional storyline.**
 **Important:** The exact narration lines and voice identities below reflect the existing owner-approved film. New music and revised intro alter the cut and therefore require owner review before publication.
 
@@ -18,10 +18,22 @@
 | S03 / ~27–42 s | Actual Speech UI shows *different* Traveler voice/preset, generation, audition, Add to Studio and same timeline with two distinct clips | **Guide:** “Then someone answers from across the water.” **Traveler:** “I see it now. Keep the light on.” | No overlap between Guide and Traveler. |
 | S04 / ~42–59 s | Actual Sounds UI generates procedural Ocean waves; audition; add kept wave to the same project's own track | **Guide:** “Give their conversation a shoreline.” | Play genuine waves visibly/audibly for ~3 seconds. If using music, do not bury the waves. |
 | S05 / ~59–75 s | Actual Voices > New voice > Clone using Keeper's **synthetic** sample, then Speech uses cloned Keeper to add last line | **Guide:** “A character can return without losing their voice.” **Keeper clone:** “I'll keep it burning until you're home.” | Clone is the same character returning, not a fourth independent speaker. |
-| S06 / ~75–92 s | Return to Studio. Arrange and balance the actual three dialogue clips and waves; save the same project; if music-generation rehearsal passed, demonstrate the **actual** route used to add new instrumental music | **Guide:** “Place every line where it belongs, and let the sea sit underneath.” **Guide:** “A voice... an answer... the sound of the sea. Together, they become a scene.” | Create only an understated original instrumental underscore, with no vocals. Avoid narration/music competition. Preserve original recorded lines where possible. |
+| S06 / ~75–92 s | Return to Studio. Arrange and balance the actual three dialogue clips and waves; save the same project. Then the **verified music route**: Music page → prompt → takes → select the **owner-approved** take → **Keep and add to Studio…** with the **Shoreline waves track still selected**. Show the music arriving on **its own new track** beneath the waves (corrected behaviour, fix `bc84a4a`; no manual Empty-track step). Track gain on the music track (about −14 dB, from rehearsal), clip fades, Save | **Guide:** “Place every line where it belongs, and let the sea sit underneath.” **Guide:** “A voice... an answer... the sound of the sea. Together, they become a scene.” | Create only an understated original instrumental underscore, with no vocals. Avoid narration/music competition. Preserve original recorded lines where possible. Use the owner-picked candidate file from `rehearsal/listening/`. Do not regenerate (ACE-Step takes aren't reproducible by seed) |
 | S07 / ~92–110 s | Hit real **Play mix**; show playhead and actual clips as genuine master audio plays uninterrupted | **Keeper:** “The beacon is still burning. Follow it toward shore.” **Traveler:** “I see it now. Keep the light on.” **Keeper clone:** “I'll keep it burning until you're home.” | **NO GUIDE SPEECH** during result. Full real voice + waves mix; optional low bed if actual source was verified. Never represent stitched overlay as native Studio playback if not true. |
 | S08 / ~110–118 s | Actual Studio **Export mix** to fresh directory; show genuine success or supported export output; return to saved composition | *(None)* | Sound resolves gently; no fake confirmation or staged export panel. |
 | S09 / final ~4–6 s | Existing **approved Sonic Rift** logo end card; include Windows alpha status only if independently rechecked at filming | **Brand narrator:** “Sonic Rift. Make worlds you can hear.” | End cleanly after voice. |
+
+## Recording baseline (proposed, owner approval required)
+- **Build to record:** Sonic Rift **development build** `bc84a4a` (branch `fix/music-own-studio-track`, the v0.9.0-alpha code
+  plus the Studio music-track fix), run from source. **This is a post-v0.9.0-alpha development build, not the published release.**
+  The published v0.9.0-alpha (`f093ebd`) puts kept music on the selected waves track. A film recorded on it would need the manual
+  Empty-track step, which this script no longer shows.
+- **Qualification:** full test suite 669/669 on the Windows Qt platform (one status-bar test fails only under off-screen Qt, the same
+  on the untouched release, because off-screen Qt has no fonts). Real-app rehearsal: with the waves selected, kept music got its
+  own track, and Save, Play mix and Export mix worked (`rehearsal/CHECKPOINT.md`).
+- **Provenance line for the film/manifest:** "Recorded on a Sonic Rift development build (`bc84a4a`, after 0.9.0-alpha)." If the fix is
+  merged and released before filming, record on that release and update this line. Never call the build "the released alpha".
+- **Availability text (S09):** "Windows alpha" refers to the published v0.9.0-alpha pre-release. Recheck it at filming.
 
 ## Original approved audio map
 | Role | Source |
