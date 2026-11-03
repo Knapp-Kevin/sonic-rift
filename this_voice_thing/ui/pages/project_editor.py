@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 
 from this_voice_thing.core.audio_project import AudioProject, Clip, new_id
 from this_voice_thing.core.audio_project_session import (
-    ProjectSession, compatible_track_id, generated_take_target, may_attach_import_result,
+    ProjectSession, compatible_track_id, generated_take_target, may_attach_import_result, sound_track_for,
 )
 from this_voice_thing.core.audio_project_media import ProjectMedia
 from this_voice_thing.core.audio_project_export import export_project
@@ -555,7 +555,7 @@ class ProjectEditorDialog(QDialog):
         def resolve_sound():
             pcm, source_rate = media.resolve("sound_" + asset.id)
             frames = math.ceil(len(pcm) * sample_rate / source_rate)
-            return asset.id, asset.name, asset.loop, frames
+            return asset.id, asset.name, asset.loop, frames, asset.kind == "music"
         self._pending_import = ("sound", selection, project_id, revision, self.session_serial)
         self.import_worker = TaskThread(resolve_sound, self)
         self.import_worker.done.connect(self._import_done)
@@ -586,9 +586,9 @@ class ProjectEditorDialog(QDialog):
         if not may_attach_import_result(self.session.project, project_id, revision):
             self.note.setText("Project changed while verifying sound. Re-select the sound to attach it.")
             return
-        asset_id, name, loop, frames = result
+        asset_id, name, loop, frames, is_music = result
         clip = Clip(new_id(), "sound", 0, frames, asset_id="sound_" + asset_id, loop=loop)
-        selected_track_id = self._track_for_selection(selection, "sound")
+        selected_track_id = sound_track_for(self.session.project, selection, is_music, self._holds_music)
         def change(project):
             from this_voice_thing.core.audio_project import Track
             track = next((track for track in project.tracks if track.id == selected_track_id), None)
@@ -603,6 +603,11 @@ class ProjectEditorDialog(QDialog):
 
     def _track_for_selection(self, selection, kind):
         return compatible_track_id(self.session.project, selection, kind)
+
+    def _holds_music(self, asset_id):
+        """True if a clip's `sound_<id>` asset is kept music (not ambience or an effect)."""
+        asset = self.owner.sound_library.get(asset_id.removeprefix("sound_")) if asset_id.startswith("sound_") else None
+        return asset is not None and asset.kind == "music"
 
     def add_text_block(self):
         text, ok = QInputDialog.getMultiLineText(

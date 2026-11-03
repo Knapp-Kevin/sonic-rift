@@ -113,6 +113,52 @@ class StudioPage(unittest.TestCase):
         editor.undo()
         editor._mark_clean()
 
+    def test_music_gets_its_own_track_even_with_the_waves_selected(self):
+        from this_voice_thing.core.audio_project import AudioProject
+        from this_voice_thing.core.audio_project_session import ProjectSession
+        w = self.window
+        editor = w.open_project_editor()
+        previous = editor.session
+        editor.session = ProjectSession(AudioProject("scene", "Evening Tide"))
+        editor.refresh()
+        self.addCleanup(lambda: (setattr(editor, "session", previous), editor.refresh(), editor._mark_clean()))
+        rate = 48000
+        hush = np.zeros((rate, 2), dtype="float32")
+        waves = w.sound_library.add(hush, rate, "Shoreline waves", "procedural", True)
+        surf = w.sound_library.add(hush, rate, "Surf", "procedural", True)
+        theme = w.sound_library.add(hush, rate, "Harbor light", "ace_step_15", False, kind="music")
+        coda = w.sound_library.add(hush, rate, "Coda", "ace_step_15", False, kind="music")
+
+        def add(asset, select_track=None):
+            if select_track is not None:
+                track = next(t for t in editor.session.project.tracks if t.name == select_track)
+                self._select_track(editor, track.id)
+            editor.add_sound(asset)
+            self.assertTrue(self.pump(lambda: editor.import_worker is None))
+
+        def lanes():
+            return {t.name: [c.asset_id for c in t.clips] for t in editor.session.project.tracks}
+
+        add(waves)
+        add(theme, select_track="Shoreline waves")        # music doesn't stack on the waves
+        self.assertEqual(lanes(), {"Shoreline waves": ["sound_" + waves.id], "Harbor light": ["sound_" + theme.id]})
+        add(coda, select_track="Harbor light")            # more music joins the selected music track
+        add(surf, select_track="Shoreline waves")         # more ambience joins the waves
+        self.assertEqual(lanes(), {"Shoreline waves": ["sound_" + waves.id, "sound_" + surf.id],
+                                   "Harbor light": ["sound_" + theme.id, "sound_" + coda.id]})
+        add(waves, select_track="Harbor light")           # ambience doesn't stack on the music either
+        self.assertEqual(len(editor.session.project.tracks), 3)
+
+    @staticmethod
+    def _select_track(editor, track_id):
+        from PySide6.QtCore import Qt
+        for i in range(editor.tree.topLevelItemCount()):
+            item = editor.tree.topLevelItem(i)
+            if item.data(0, Qt.ItemDataRole.UserRole) == ("track", track_id):
+                editor.tree.setCurrentItem(item)
+                return
+        raise LookupError(track_id)
+
     def test_the_export_note_names_the_folder_not_the_home_path(self):
         from PySide6.QtWidgets import QMessageBox
         editor = self.window.open_project_editor()

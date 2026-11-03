@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 from this_voice_thing.core.audio_project import AudioProject, Clip, new_id
-from this_voice_thing.core.audio_project_session import ProjectSession, MAX_HISTORY, compatible_track_id, may_attach_import_result
+from this_voice_thing.core.audio_project_session import ProjectSession, MAX_HISTORY, compatible_track_id, may_attach_import_result, sound_track_for
 
 
 class ProjectEditSessionTests(unittest.TestCase):
@@ -155,6 +155,22 @@ class ProjectEditSessionTests(unittest.TestCase):
         self.assertIsNone(compatible_track_id(self.session.project, ("clip", "wave"), "voice"))
         self.assertIsNone(compatible_track_id(self.session.project, ("track", "unknown"), "sound"))
         self.assertIsNone(compatible_track_id(self.session.project, None, "sound"))
+
+    def test_music_and_other_sounds_keep_to_their_own_tracks(self):
+        music_track = self.session.add_track("sound", "Theme")
+        empty_track = self.session.add_track("sound", "Spare")
+        self.session.add_clip(self.track, Clip("wave", "sound", 0, 48000, asset_id="sound_wave00000000"))
+        self.session.add_clip(music_track, Clip("tune", "sound", 0, 48000, asset_id="sound_tune00000000"))
+        is_music = lambda asset_id: asset_id == "sound_tune00000000"
+        project = self.session.project
+        self.assertIsNone(sound_track_for(project, ("track", self.track), True, is_music))
+        self.assertIsNone(sound_track_for(project, ("clip", "wave"), True, is_music))
+        self.assertEqual(sound_track_for(project, ("track", music_track), True, is_music), music_track)
+        self.assertIsNone(sound_track_for(project, ("clip", "tune"), False, is_music))
+        self.assertEqual(sound_track_for(project, ("clip", "wave"), False, is_music), self.track)
+        self.assertEqual(sound_track_for(project, ("track", empty_track), True, is_music), empty_track)
+        self.assertEqual(sound_track_for(project, ("track", empty_track), False, is_music), empty_track)
+        self.assertIsNone(sound_track_for(project, None, True, is_music))
 
     def test_edit_narration_invalidates_old_take_without_deleting_media(self):
         voice_track = self.session.add_track("voice", "Narration")
