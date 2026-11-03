@@ -1,0 +1,69 @@
+[13:22:55] Sonic Rift 0.9.0-alpha up (dark), ROOT=C:\LocalAI\Voice\Chatterbox\sr-musictrack
+[13:22:55] dialog getText 'New project/Project title' -> 'Evening Tide: The Beacon'
+[13:22:55] dialog getItem 'Track/Type' -> 'voice'
+[13:22:55] dialog getText 'Track/Name' -> 'Dialogue'
+[13:22:55] dialog getSaveFileName 'Save project' -> C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\round2\Evening Tide - The Beacon (music round 2).sonicrift.json
+[13:22:55] dialog getOpenFileName 'Import rendered narration' -> C:\LocalAI\Voice\Chatterbox\sr-demo\docs\marketing\audio\02-keeper-the-beacon.wav
+[13:22:55] narration file import: done in 0.1 s
+[13:22:55] dialog getOpenFileName 'Import rendered narration' -> C:\LocalAI\Voice\Chatterbox\sr-demo\docs\marketing\audio\04-traveler-i-see-it-now.wav
+[13:22:55] narration file import: done in 0.1 s
+[13:22:55] dialog getOpenFileName 'Import rendered narration' -> C:\LocalAI\Voice\Chatterbox\sr-demo\docs\marketing\audio\08-keeper-clone-ill-keep-it-burning.wav
+[13:22:55] narration file import: done in 0.1 s
+[13:22:58] ocean waves render: done in 3.1 s
+[13:22:58] dialog getText 'Keep in library/Name' -> 'Shoreline waves'
+[13:22:58] waves into Studio: done in 0.1 s
+[13:22:58] D request: prompt='Solo cello with a soft acoustic string ensemble, slow, gentle, warm original instrumental underscore for a quiet seaside night, hopeful and tender, unhurried and sparse, purely acoustic, no piano, no woodwinds, no synthesizer, no electronic sounds, no percussion, no vocals' bpm=70 key=A major meter=4 plan=True seed=3101
+[13:22:59] screenshot 01_music_request_D.png
+[13:22:59] heavy-job warning accepted by script: 1 take(s) of 30 s with ACE-Step 1.5 (2B turbo) (~3.5 min, 10.0 GB GPU)
+[13:23:48] music model start: done in 49.2 s
+[13:24:04] take D: done in 15.6 s
+[13:24:04] take D: seed 3101, 30.0 s, engine chose {'bpm': 70, 'keyscale': 'A major', 'timesignature': '4', 'duration': 30}, metrics {'seconds': 30.0, 'sample_rate': 48000, 'integrated_lufs': -16.0, 'true_peak_db': -1.08, 'clipped_samples': 0, 'loudness_range_db': 17.2, 'opening_vs_median_db': -0.2}
+[13:24:04] screenshot 02_music_take_D.png
+[13:24:04] dialog getText 'Keep music/Name' -> 'Round 2 D'
+[13:24:04] Round 2 D into Studio: done in 0.1 s
+[13:24:04] E request: prompt='Fingerpicked nylon-string acoustic guitar, slow, gentle, warm original instrumental underscore for a quiet seaside night, hopeful and tender, unhurried and sparse, purely acoustic, no piano, no woodwinds, no synthesizer, no electronic sounds, no percussion, no vocals' bpm=70 key=A major meter=4 plan=True seed=3102
+[13:24:04] heavy-job warning accepted by script: 1 take(s) of 30 s with ACE-Step 1.5 (2B turbo) (~0.5 min, 10.0 GB GPU)
+[13:24:17] take E: done in 12.6 s
+[13:24:17] take E: seed 3102, 30.0 s, engine chose {'bpm': 70, 'keyscale': 'A major', 'timesignature': '4', 'duration': 30}, metrics {'seconds': 30.0, 'sample_rate': 48000, 'integrated_lufs': -16.18, 'true_peak_db': -1.1, 'clipped_samples': 0, 'loudness_range_db': 6.1, 'opening_vs_median_db': 2.6}
+[13:24:18] screenshot 03_music_take_E.png
+[13:24:18] dialog getText 'Keep music/Name' -> 'Round 2 E'
+[13:24:18] Round 2 E into Studio: done in 0.1 s
+[13:24:18] F request: prompt='Gentle concert harp with soft sustained acoustic strings, slow, gentle, warm original instrumental underscore for a quiet seaside night, hopeful and tender, unhurried and sparse, purely acoustic, no piano, no woodwinds, no synthesizer, no electronic sounds, no percussion, no vocals' bpm=70 key=A major meter=4 plan=True seed=3103
+[13:24:18] heavy-job warning accepted by script: 1 take(s) of 30 s with ACE-Step 1.5 (2B turbo) (~0.5 min, 10.0 GB GPU)
+[13:24:29] take F: done in 10.8 s
+[13:24:29] take F: seed 3103, 30.0 s, engine chose {'bpm': 70, 'keyscale': 'A major', 'timesignature': '4', 'duration': 30}, metrics {'seconds': 30.0, 'sample_rate': 48000, 'integrated_lufs': -16.17, 'true_peak_db': -1.1, 'clipped_samples': 0, 'loudness_range_db': 9.3, 'opening_vs_median_db': 0.5}
+[13:24:29] screenshot 04_music_take_F.png
+[13:24:29] dialog getText 'Keep music/Name' -> 'Round 2 F'
+[13:24:29] Round 2 F into Studio: done in 0.1 s
+[13:24:30] screenshot 05_studio_three_music_tracks.png
+[13:24:30] dialog getText 'Track name/Name' -> 'Round 2 D'
+[13:24:30] dialog getDouble 'Track gain/Gain (dB)' -> -14.0
+[13:24:30] dialog getText 'Track name/Name' -> 'Round 2 E'
+[13:24:30] dialog getDouble 'Track gain/Gain (dB)' -> -14.0
+[13:24:30] dialog getText 'Track name/Name' -> 'Round 2 F'
+[13:24:30] dialog getDouble 'Track gain/Gain (dB)' -> -14.0
+[13:24:30] dialog getText 'Track name/Name' -> 'Shoreline waves'
+[13:24:30] dialog getDouble 'Track gain/Gain (dB)' -> -6.0
+[13:24:30] dialog getExistingDirectory 'Choose export location' -> C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\round2\exports
+[13:24:30] dialog getItem 'Export formats/Master format' -> 'WAV'
+[13:24:30] dialog getText 'Export folder/New folder name' -> 'Scene_with_D_132430'
+[13:24:33] dialog QMessageBox 'Project exported': Master WAV, premaster stems and manifest saved to:
+C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\round2\exports\Scene_with_D_132430
+[13:24:33] Export mix with D: done in 3.1 s
+[13:24:33] scene with D: Scene_with_D_132430; muted=[('Dialogue', False), ('Shoreline waves', False), ('Round 2 D', False), ('Round 2 E', True), ('Round 2 F', True)]
+[13:24:33] dialog getExistingDirectory 'Choose export location' -> C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\round2\exports
+[13:24:33] dialog getItem 'Export formats/Master format' -> 'WAV'
+[13:24:33] dialog getText 'Export folder/New folder name' -> 'Scene_with_E_132433'
+[13:24:36] dialog QMessageBox 'Project exported': Master WAV, premaster stems and manifest saved to:
+C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\round2\exports\Scene_with_E_132433
+[13:24:36] Export mix with E: done in 3.2 s
+[13:24:36] scene with E: Scene_with_E_132433; muted=[('Dialogue', False), ('Shoreline waves', False), ('Round 2 D', True), ('Round 2 E', False), ('Round 2 F', True)]
+[13:24:36] dialog getExistingDirectory 'Choose export location' -> C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\round2\exports
+[13:24:36] dialog getItem 'Export formats/Master format' -> 'WAV'
+[13:24:36] dialog getText 'Export folder/New folder name' -> 'Scene_with_F_132436'
+[13:24:39] dialog QMessageBox 'Project exported': Master WAV, premaster stems and manifest saved to:
+C:\LocalAI\Voice\Chatterbox\sr-musictrack\film_work\round2\exports\Scene_with_F_132436
+[13:24:39] Export mix with F: done in 3.2 s
+[13:24:39] scene with F: Scene_with_F_132436; muted=[('Dialogue', False), ('Shoreline waves', False), ('Round 2 D', True), ('Round 2 E', True), ('Round 2 F', False)]
+[13:24:40] screenshot 06_studio_after_exports.png
+[13:24:42] round 2 complete

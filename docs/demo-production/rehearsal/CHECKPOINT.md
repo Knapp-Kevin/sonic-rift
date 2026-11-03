@@ -84,7 +84,7 @@ Plan first on. **Not verified: absence of sung vocals** (no transcriber in this 
 
 ## 7. Remaining blockers before final recording
 1. Owner confirms the silver mark against their reference, or supplies the master (and decides on the wordmark).
-2. Owner approves the script edits in §6 and picks the music cue (A/B/C or regenerate) after listening for vocals.
+2. ~~Music cue~~: **picked 2026-11-03: round 2 take D** (`listening/round2/music_candidate_D_seed3101.wav`, SHA-256 `e6ce1041…9b88`, cello + strings, 70 BPM, A major). The owner still needs to approve the script edits in §6 and the creative treatment.
 3. **Recording baseline (decided 2026-11-03):** development build `bc84a4a` (post-v0.9.0-alpha, not the published release),
    run from source. See SCRIPT_LOCK.md "Recording baseline". The fix is in draft PR [#144](https://github.com/Knapp-Kevin/sonic-rift/pull/144) and not merged.
 
