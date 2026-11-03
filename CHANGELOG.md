@@ -4,9 +4,9 @@ All notable changes to **Sonic Rift** are recorded here. The project began as **
 
 Versions follow [Semantic Versioning](https://semver.org/) from 0.9.0-alpha. Earlier work had no version numbers (the `ui-v0.2.0` tag predates the rename).
 
-## 0.9.1 (2026-11-03) — release candidate; not yet published
+## 0.9.1 (2026-11-03)
 
-This update improves Studio music placement and mix controls. It is **not publicly released** until the exact Windows installer has been signed, verified, and the release published.
+Studio music placement and mix controls. Like 0.9.0-alpha, it runs from source or from the signed Windows installer (the installer sets up Python and PyTorch on first launch).
 
 ### Fixed
 - **Music and ambience stay on separate Studio tracks.** Kept music does not join a selected waves/effects lane unless it is empty or contains music already. Ambience added when music is selected also gets an appropriate independent track. Undo and project compatibility remain intact ([#144](https://github.com/Knapp-Kevin/sonic-rift/pull/144)).
@@ -14,12 +14,7 @@ This update improves Studio music placement and mix controls. It is **not public
 ### Improved
 - **Adjust sound levels directly in the timeline.** Each Studio lane now has a gain slider with dB readout and a Mute button. Slider drags create one undoable edit, and track-header selection makes it clearer where new sounds go.
 - **Check Balance** alongside Play mix analyzes the same rendered signal used for playback/export and shows per-lane comparisons with dialogue. Measurements are advisory, not a substitute for listening.
-- **Project → Mix settings** includes adjustable Duck under voices; the setting is persisted and reflected in playback, balance, and export. The clip list is available via Clips so the timeline has more space ([#145](https://github.com/Knapp-Kevin/sonic-rift/pull/145)).
-
-### Release qualification required
-- Confirm the complete Windows source test suite and real application acceptance on the exact release commit, including install/upgrade, Studio save/reopen, music/ambience separation, audio playback/export, undo/redo, and signing.
-- Build the signed Windows installer using `packaging/windows/build-installer.ps1` and `packaging/windows/verify-signature.ps1` or the owner-approved release workflow. Verify SHA-256 and publisher **MythologIQ Labs, LLC**.
-- Release to GitHub only after owner accepts the signed artifact. The new website download must continue to show the actual published release until this is complete.
+- **Project → Mix settings** includes adjustable Duck under voices; the setting is persisted and reflected in playback, balance, and export. Projects that keep the default stay readable by 0.9.0-alpha. The clip list is available via Clips so the timeline has more space ([#145](https://github.com/Knapp-Kevin/sonic-rift/pull/145)).
 
 ## 0.9.0-alpha (2026-11-02)
 
