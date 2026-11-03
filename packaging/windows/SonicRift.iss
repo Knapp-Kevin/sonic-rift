@@ -53,7 +53,10 @@ SignedUninstaller=yes
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "{#StageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "{#StageDir}\*"; DestDir: "{app}"; Excludes: "\models.json"; Flags: recursesubdirs createallsubdirs ignoreversion
+; The model list is the user's once they add or remove a model on the Models page, so an
+; upgrade must not reset it: install it only when there is none, and keep it on uninstall.
+Source: "{#StageDir}\models.json"; DestDir: "{app}"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
 Name: "{group}\Sonic Rift"; Filename: "{app}\launch-sonic-rift.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\assets\branding\sonic-rift.ico"

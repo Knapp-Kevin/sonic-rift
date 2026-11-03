@@ -10,6 +10,7 @@ Studio music placement and mix controls. Like 0.9.0-alpha, it runs from source o
 
 ### Fixed
 - **Music and ambience stay on separate Studio tracks.** Kept music does not join a selected waves/effects lane unless it is empty or contains music already. Ambience added when music is selected also gets an appropriate independent track. Undo and project compatibility remain intact ([#144](https://github.com/Knapp-Kevin/sonic-rift/pull/144)).
+- **Upgrading keeps your model list.** Installing over an earlier copy no longer resets `models.json`, so models added or removed on the Models page survive the upgrade (and an uninstall).
 
 ### Improved
 - **Adjust sound levels directly in the timeline.** Each Studio lane now has a gain slider with dB readout and a Mute button. Slider drags create one undoable edit, and track-header selection makes it clearer where new sounds go.

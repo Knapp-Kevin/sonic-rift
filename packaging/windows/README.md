@@ -10,7 +10,7 @@
 
 Python 3.11, PyTorch and the other dependencies are **not** bundled. On first launch, `launch-sonic-rift.cmd` uses the bundled uv to find or install Python 3.11, then runs `run.bat` exactly as a source checkout does. Bundling PyTorch would push the installer past GitHub's 2 GB release-asset limit.
 
-The installer is per-user (no admin prompt) and installs to `%LOCALAPPDATA%\Programs\Sonic Rift`, because the app writes its environments and logs next to itself. Uninstalling removes the app, `.venv`, `logs` and `__pycache__`. Engine environments under `engines\` and generated audio stay.
+The installer is per-user (no admin prompt) and installs to `%LOCALAPPDATA%\Programs\Sonic Rift`, because the app writes its environments and logs next to itself. Uninstalling removes the app, `.venv`, `logs` and `__pycache__`. Engine environments under `engines\`, generated audio, settings and the model list (`models.json`) stay. Installing over an existing copy (an upgrade) replaces the app files but never resets `models.json`, which the Models page writes.
 
 ## Build locally
 
