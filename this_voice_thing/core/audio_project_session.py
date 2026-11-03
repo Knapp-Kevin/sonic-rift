@@ -54,6 +54,21 @@ def compatible_track_id(project, selection, kind):
     return None
 
 
+def sound_track_for(project, selection, is_music, asset_is_music):
+    """The selected sound track a kept sound may join, or None for a track of its own.
+
+    Music and other sounds don't share a track: music added while the waves are selected
+    would otherwise sit on the waves' lane, and their gains couldn't be set apart. An empty
+    sound track takes either. `asset_is_music(asset_id)` says whether a clip holds music."""
+    track_id = compatible_track_id(project, selection, "sound")
+    track = next((t for t in project.tracks if t.id == track_id), None)
+    if track is None:
+        return None
+    if all(bool(asset_is_music(clip.asset_id)) == bool(is_music) for clip in track.clips):
+        return track.id
+    return None
+
+
 class ProjectSession:
     def __init__(self, project, *, path=None, fingerprint=None):
         project.validate()
