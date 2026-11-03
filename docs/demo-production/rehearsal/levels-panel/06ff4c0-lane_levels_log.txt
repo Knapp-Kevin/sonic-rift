@@ -1,0 +1,8 @@
+[14:03:50] screenshot 01_lanes_before_check.png
+[14:03:51] Check balance: done in 0.8 s
+[14:03:51] Dialogue: Voices -17.8 LUFS
+[14:03:51] Shoreline waves: 21.3 dB under the voices
+[14:03:51] Round 2 D: 23.7 dB under the voices
+[14:03:51] note: Closest to the voices: Shoreline waves, 21.3 dB under
+[14:03:51] screenshot 02_lanes_after_check.png
+[14:03:52] screenshot 03_lanes_with_clip_list.png
