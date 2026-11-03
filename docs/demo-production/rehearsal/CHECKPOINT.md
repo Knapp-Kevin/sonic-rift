@@ -52,8 +52,9 @@ Findings:
 1. **Defect: music lands on the selected sound track.** If a sound track (the waves) is selected, "Keep and add to
    Studio…" adds the music clip to that same track, overlapping the waves. The labels overlap on screen and the two can't be balanced
    separately (`scene_try1`, kept locally). Workaround in the real UI: Add › Empty track… (sound, "Music"), select it, then
-   Keep and add to Studio. Engineering fix suggested: music should get its own track unless a *music-named or empty* track is
-   selected. I have not filed an issue (owner's call).
+   Keep and add to Studio. **Fixed** on branch `fix/music-own-studio-track` (commit `bc84a4a`, not yet pushed or merged): music
+   and other sounds join a selected sound track only if it holds the same kind or is empty. The full suite passes (669 tests,
+   Windows platform). Verified in the real app: with the waves selected, the music got its own "Harbor light underscore" track.
 2. **Not reproducible by seed:** the same seed gave different audio in two runs (hashes differ). The owner-picked take
    must be kept as a file. The final film must use the kept asset, not a regeneration.
 3. The fades were set through `ProjectSession.update_clip`, the model behind the Clip properties dialog, not the dialog itself,
@@ -75,7 +76,7 @@ Plan first on. **Not verified: absence of sung vocals** (no transcriber in this 
 | S00 | Static 2.0–2.5 s hold of the exact mark on the navy background, no animation, silence. Only after §3 is cleared | The logo isn't verified, and there are no animation tools for an approved mark |
 | S01 | Start on the approved empty-Studio still for ≤1.5 s, then cut to the real saved empty project. Guide line starts ≤0.4 s after the cut | Remove the 2.2 s head silence |
 | S02–S05 | Cap each generation wait at 1.0–2.0 s of visible progress (jump cut), and keep about 3–4 s waves-only in S04 with visible take playback | Removes about 30 s of the measured dead air |
-| S06 | Add the music beat: Music page → prompt → takes → **Add › Empty track "Music" → Keep and add to Studio** → track gain −14 dB → fades. New Guide line *not* proposed: the existing "Place every line… let the sea sit underneath" stays | Music route verified. The "Music" track step is the honest workaround for finding 1 |
+| S06 | Add the music beat: Music page → prompt → takes → **Keep and add to Studio** (own track, with the fix) → track gain −14 dB → fades. New Guide line *not* proposed: the existing "Place every line… let the sea sit underneath" stays | Music route verified. Needs the fix build; without it, use Add › Empty track first |
 | S07 | Play mix with dialogue + waves + music. Music clip trimmed to the scene with a 4 s fade-out. **No Guide speech** | The rehearsal confirms the balance is about 13 dB under the dialogue |
 | S08 | Real Export mix into a new folder; show the "Export complete" note (real) for about 2 s | Fills the 3.8 s pre-tagline gap with real action |
 | S09 | Approved end card plus the existing tagline WAV 12. "Windows alpha" only if rechecked at filming (v0.9.0-alpha is a GitHub pre-release) | Unchanged |
@@ -85,7 +86,7 @@ Plan first on. **Not verified: absence of sung vocals** (no transcriber in this 
 1. Owner confirms the silver mark against their reference, or supplies the master (and decides on the wordmark).
 2. Owner approves the script edits in §6 and picks the music cue (A/B/C or regenerate) after listening for vocals.
 3. Decide installed build or source build for the "exact recording build" line.
-4. Optional: fix the music-track defect first, so the film doesn't need the Empty-track step.
+4. Music-track fix: merge `fix/music-own-studio-track` and record from that build (state the exact commit), or record v0.9.0-alpha with the Empty-track step.
 
 ## 8. Final assembly capability (local)
 `ffmpeg` 7.1 (Gyan essentials) is available. It can cut, concatenate, mix, side-chain duck, measure loudness (ebur128),
