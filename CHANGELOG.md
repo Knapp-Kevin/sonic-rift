@@ -4,12 +4,6 @@ All notable changes to **Sonic Rift** are recorded here. The project began as **
 
 Versions follow [Semantic Versioning](https://semver.org/) from 0.9.0-alpha. Earlier work had no version numbers (the `ui-v0.2.0` tag predates the rename).
 
-## Unreleased
-
-### Fixed
-
-- **Music gets its own Studio track.** Keep and add to Studio (and Add to Studio from Kept music) no longer stacks a music clip on the selected ambience track, such as the waves, where the two overlapped and their gains couldn't be set apart. Music and other sounds each join a selected track only if it holds the same kind, or is empty; otherwise they get a track of their own.
-
 ## 0.9.0-alpha (2026-11-02)
 
 The first numbered version, an alpha. It runs from source, or from the signed Windows installer the release workflow builds for this tag (the installer sets up Python and PyTorch on first launch). Entries describe code in this version, **not** a universally verified model/device matrix.
