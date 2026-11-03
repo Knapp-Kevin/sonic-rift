@@ -85,8 +85,7 @@ Plan first on. **Not verified: absence of sung vocals** (no transcriber in this 
 ## 7. Remaining blockers before final recording
 1. Owner confirms the silver mark against their reference, or supplies the master (and decides on the wordmark).
 2. ~~Music cue~~: **picked 2026-11-03: round 2 take D** (`listening/round2/music_candidate_D_seed3101.wav`, SHA-256 `e6ce1041…9b88`, cello + strings, 70 BPM, A major). The owner still needs to approve the script edits in §6 and the creative treatment.
-3. **Recording baseline (updated 2026-11-03):** development build `06ff4c0` (post-v0.9.0-alpha, not the published release), run
-   from source: the music-track fix (draft PR #144) plus the Studio balancing controls (draft PR #145). See SCRIPT_LOCK.md "Recording baseline". Neither is merged.
+3. **Recording baseline (released 2026-11-03):** the published Sonic Rift **0.9.1** pre-release, signed installer `f5f192c1…8456`, tag `v0.9.1` (`9e5ded1`). See SCRIPT_LOCK.md "Recording baseline".
 
 ## 8. Final assembly capability (local)
 `ffmpeg` 7.1 (Gyan essentials) is available. It can cut, concatenate, mix, side-chain duck, measure loudness (ebur128),

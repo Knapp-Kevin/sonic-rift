@@ -23,20 +23,18 @@
 | S08 / ~110–118 s | Actual Studio **Export mix** to fresh directory; show genuine success or supported export output; return to saved composition | *(None)* | Sound resolves gently; no fake confirmation or staged export panel. |
 | S09 / final ~4–6 s | Existing **approved Sonic Rift** logo end card; include Windows alpha status only if independently rechecked at filming | **Brand narrator:** “Sonic Rift. Make worlds you can hear.” | End cleanly after voice. |
 
-## Recording baseline (proposed, owner approval required)
-- **Build to record:** Sonic Rift **development build** `06ff4c0c57299d26e131d6bd328d037cf4c54df5` (branch
-  `feat/studio-balance-controls`, draft PR #145, stacked on the music-track fix in draft PR #144), run from source. That is the v0.9.0-alpha
-  code plus two Studio changes: kept music gets its own track, and balancing controls (a level slider and Mute in each lane
-  header, Check balance in the transport row, Duck under voices in Project › Mix settings). **This is a post-v0.9.0-alpha development build, not the published release.**
-  The published v0.9.0-alpha (`f093ebd`) puts kept music on the selected waves track. A film recorded on it would need the manual
-  Empty-track step, which this script no longer shows.
-- **Qualification:** full test suite **676/676** at `06ff4c0` on the Windows Qt platform (the fix branch head `1c67a10`: 669/669;
-  `bc84a4a` alone fails `test_version` because of a CHANGELOG heading, corrected in `1c67a10`) (one status-bar test fails only under off-screen Qt, the same
-  on the untouched release, because off-screen Qt has no fonts). Real-app rehearsal: with the waves selected, kept music got its
-  own track, and Save, Play mix and Export mix worked (`rehearsal/CHECKPOINT.md`).
-- **Provenance line for the film/manifest:** "Recorded on a Sonic Rift development build (`06ff4c0`, after 0.9.0-alpha)." If the fixes are
-  merged and released before filming, record on that release and update this line. Never call the build "the released alpha".
-- **Availability text (S09):** "Windows alpha" refers to the published v0.9.0-alpha pre-release. Recheck it at filming.
+## Recording baseline (released build)
+- **Build to record:** the published **Sonic Rift 0.9.1** GitHub pre-release, installed from the signed
+  `SonicRift-Setup-0.9.1.exe` (SHA-256 `f5f192c1da11b24e0b3d093efeecb0aaf2c15b30bc2ee395b2f4cecc2d968456`, signer MythologIQ Labs, LLC),
+  tag `v0.9.1` at commit `9e5ded1fba5d0f9f19b5c1ed32253a74ac087696`. It contains the music-track fix (#144), the Studio balancing controls
+  (#145), the upgrade fix that keeps `models.json`, and the single Add to Studio button style (#146).
+  Release: <https://github.com/Knapp-Kevin/sonic-rift/releases/tag/v0.9.1>.
+- **Install for capture:** a fresh install in a disposable folder (`/DIR=`), with no personal profile. Verify the installer's SHA-256 and signature before installing.
+- **Qualification:** 679/679 tests and 10/10 real-app acceptance checks at the release commit content; the signed installer passed a clean install, a first
+  launch and a signed uninstall; an upgrade from the signed 0.9.0-alpha kept every user file (17/17).
+- **Provenance line for the film/manifest:** "Recorded on Sonic Rift 0.9.1 (Windows pre-release, signed installer)."
+  The earlier development SHAs (`bc84a4a`, `06ff4c0`) are rehearsal history only.
+- **Availability text (S09):** the current download is the 0.9.1 Windows **pre-release**. Say "Windows pre-release" (or the owner's chosen wording); recheck at filming.
 
 ## Original approved audio map
 | Role | Source |
