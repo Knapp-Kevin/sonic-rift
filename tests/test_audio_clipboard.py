@@ -68,9 +68,11 @@ class ClipClipboardTests(unittest.TestCase):
 
     def test_paste_audio_matches_original_at_new_location(self):
         clipboard = self.session.copy_clips(["wave"])
-        before = render_timeline(self.session.project, self.resolve).audio.copy()
+        # Compare the selected track's stem, not the master: narration overlaps
+        # the original sound and must not be accidentally counted as copied audio.
+        before = render_timeline(self.session.project, self.resolve).stems[self.wave_track].copy()
         self.session.paste_clips(clipboard, 48)
-        after = render_timeline(self.session.project, self.resolve).audio
+        after = render_timeline(self.session.project, self.resolve).stems[self.wave_track]
         np.testing.assert_allclose(after[8:20], before[8:20], atol=1e-7)
         np.testing.assert_allclose(after[48:60], before[8:20], atol=1e-7)
         np.testing.assert_array_equal(self.wave, np.linspace(-0.25, 0.25, 100, dtype=np.float32))
