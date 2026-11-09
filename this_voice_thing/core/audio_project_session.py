@@ -198,6 +198,76 @@ class ProjectSession:
             clip.fade_out_frames = min(clip.fade_out_frames, frame_count)
         return self.apply(edit)
 
+    def split_clip(self, clip_id, at_frame):
+        """Split rendered audio at an absolute sample frame, without changing source PCM.
+
+        Reject a cut through a fade: the schema cannot preserve a partial linear
+        fade without an additional envelope parameter. A rejected edit leaves the
+        document and undo history unchanged. The right clip gets a fresh ID.
+        """
+        if type(at_frame) is not int or at_frame < 0:
+            raise ValueError("Split position must be a non-negative sample frame")
+        right_id = new_id()
+
+        def edit(project):
+            for track in project.tracks:
+                for index, clip in enumerate(track.clips):
+                    if clip.id != clip_id:
+                        continue
+                    if not clip.asset_id or clip.frame_count < 2:
+                        raise ValueError("Only rendered audio can be split")
+                    left_count = at_frame - clip.start_frame
+                    right_count = clip.frame_count - left_count
+                    if left_count <= 0 or right_count <= 0:
+                        raise ValueError("Split must lie strictly inside the clip")
+                    if (left_count < clip.fade_in_frames
+                            or right_count < clip.fade_out_frames):
+                        raise ValueError("Cannot split through an existing fade")
+                    left, right = deepcopy(clip), deepcopy(clip)
+                    left.frame_count = left_count
+                    left.fade_out_frames = 0
+                    right.id = right_id
+                    right.start_frame = at_frame
+                    right.frame_count = right_count
+                    right.source_offset_frames += left_count
+                    right.fade_in_frames = 0
+                    track.clips[index:index + 1] = [left, right]
+                    return
+            raise KeyError(f"Unknown clip: {clip_id}")
+
+        self.apply(edit)
+        return right_id
+
+    def duplicate_clip(self, clip_id, start_frame=None):
+        """Copy a rendered clip onto its track, retaining a read-only source reference.
+
+        The default placement is directly after the source clip; overlaps are
+        permitted when a caller supplies an explicit absolute frame.
+        """
+        if start_frame is not None and (type(start_frame) is not int or start_frame < 0):
+            raise ValueError("Duplicate position must be a non-negative sample frame")
+        duplicate_id = new_id()
+
+        def edit(project):
+            for track in project.tracks:
+                for index, clip in enumerate(track.clips):
+                    if clip.id != clip_id:
+                        continue
+                    if not clip.asset_id or clip.frame_count <= 0:
+                        raise ValueError("Only rendered audio can be duplicated")
+                    duplicate = deepcopy(clip)
+                    duplicate.id = duplicate_id
+                    duplicate.start_frame = (
+                        clip.start_frame + clip.frame_count if start_frame is None
+                        else start_frame
+                    )
+                    track.clips.insert(index + 1, duplicate)
+                    return
+            raise KeyError(f"Unknown clip: {clip_id}")
+
+        self.apply(edit)
+        return duplicate_id
+
     def attach_narration_take(self, clip_id, asset_id, frame_count):
         """Replace a voice clip's rendered take atomically and preserve undo history.
 
