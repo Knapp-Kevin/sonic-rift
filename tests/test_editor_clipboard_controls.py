@@ -77,6 +77,55 @@ class StudioClipboardActions(TestCase):
         self.assertEqual(e.session.project.tracks[0].clips[0].id, "first")
         e._error.assert_not_called()
 
+    def test_ruler_seek_is_stable_when_preview_is_cached_and_stopped(self):
+        from PySide6.QtMultimedia import QMediaPlayer
+        from this_voice_thing.ui.pages.project_editor import seconds_label
+
+        e = self.editor
+        player = Mock()
+        player.playbackState.return_value = QMediaPlayer.PlaybackState.StoppedState
+        e.player = player
+        e.preview_file = "cached-preview.wav"
+        e.preview_revision = e.session.project.revision
+        e.timeline.set_playhead = Mock()
+        e.position_label = Mock()
+
+        ProjectEditorDialog._seek_preview(e, 2.25)
+
+        e.timeline.set_playhead.assert_called_once_with(2.25)
+        e.position_label.setText.assert_called_once_with(seconds_label(2.25))
+        player.setPosition.assert_called_once_with(2250)
+        player.play.assert_not_called()
+
+    def test_ruler_seek_without_cached_preview_sets_cursor_only(self):
+        e = self.editor
+        e.player = Mock()
+        e.preview_file = None
+        e.preview_revision = None
+        e.timeline.set_playhead = Mock()
+        e.position_label = Mock()
+
+        ProjectEditorDialog._seek_preview(e, 3.5)
+
+        e.timeline.set_playhead.assert_called_once_with(3.5)
+        e.player.setPosition.assert_not_called()
+        e.player.play.assert_not_called()
+
+    def test_stopping_preview_does_not_erase_edit_position(self):
+        from PySide6.QtMultimedia import QMediaPlayer
+
+        e = self.editor
+        e.stop_button = Mock()
+        e.play_button = Mock()
+        e.timeline.set_playhead = Mock()
+        e.position_label = Mock()
+        ProjectEditorDialog._on_preview_state(
+            e, QMediaPlayer.PlaybackState.StoppedState)
+
+        e.stop_button.setEnabled.assert_called_once_with(False)
+        e.timeline.set_playhead.assert_not_called()
+        e.position_label.setText.assert_not_called()
+
     def test_clipboard_not_reusable_in_another_project(self):
         e = self.editor
         ProjectEditorDialog.copy_selected_clips(e)
