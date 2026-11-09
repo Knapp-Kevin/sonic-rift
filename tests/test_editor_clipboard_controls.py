@@ -126,6 +126,29 @@ class StudioClipboardActions(TestCase):
         e.timeline.set_playhead.assert_not_called()
         e.position_label.setText.assert_not_called()
 
+    def test_preview_stop_blocks_late_zero_position_and_preserves_cursor(self):
+        from PySide6.QtMultimedia import QMediaPlayer
+
+        e = self.editor
+        e.player = Mock()
+        e.player.playbackState.return_value = QMediaPlayer.PlaybackState.PlayingState
+        e.timeline.set_playhead = Mock()
+        e.position_label = Mock()
+        e.stop_button = Mock()
+        e.play_button = Mock()
+        e._stop_requested = False
+
+        ProjectEditorDialog.stop_preview(e)
+        self.assertTrue(e._stop_requested)
+        e.player.stop.assert_called_once()
+        ProjectEditorDialog._on_preview_position(e, 0)
+        e.timeline.set_playhead.assert_not_called()
+        e.position_label.setText.assert_not_called()
+
+        ProjectEditorDialog._on_preview_state(e, QMediaPlayer.PlaybackState.StoppedState)
+        self.assertFalse(e._stop_requested)
+        e.timeline.set_playhead.assert_not_called()
+
     def test_clipboard_not_reusable_in_another_project(self):
         e = self.editor
         ProjectEditorDialog.copy_selected_clips(e)
