@@ -4,7 +4,7 @@ Edits operate on deep copies and publish only fully validated snapshots. No sour
 media, existing voice profiles, or audio settings are ever modified here.
 """
 from copy import deepcopy
-from dataclasses import replace
+from dataclasses import dataclass, replace
 import hashlib
 import json
 from pathlib import Path
@@ -12,6 +12,22 @@ from pathlib import Path
 from this_voice_thing.core.audio_project import AudioProject, Clip, Track, from_dict, save_project, new_id
 
 MAX_HISTORY = 100
+MAX_CLIPBOARD_CLIPS = 32
+MAX_TIMELINE_SECONDS = 36000  # Studio editing and mix controls use a 10-hour horizon.
+
+
+@dataclass(frozen=True)
+class ClipClipboard:
+    """Process-local editing intent, not an external-authority or disk format.
+
+    The clip objects are snapshots; paste always deep-copies and revalidates
+    them. No media bytes, absolute file paths or external destinations appear.
+    """
+    project_id: str
+    sample_rate: int
+    origin_frame: int
+    items: tuple   # (source_track_id, Clip), in project-lane and time order
+
 
 
 def _sha(path):
@@ -267,6 +283,88 @@ class ProjectSession:
 
         self.apply(edit)
         return duplicate_id
+
+    def copy_clips(self, clip_ids):
+        """Snapshot 1-32 rendered clips for project-local, non-destructive paste.
+
+        Copy does not alter the project, revision, media, undo or redo history.
+        The clipboard is not a security token and is never passed raw to MCP.
+        """
+        if (type(clip_ids) not in (tuple, list) or not 1 <= len(clip_ids) <= MAX_CLIPBOARD_CLIPS
+                or any(type(clip_id) is not str or not clip_id for clip_id in clip_ids)
+                or len(set(clip_ids)) != len(clip_ids)):
+            raise ValueError("Select 1-32 distinct clip IDs to copy")
+        requested = set(clip_ids)
+        found = []
+        for track in self.project.tracks:
+            for clip in sorted(track.clips, key=lambda c: (c.start_frame, c.id)):
+                if clip.id not in requested:
+                    continue
+                if not clip.asset_id or clip.frame_count <= 0:
+                    raise ValueError("Only rendered audio clips can be copied")
+                found.append((track.id, deepcopy(clip)))
+        if len(found) != len(requested):
+            raise KeyError("One or more selected clips no longer exist")
+        return ClipClipboard(
+            self.project.id, self.project.sample_rate,
+            min(clip.start_frame for _, clip in found), tuple(found))
+
+    def paste_clips(self, clipboard, at_frame, *, target_track_id=None, expected_revision=None):
+        """Atomically paste selected clips at one frame, preserving relative offsets.
+
+        Existing source track IDs remain the default paste destinations. A target
+        track override is allowed only for a single-lane clipboard with matching
+        kind. Every failure leaves project and undo history unchanged.
+        """
+        if type(clipboard) is not ClipClipboard:
+            raise ValueError("Expected an in-memory clip clipboard")
+        if type(at_frame) is not int or at_frame < 0:
+            raise ValueError("Paste position must be a non-negative whole frame")
+        if (target_track_id is not None
+                and (type(target_track_id) is not str or not target_track_id)):
+            raise ValueError("Invalid target track ID")
+        if expected_revision is not None and (
+                type(expected_revision) is not int
+                or expected_revision != self.project.revision):
+            raise ValueError("Project changed before paste; refresh and retry")
+        if (clipboard.project_id != self.project.id
+                or clipboard.sample_rate != self.project.sample_rate):
+            raise ValueError("Clipboard belongs to another project or sample rate")
+        if not 1 <= len(clipboard.items) <= MAX_CLIPBOARD_CLIPS:
+            raise ValueError("Clipboard has no valid clips")
+        if type(clipboard.origin_frame) is not int or clipboard.origin_frame < 0:
+            raise ValueError("Invalid clipboard origin")
+        if target_track_id is not None and len({tid for tid, _ in clipboard.items}) != 1:
+            raise ValueError("Cannot redirect a multi-track selection to one lane")
+        pasted_ids = [new_id() for _ in clipboard.items]
+
+        def edit(project):
+            tracks = {track.id: track for track in project.tracks}
+            placements = []
+            for (source_track_id, original), clip_id in zip(clipboard.items, pasted_ids):
+                if type(source_track_id) is not str or type(original) is not Clip:
+                    raise ValueError("Invalid clipboard clip entry")
+                if not original.asset_id or original.frame_count <= 0:
+                    raise ValueError("Clipboard contains unrendered audio")
+                destination = tracks.get(
+                    target_track_id if target_track_id is not None else source_track_id)
+                if destination is None:
+                    raise KeyError("Destination track no longer exists")
+                if destination.kind != original.kind:
+                    raise ValueError("Cannot paste a clip into a different track kind")
+                delta = original.start_frame - clipboard.origin_frame
+                if delta < 0 or at_frame + delta + original.frame_count > (
+                        MAX_TIMELINE_SECONDS * project.sample_rate):
+                    raise ValueError("Pasted audio exceeds the timeline boundary")
+                clip = deepcopy(original)
+                clip.id = clip_id
+                clip.start_frame = at_frame + delta
+                placements.append((destination, clip))
+            for track, clip in placements:
+                track.clips.append(clip)
+
+        self.apply(edit)
+        return tuple(pasted_ids)
 
     def attach_narration_take(self, clip_id, asset_id, frame_count):
         """Replace a voice clip's rendered take atomically and preserve undo history.
