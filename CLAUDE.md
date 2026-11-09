@@ -11,3 +11,7 @@ Windows binaries and installers this repository distributes **must be Authentico
 - A release is signed only after `signtool verify /pa` passes, the signer is `MythologIQ Labs, LLC`, and the signature is timestamped. Record that output in the release evidence.
 
 **This repository:** `packaging/windows/` builds the Inno Setup installer, and `.github/workflows/release-windows.yml` signs and verifies it for `v*` tags. The installer and its uninstaller are the signed files. Bundled third-party binaries (uv) keep their publishers' signatures. See `packaging/windows/README.md`.
+
+## Issue tracker
+
+The authoritative tracker is [GitHub Issues](https://github.com/Knapp-Kevin/sonic-rift/issues). Read [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md), especially its **Wayfinding operations** section, before charting a large effort or editing the Wayfinder map. Keep decision tickets separate from executable delivery issues and do not claim native issue dependencies unless they have actually been set and verified.
