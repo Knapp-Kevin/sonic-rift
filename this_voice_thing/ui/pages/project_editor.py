@@ -228,6 +228,9 @@ class ProjectEditorDialog(QDialog):
         self.narrate_button.setToolTip("Render the selected narration script with the voice and settings "
                                        "chosen on Speech, and put the take on that clip.")
         add_actions.addWidget(MenuButton("Selection", [
+            ("Split clip at playhead", self.split_selected_at_playhead),
+            ("Duplicate clip", self.duplicate_selected_clip),
+            None,
             ("Mute / unmute track", self.toggle_track_mute),
             ("Edit narration script\u2026", self.edit_narration),
             ("Move track up", lambda: self.move_track(-1)),
@@ -351,6 +354,44 @@ class ProjectEditorDialog(QDialog):
                                   "Undo puts it back; the source audio is unchanged.")
             else:
                 self.note.setText(f"Script moved to {start / rate:.2f} s. Undo puts it back.")
+
+    def split_selected_at_playhead(self):
+        """Split the selected rendered clip at the ruler/playback position.
+
+        The ProjectSession edit is the sole authority. The timeline supplies a
+        position, not a second editing implementation.
+        """
+        selection = self._selected()
+        if not selection or selection[0] != "clip":
+            self.note.setText("Select an audio clip before splitting.")
+            return
+        seconds = self.timeline.playhead
+        if seconds is None:
+            self.note.setText("Click the timeline ruler to place the playhead, then split the clip.")
+            return
+        at_frame = round(seconds * self.session.project.sample_rate)
+        try:
+            new_id = self.session.split_clip(selection[1], at_frame)
+        except Exception as exc:
+            self._error(exc)
+            return
+        self.refresh(new_id)
+        self.note.setText(
+            "Split at the playhead. Both clips reference the original audio; Undo restores the clip.")
+
+    def duplicate_selected_clip(self):
+        """Duplicate a rendered clip immediately after itself without copying PCM."""
+        selection = self._selected()
+        if not selection or selection[0] != "clip":
+            self.note.setText("Select an audio clip before duplicating.")
+            return
+        try:
+            new_id = self.session.duplicate_clip(selection[1])
+        except Exception as exc:
+            self._error(exc)
+            return
+        self.refresh(new_id)
+        self.note.setText("Duplicated the clip after its original. Undo removes the duplicate.")
 
     def _tree_selection_changed(self, current, _previous):
         data = current.data(0, Qt.ItemDataRole.UserRole) if current else None
