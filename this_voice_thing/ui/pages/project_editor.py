@@ -15,9 +15,10 @@ import tempfile
 import soundfile as sf
 
 from PySide6.QtCore import QUrl, Qt, Slot
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import (
-    QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout, QHBoxLayout, QHeaderView,
+    QAbstractItemView, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout, QHBoxLayout, QHeaderView,
     QInputDialog, QLabel, QMessageBox, QPushButton, QSplitter, QTreeWidget,
     QTreeWidgetItem, QVBoxLayout, QDialogButtonBox,
 )
@@ -116,6 +117,7 @@ class ProjectEditorDialog(QDialog):
         self.setWindowTitle("Sonic Rift | Studio")
         self.resize(1000, 720)
         self.session = ProjectSession(AudioProject(new_id(), "Untitled project"))
+        self._clip_clipboard = None   # in-memory, project-scoped; never OS or MCP clipboard
         self.saved_revision = None
         self.baseline_revision = self.session.project.revision   # nothing to lose until edited
         self.session_serial = 0   # bumped on New/Open: a late import can't attach to another session
@@ -183,6 +185,9 @@ class ProjectEditorDialog(QDialog):
 
         self.timeline = TimelineView(self._clip_label)
         self.timeline.clipSelected.connect(self._select_clip_in_tree)
+        self.timeline.clipsSelectionChanged.connect(self._sync_tree_clip_selection)
+        self.timeline.setToolTip("Ctrl+click clips to select several; click the ruler to place the playhead. "
+                                 "Ctrl+C copies, Ctrl+V pastes, Ctrl+D duplicates, Ctrl+E splits.")
         self.timeline.clipActivated.connect(lambda clip_id: (self._select_clip_in_tree(clip_id),
                                                              self.edit_selected()))
         self.timeline.seekRequested.connect(self._seek_preview)
@@ -195,6 +200,9 @@ class ProjectEditorDialog(QDialog):
         set_empty_text(self.tree, "Add a saved sound or narration to start. Each kind gets its own track.")
         self.tree.setHeaderLabels(["Track / clip", "Starts", "Length", "Gain", "Source"])
         self.tree.setRootIsDecorated(True)
+        self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.tree.itemSelectionChanged.connect(
+            lambda: self._tree_selection_changed(self.tree.currentItem(), None))
         header = self.tree.header()
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)       # names were cut to "Evenin..."
@@ -203,6 +211,17 @@ class ProjectEditorDialog(QDialog):
         self.tree.setAlternatingRowColors(True)
         self.tree.itemDoubleClicked.connect(lambda *_: self.edit_selected())
         self.tree.currentItemChanged.connect(self._tree_selection_changed)
+        self._edit_shortcuts = []
+        for widget in (self.timeline, self.tree):
+            for keys, action in (
+                    (QKeySequence.StandardKey.Copy, self.copy_selected_clips),
+                    (QKeySequence.StandardKey.Paste, self.paste_copied_clips),
+                    (QKeySequence("Ctrl+D"), self.duplicate_selected_clip),
+                    (QKeySequence("Ctrl+E"), self.split_selected_at_playhead)):
+                shortcut = QShortcut(QKeySequence(keys), widget)
+                shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+                shortcut.activated.connect(action)
+                self._edit_shortcuts.append(shortcut)
         self.tree.setVisible(False)       # the timeline is the Studio; Clips shows exact numbers
         split = QSplitter(Qt.Orientation.Vertical)
         split.addWidget(self.timeline)
@@ -228,6 +247,9 @@ class ProjectEditorDialog(QDialog):
         self.narrate_button.setToolTip("Render the selected narration script with the voice and settings "
                                        "chosen on Speech, and put the take on that clip.")
         add_actions.addWidget(MenuButton("Selection", [
+            ("Copy selected clips", self.copy_selected_clips),
+            ("Paste at playhead", self.paste_copied_clips),
+            None,
             ("Split clip at playhead", self.split_selected_at_playhead),
             ("Duplicate clip", self.duplicate_selected_clip),
             None,
@@ -338,6 +360,66 @@ class ProjectEditorDialog(QDialog):
                     self.tree.setCurrentItem(item)
                     return
 
+    def _sync_tree_clip_selection(self, clip_ids):
+        """Mirror Ctrl-click selection without emitting a destructive tree edit."""
+        wanted = set(clip_ids)
+        tree = self.tree
+        was_blocked = tree.blockSignals(True)
+        try:
+            tree.clearSelection()
+            last = None
+            for i in range(tree.topLevelItemCount()):
+                track_item = tree.topLevelItem(i)
+                for j in range(track_item.childCount()):
+                    item = track_item.child(j)
+                    data = item.data(0, Qt.ItemDataRole.UserRole)
+                    if data and data[0] == "clip" and data[1] in wanted:
+                        item.setSelected(True)
+                        if data[1] == (clip_ids[-1] if clip_ids else None):
+                            last = item
+            tree.setCurrentItem(last)
+        finally:
+            tree.blockSignals(was_blocked)
+        self.timeline.set_selected_clips(clip_ids)
+
+    def _selected_clip_ids(self):
+        """The visual timeline is the authoritative multi-selection display."""
+        return tuple(self.timeline.selected_clips)
+
+    def copy_selected_clips(self):
+        selected = self._selected_clip_ids()
+        if not selected:
+            self.note.setText("Select a rendered audio clip first; Ctrl+click to select several.")
+            return
+        try:
+            self._clip_clipboard = self.session.copy_clips(selected)
+        except Exception as exc:
+            self._error(exc)
+            return
+        self.note.setText(
+            f"Copied {len(selected)} clip(s) inside this project. "
+            "Click the ruler for a paste position, then Ctrl+V.")
+
+    def paste_copied_clips(self):
+        if self._clip_clipboard is None:
+            self.note.setText("Copy one or more rendered clips before pasting.")
+            return
+        if self.timeline.playhead is None:
+            self.note.setText("Click the timeline ruler to place the playhead before pasting.")
+            return
+        at_frame = round(self.timeline.playhead * self.session.project.sample_rate)
+        try:
+            new_ids = self.session.paste_clips(
+                self._clip_clipboard, at_frame,
+                expected_revision=self.session.project.revision)
+        except Exception as exc:
+            self._error(exc)
+            return
+        self.refresh(new_ids[-1])
+        self.note.setText(
+            f"Pasted {len(new_ids)} clip(s), preserving track kinds and relative timing. "
+            "Undo removes the entire paste.")
+
     def _clip_placed(self, clip_id, start, count, offset):
         """A drag on the timeline finished: one undoable edit (scripts can only move)."""
         clip = next((c for t in self.session.project.tracks for c in t.clips if c.id == clip_id), None)
@@ -395,8 +477,13 @@ class ProjectEditorDialog(QDialog):
 
     def _tree_selection_changed(self, current, _previous):
         data = current.data(0, Qt.ItemDataRole.UserRole) if current else None
-        self.timeline.set_selected(data[1] if data and data[0] == "clip" else None)
-        self.timeline.set_selected_track(data[1] if data and data[0] == "track" else None)
+        selected = [item.data(0, Qt.ItemDataRole.UserRole)[1]
+                    for item in self.tree.selectedItems()
+                    if item.data(0, Qt.ItemDataRole.UserRole)
+                    and item.data(0, Qt.ItemDataRole.UserRole)[0] == "clip"]
+        self.timeline.set_selected_clips(selected)
+        self.timeline.set_selected_track(
+            data[1] if data and data[0] == "track" and not selected else None)
 
     def _request_peaks(self):
         """Waveforms for clips that have audio, computed off the UI thread, once per asset."""
