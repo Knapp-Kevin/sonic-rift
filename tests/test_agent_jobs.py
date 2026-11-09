@@ -19,6 +19,10 @@ class AgentJobPlanTests(unittest.TestCase):
         self.assertEqual({i["id"] for i in result["capabilities"]},
                          {"music.generate", "speech.generate", "sound.generate"})
         self.assertTrue(all(not item["agent_execution"] for item in result["capabilities"]))
+        music = next(item for item in result["capabilities"]
+                     if item["id"] == "music.generate")
+        self.assertEqual(music["status"], "ui_only")
+        self.assertFalse(music["agent_execution"])
 
     def test_plan_has_stable_digest_and_never_echoes_prompt(self):
         a = plan_request(self.request())
