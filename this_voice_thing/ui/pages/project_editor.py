@@ -132,6 +132,7 @@ class ProjectEditorDialog(QDialog):
         self.balance_revision = None     # project revision the Levels readouts were measured on
         self.preview_revision = None     # project revision the preview file was rendered from
         self.preview_file = None
+        self._stop_requested = False  # suppress late position-zero events during stop
         self.media = ProjectMedia(owner.script_dir, owner.sound_library)
         layout = QVBoxLayout(self)
         # As a page, line up with every other page's title and card edges.
@@ -575,6 +576,9 @@ class ProjectEditorDialog(QDialog):
         self.play_button.setEnabled(True)
 
     def stop_preview(self):
+        # Some media backends emit positionChanged(0) before stateChanged.
+        # Preserve the owner's editing playhead through that transition.
+        self._stop_requested = True
         self.player.stop()
 
     def _seek_preview(self, seconds):
@@ -589,7 +593,7 @@ class ProjectEditorDialog(QDialog):
             self.player.setPosition(int(seconds * 1000))
 
     def _on_preview_position(self, milliseconds):
-        if self.player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
+        if self._stop_requested or self.player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
             return
         self.timeline.set_playhead(milliseconds / 1000)
         self.position_label.setText(seconds_label(milliseconds / 1000))
@@ -598,6 +602,8 @@ class ProjectEditorDialog(QDialog):
         playing = state == QMediaPlayer.PlaybackState.PlayingState
         self.stop_button.setEnabled(playing)
         self.play_button.setText("Playing\u2026" if playing else "Play mix")
+        if playing or state == QMediaPlayer.PlaybackState.StoppedState:
+            self._stop_requested = False
         # The playhead doubles as the Studio edit cursor. Stopping playback
         # must never erase the ruler position the owner selected for a split.
 
