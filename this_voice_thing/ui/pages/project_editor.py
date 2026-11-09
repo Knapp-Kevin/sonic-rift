@@ -578,15 +578,15 @@ class ProjectEditorDialog(QDialog):
         self.player.stop()
 
     def _seek_preview(self, seconds):
-        # A ruler click is an editing placement even if preview audio is cached.
+        """Set the editing playhead without unexpectedly starting playback.
+
+        Seeking a cached preview while already playing keeps it playing. A ruler
+        click when stopped must be a stable sample-edit position for split/paste.
+        """
         self.timeline.set_playhead(seconds)
+        self.position_label.setText(seconds_label(seconds))
         if self.preview_file and self.preview_revision == self.session.project.revision:
             self.player.setPosition(int(seconds * 1000))
-            if self.player.playbackState() != QMediaPlayer.PlaybackState.PlayingState:
-                self.player.play()
-        else:
-            self.timeline.set_playhead(seconds)
-            self.position_label.setText(seconds_label(seconds))
 
     def _on_preview_position(self, milliseconds):
         if self.player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
@@ -598,9 +598,8 @@ class ProjectEditorDialog(QDialog):
         playing = state == QMediaPlayer.PlaybackState.PlayingState
         self.stop_button.setEnabled(playing)
         self.play_button.setText("Playing\u2026" if playing else "Play mix")
-        if state == QMediaPlayer.PlaybackState.StoppedState:
-            self.timeline.set_playhead(None)
-            self.position_label.setText("0:00.0")
+        # The playhead doubles as the Studio edit cursor. Stopping playback
+        # must never erase the ruler position the owner selected for a split.
 
     def _selected(self):
         item = self.tree.currentItem()
