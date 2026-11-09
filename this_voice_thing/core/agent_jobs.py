@@ -12,7 +12,7 @@ CONTRACT_VERSION = "0.1.0"
 CAPABILITIES = {
     "speech.generate": ("Existing speech UI/API; MCP execution not enabled", "ui_only"),
     "sound.generate": ("Existing Sounds UI; MCP execution not enabled", "ui_only"),
-    "music.generate": ("Music model and rights qualification pending #128", "research_only"),
+    "music.generate": ("Existing ACE-Step Music UI; MCP execution not enabled", "ui_only"),
 }
 _ALLOWED_FIELDS = frozenset({
     "kind", "model_id", "prompt", "duration_seconds", "seed", "instrumental",
