@@ -18,6 +18,7 @@ from this_voice_thing.ui.project_levels import GAIN_RANGE, LevelSlider, gain_tex
 
 class TimelineView(QWidget):
     clipSelected = Signal(str)        # clip id
+    clipsSelectionChanged = Signal(object)  # ordered clip IDs, for Ctrl/Cmd-click selection
     clipActivated = Signal(str)       # double-click: edit
     seekRequested = Signal(float)     # seconds, from a click on the ruler
     clipPlaced = Signal(str, int, int, int)   # drag finished: clip id, start, length, source offset (frames)
@@ -38,6 +39,7 @@ class TimelineView(QWidget):
         self.project = None
         self.peaks = {}               # asset_id -> envelope at PEAKS_PER_SECOND
         self.selected = None
+        self.selected_clips = []       # multiple selected clips, last is the primary
         self.playhead = None          # seconds, or None when stopped
         self.label_for_clip = label_for_clip or (lambda clip: "")
         self._hits = []               # (QRectF, clip_id)
@@ -55,6 +57,9 @@ class TimelineView(QWidget):
     def set_project(self, project):
         self._drag = None             # the clip may have changed under the pointer
         self.project = project
+        visible = {clip.id for track in (project.tracks if project else []) for clip in track.clips}
+        self.selected_clips = [clip_id for clip_id in self.selected_clips if clip_id in visible]
+        self.selected = self.selected_clips[-1] if self.selected_clips else None
         self.setMinimumHeight(self.RULER + max(1, len(project.tracks if project else [])) * self.LANE + 8)
         self._sync_controls()
         self.updateGeometry()
@@ -135,7 +140,18 @@ class TimelineView(QWidget):
         return math.ceil(samples * self.project.sample_rate / rate)
 
     def set_selected(self, clip_id):
-        self.selected = clip_id
+        self.set_selected_clips([clip_id] if clip_id else [])
+
+    def set_selected_clips(self, clip_ids):
+        """Display an ordered clip selection; editing still belongs to ProjectSession."""
+        existing = {clip.id for track in (self.project.tracks if self.project else [])
+                    for clip in track.clips}
+        selected = []
+        for clip_id in clip_ids:
+            if clip_id in existing and clip_id not in selected:
+                selected.append(clip_id)
+        self.selected_clips = selected
+        self.selected = selected[-1] if selected else None
         self.update()
 
     def set_playhead(self, seconds):
@@ -252,7 +268,7 @@ class TimelineView(QWidget):
         path = QPainterPath()
         path.addRoundedRect(rect, 6, 6)
         painter.fillPath(path, fill)
-        pen = QPen(QColor(c["focus"]) if clip.id == self.selected else edge, 2 if clip.id == self.selected else 1)
+        pen = QPen(QColor(c["focus"]) if clip.id in self.selected_clips else edge, 2 if clip.id in self.selected_clips else 1)
         if not clip.asset_id:
             pen.setStyle(Qt.PenStyle.DashLine)
         painter.setPen(pen)
@@ -367,6 +383,17 @@ class TimelineView(QWidget):
         clip_id = self._clip_at(point)
         if not clip_id:
             return
+        if event.button() == Qt.MouseButton.LeftButton and event.modifiers() & (
+                Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier):
+            selected = list(self.selected_clips)
+            if clip_id in selected:
+                selected.remove(clip_id)
+            else:
+                selected.append(clip_id)
+            self.set_selected_clips(selected)
+            self.clipsSelectionChanged.emit(tuple(selected))
+            self.setFocus()
+            return  # modifier clicks never drag or trim a clip
         self.set_selected(clip_id)
         self.clipSelected.emit(clip_id)
         if event.button() != Qt.MouseButton.LeftButton:
