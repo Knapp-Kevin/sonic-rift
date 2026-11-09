@@ -357,7 +357,15 @@ class ProjectEditorDialog(QDialog):
             for j in range(top.childCount()):
                 item = top.child(j)
                 if item.data(0, Qt.ItemDataRole.UserRole) == ("clip", clip_id):
-                    self.tree.setCurrentItem(item)
+                    # Plain click always collapses an earlier multi-selection.
+                    was_blocked = self.tree.blockSignals(True)
+                    try:
+                        self.tree.clearSelection()
+                        self.tree.setCurrentItem(item)
+                        item.setSelected(True)
+                    finally:
+                        self.tree.blockSignals(was_blocked)
+                    self.timeline.set_selected(clip_id)
                     return
 
     def _sync_tree_clip_selection(self, clip_ids):
@@ -570,6 +578,8 @@ class ProjectEditorDialog(QDialog):
         self.player.stop()
 
     def _seek_preview(self, seconds):
+        # A ruler click is an editing placement even if preview audio is cached.
+        self.timeline.set_playhead(seconds)
         if self.preview_file and self.preview_revision == self.session.project.revision:
             self.player.setPosition(int(seconds * 1000))
             if self.player.playbackState() != QMediaPlayer.PlaybackState.PlayingState:
