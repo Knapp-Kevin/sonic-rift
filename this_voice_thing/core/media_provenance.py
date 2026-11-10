@@ -67,6 +67,23 @@ def _sound_origin(asset, *, content_verified):
     return UNKNOWN, "unrecognized_local_engine", None, None, None
 
 
+def _summarize_origin_items(ingredients):
+    """Deterministic summary shared by whole-mix and per-stem disclosures."""
+    origins = {item["origin"] for item in ingredients}
+    if AI in origins:
+        overall = "mixed_ai_and_other" if len(origins) > 1 else AI
+    elif UNKNOWN in origins or not origins:
+        overall = UNKNOWN
+    else:
+        overall = NON_AI_SYNTHESIS
+    return {
+        "classification": overall,
+        "contains_ai": AI in origins,
+        "contains_unknown": UNKNOWN in origins or not origins,
+        "model_ids": sorted({item["model_id"] for item in ingredients if item["model_id"]}),
+    }
+
+
 def project_origin_inventory(project, sound_library, *, voice_media=None):
     """Return a bounded *internal* candidate inventory for future signing.
 
@@ -136,23 +153,13 @@ def project_origin_inventory(project, sound_library, *, voice_media=None):
                 "model_revision": model_revision,
                 "media_sha256": media_sha256,
             })
-    origins = {item["origin"] for item in ingredients}
-    if AI in origins:
-        overall = "mixed_ai_and_other" if len(origins) > 1 else AI
-    elif UNKNOWN in origins or not origins:
-        overall = UNKNOWN
-    else:
-        overall = NON_AI_SYNTHESIS
     return {
         "schema_version": SCHEMA_VERSION,
         "project_id": project.id,
         "project_revision": project.revision,
         "sample_rate": project.sample_rate,
-        "classification": overall,
         "evidence_status": "unsigned_unverified_local_inventory",
-        "contains_ai": AI in origins,
-        "contains_unknown": UNKNOWN in origins,
-        "model_ids": sorted({item["model_id"] for item in ingredients if item["model_id"]}),
+        **_summarize_origin_items(ingredients),
         "ingredients": ingredients,
     }
 
@@ -184,3 +191,28 @@ def public_origin_disclosure(inventory):
         "model_ids": list(inventory["model_ids"]),
         "clip_source_counts": counts,
     }
+
+
+def public_stem_disclosures(inventory, stem_files):
+    """Per-exported-stem AI/unknown summaries, without private asset references.
+
+    This is unsigned JSON and cannot be validated as C2PA. Stems are indexed
+    by their already-exported relative filenames, never by public source IDs.
+    A silent or empty track is unknown, not an assertion of human authorship.
+    """
+    if (type(inventory) is not dict
+            or inventory.get("evidence_status") != "unsigned_unverified_local_inventory"
+            or type(stem_files) is not dict):
+        raise ValueError("Expected the inventory and export stem mapping")
+    output = {}
+    for track_id, filename in stem_files.items():
+        if type(track_id) is not str or type(filename) is not str:
+            raise ValueError("Invalid stem identifiers")
+        items = [item for item in inventory["ingredients"] if item["track_id"] == track_id]
+        subinventory = {
+            "evidence_status": "unsigned_unverified_local_inventory",
+            **_summarize_origin_items(items),
+            "ingredients": items,
+        }
+        output[filename] = public_origin_disclosure(subinventory)
+    return output
