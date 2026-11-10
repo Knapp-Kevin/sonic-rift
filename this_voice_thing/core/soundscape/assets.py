@@ -87,7 +87,18 @@ class AssetLibrary:
         os.replace(tmp, self.index_path)   # never leave a half-written index
 
     def path(self, asset):
-        return os.path.join(self.audio_dir, asset.file)
+        """Resolve only an app-owned asset file, binding the filename to its ID."""
+        filename = getattr(asset, "file", None)
+        asset_id = getattr(asset, "id", None)
+        if (type(filename) is not str or type(asset_id) is not str
+                or re.fullmatch(r"[\w-]+_[a-f0-9]{12}\.wav", filename) is None
+                or not filename.endswith("_" + asset_id + ".wav")):
+            raise ValueError("Unsafe Sound Library filename or asset ID")
+        root = Path(self.audio_dir).resolve()
+        full_path = (root / filename).resolve()
+        if not full_path.is_relative_to(root):
+            raise ValueError("Sound Library file escapes its directory")
+        return str(full_path)
 
     def get(self, asset_id):
         return next((a for a in self.assets if a.id == asset_id), None)
@@ -144,34 +155,36 @@ class AssetLibrary:
         asset = self.get(asset_id)
         if asset is None:
             return False
+        # A forged index must not turn source-asset deletion into removal of
+        # an arbitrary file outside this Sound Library.
+        try:
+            safe_path = self.path(asset)
+        except ValueError:
+            safe_path = None
         self.assets.remove(asset)
         self.save()
-        try:
-            os.remove(self.path(asset))
-        except FileNotFoundError:
-            pass
+        if safe_path is not None:
+            try:
+                os.remove(safe_path)
+            except FileNotFoundError:
+                pass
         return True
 
     def verify(self, asset):
-        """Verify only an audio file inside this library, never arbitrary paths.
-
-        The index is locally mutable and may contain forged/legacy filenames.
-        Checking a hash is not authorization to read a file outside audio_dir.
-        """
-        filename = getattr(asset, "file", None)
-        if (type(filename) is not str or filename != Path(filename).name
-                or re.fullmatch(r"[A-Za-z0-9_.-]+\.wav", filename) is None):
-            return False
-        root = Path(self.audio_dir).resolve()
-        path = (root / filename).resolve()
-        if not path.is_relative_to(root) or not path.is_file():
+        """Only read WAV bytes at a validated asset-ID-bound library path."""
+        try:
+            path = Path(self.path(asset))
+        except (ValueError, OSError):
             return False
         expected = getattr(asset, "sha256", None)
-        return (type(expected) is str and re.fullmatch(r"[a-f0-9]{64}", expected) is not None
+        return (path.is_file() and type(expected) is str
+                and re.fullmatch(r"[a-f0-9]{64}", expected) is not None
                 and _sha256(path) == expected)
 
     def export(self, asset_id, destination_without_extension, formats=("wav",)):
         asset = self.get(asset_id)
+        if asset is None or not self.verify(asset):
+            raise ValueError("Sound Library asset path or checksum is invalid")
         audio, sample_rate = sf.read(self.path(asset), dtype="float32", always_2d=True)
         return mastering.export(audio, sample_rate, destination_without_extension, formats)
 
