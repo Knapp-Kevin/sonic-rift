@@ -202,13 +202,9 @@ class ProjectMedia:
             asset = self.sound_library.get(sound.group(1))
             if asset is None:
                 raise FileNotFoundError(f"Unknown Sound Library asset: {asset_id}")
-            filename = asset.file
-            if not isinstance(filename, str) or filename != Path(filename).name or not re.fullmatch(r"[A-Za-z0-9_.-]+\.wav", filename):
-                raise ValueError("Unsafe Sound Library filename")
-            audio_root = Path(self.sound_library.audio_dir).resolve()
-            path = audio_root / filename
-            if not path.resolve().is_relative_to(audio_root):
-                raise ValueError("Sound Library file escapes its directory")
+            # Share the Sound Library's asset-ID-bound path validation. A
+            # forged index cannot silently substitute another asset's WAV.
+            path = Path(self.sound_library.path(asset))
             expected = asset.sha256
         else:
             raise ValueError("Unknown project asset namespace")
