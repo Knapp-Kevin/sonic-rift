@@ -32,8 +32,12 @@ def _sound_origin(asset, *, content_verified):
     if not content_verified:
         return UNKNOWN, "media_missing_or_modified", None, None, None
     engine_id = getattr(asset, "engine", None)
-    claimed_model = getattr(asset, "model", "") or ""
+    claimed_model = getattr(asset, "model", "")
     source_event = getattr(asset, "source_event", {})
+    if type(engine_id) is not str or type(claimed_model) is not str:
+        return UNKNOWN, "invalid_local_engine_claim", None, None, None
+    if type(source_event) is not dict:
+        return UNKNOWN, "invalid_local_generation_event", None, None, None
     if source_event:
         expected_fields = {"origin", "engine", "model_id", "model_revision",
                            "media_sha256", "evidence_status"}
