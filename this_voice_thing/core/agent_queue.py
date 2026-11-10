@@ -26,6 +26,8 @@ MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,95}\Z")
 PRINCIPAL = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 KEY = re.compile(r"[A-Za-z0-9_.:-]{8,128}\Z")
 WORKER = re.compile(r"[a-f0-9]{32}\Z")
+GRANT_TOKEN = re.compile(r"[A-Za-z0-9_-]{32,128}\Z")
+MAX_GRANT_TTL = 900
 ASSET = re.compile(r"[A-Za-z0-9_-]{6,128}\Z")
 MAX_QUEUE = 32
 MAX_HISTORY = 10000
@@ -60,7 +62,7 @@ class AgentQueue:
     exposed until the Stage C authorization gate is qualified.
     """
 
-    def __init__(self, db_path, *, authorize=None, installed_models=None,
+    def __init__(self, db_path, *, owner_approval=None, installed_models=None,
                  supervisor_verify_stopped=None,
                  max_pending=MAX_QUEUE, clock=None):
         if type(max_pending) is not int or not 1 <= max_pending <= MAX_QUEUE:
@@ -71,7 +73,7 @@ class AgentQueue:
         if not path.parent.exists() or not path.parent.is_dir():
             raise ValueError("Job database parent must already exist")
         self.path = path
-        self.authorize = authorize
+        self.owner_approval = owner_approval
         self.installed_models = installed_models
         self.supervisor_verify_stopped = supervisor_verify_stopped
         self.max_pending = max_pending
@@ -100,9 +102,26 @@ class AgentQueue:
             artifact_sha256 TEXT,
             provenance_status TEXT NOT NULL DEFAULT 'unverified_local',
             error_code TEXT,
+            grant_hash TEXT,
             UNIQUE(principal, request_key_sha256)
         )""")
         self.db.execute("CREATE INDEX IF NOT EXISTS jobs_state ON jobs(state,created_at)")
+        # Safe additive migration for pre-grant internal job databases.
+        old_columns = {row[1] for row in self.db.execute("PRAGMA table_info(jobs)")}
+        if "grant_hash" not in old_columns:
+            self.db.execute("ALTER TABLE jobs ADD COLUMN grant_hash TEXT")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS execution_grants (
+            grant_hash TEXT PRIMARY KEY,
+            principal TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            model_id TEXT NOT NULL,
+            plan_sha256 TEXT NOT NULL,
+            created_at REAL NOT NULL,
+            expires_at REAL NOT NULL,
+            consumed_job_id TEXT,
+            consumed_at REAL,
+            revoked INTEGER NOT NULL DEFAULT 0
+        )""")
         # Queued jobs lack serialized inputs, so never replay them on restart.
         # Preserve an unexpired active lease: another Sonic Rift process may
         # still own the GPU. Mark only *expired* leases interrupted and wait
@@ -129,38 +148,119 @@ class AgentQueue:
             else:
                 self.db.execute("COMMIT")
 
-    def submit(self, *, principal, request_key, kind, model_id, plan_sha256,
-               grant_proof=None):
-        """Enqueue only app-authorized registered intent; never store a prompt."""
+    def _owner_confirms(self, operation, principal, kind, model_id, plan_sha256):
+        """Only trusted application UI may provide this approval callback.
+
+        No HTTP or MCP route may provide or override this callback. A
+        caller-controlled claim of permission is never sufficient.
+        """
+        callback = self.owner_approval
+        return (callable(callback)
+                and callback(operation, principal, kind, model_id, plan_sha256) is True)
+
+    def issue_grant(self, *, principal, kind, model_id, plan_sha256,
+                    ttl_seconds=120):
+        """Mint a single-use, scoped capability after genuine app UI approval.
+
+        Only the SHA-256 of this one-time secret is persisted in SQLite;
+        the secret itself is returned once to the trusted owner UI.
+        Principal identity must be derived from transport auth, not an
+        arbitrary agent-provided field.
+        """
         _valid_plan(kind, model_id, plan_sha256)
-        if type(principal) is not str or not PRINCIPAL.fullmatch(principal):
+        if type(principal) is not str or PRINCIPAL.fullmatch(principal) is None:
             raise AgentQueueError("Invalid caller identity")
-        if type(request_key) is not str or not KEY.fullmatch(request_key):
-            raise AgentQueueError("Invalid idempotency key")
-        if self.installed_models is None or not callable(self.installed_models):
-            raise AgentQueueError("Model registry not bound to the application")
-        if model_id not in self.installed_models(kind):
-            raise AgentQueueError("Model not installed or not registered for capability")
-        if self.authorize is None or not callable(self.authorize):
-            raise AgentQueueError("Owner-issued execution permission unavailable")
-        # This callback is an *internal authority boundary*, not an agent
-        # supplied assertion. For true one-use grants, consumption and insert
-        # need a shared transactional authority in Stage C.
-        if self.authorize(principal, kind, model_id, plan_sha256, grant_proof) is not True:
-            raise AgentQueueError("Owner permission refused")
-        key_sha = hashlib.sha256(request_key.encode("utf-8")).hexdigest()
+        if type(ttl_seconds) is not int or not 1 <= ttl_seconds <= MAX_GRANT_TTL:
+            raise AgentQueueError("Grant lifetime must be between 1 and 900 seconds")
+        if not callable(self.installed_models) or model_id not in self.installed_models(kind):
+            raise AgentQueueError("Model not installed or registered for capability")
+        if not self._owner_confirms(
+                "issue", principal, kind, model_id, plan_sha256):
+            raise AgentQueueError("Explicit owner approval unavailable or refused")
+        secret = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(secret.encode("ascii")).hexdigest()
         now = self.clock()
         with self._transaction():
+            self.db.execute("""INSERT INTO execution_grants (
+                grant_hash, principal, kind, model_id, plan_sha256,
+                created_at, expires_at)
+                VALUES (?,?,?,?,?,?,?)""", (
+                token_hash, principal, kind, model_id, plan_sha256,
+                now, now + ttl_seconds))
+        return secret
+
+    def revoke_grant(self, grant_proof, *, principal):
+        """Owner-confirmed revocation stops queued or running granted work."""
+        if (type(grant_proof) is not str
+                or GRANT_TOKEN.fullmatch(grant_proof) is None
+                or type(principal) is not str or PRINCIPAL.fullmatch(principal) is None):
+            raise AgentQueueError("Invalid grant or caller identity")
+        token_hash = hashlib.sha256(grant_proof.encode("ascii")).hexdigest()
+        with self._transaction():
+            row = self.db.execute("""SELECT * FROM execution_grants
+                WHERE grant_hash=? AND principal=?""",
+                (token_hash, principal)).fetchone()
+            if row is None:
+                raise AgentQueueError("Grant unavailable")
+            if not self._owner_confirms(
+                    "revoke", row["principal"], row["kind"],
+                    row["model_id"], row["plan_sha256"]):
+                raise AgentQueueError("Owner did not authorize revocation")
+            self.db.execute("UPDATE execution_grants SET revoked=1 WHERE grant_hash=?",
+                            (token_hash,))
+            now = self.clock()
+            self.db.execute("""UPDATE jobs SET state='cancelled',
+                updated_at=?, error_code='grant_revoked'
+                WHERE grant_hash=? AND state='queued'""", (now, token_hash))
+            self.db.execute("""UPDATE jobs SET state='cancel_requested',
+                updated_at=?, error_code='grant_revoked'
+                WHERE grant_hash=? AND state='running'""", (now, token_hash))
+            return True
+
+    def submit(self, *, principal, request_key, kind, model_id, plan_sha256,
+               grant_proof=None):
+        """Atomically consume one scoped capability and enqueue its job.
+
+        A repeated identical request may retrieve its prior receipt using
+        the same grant and idempotency key, but the consumed grant cannot
+        authorize a distinct job. No prompt or plaintext grant is stored.
+        """
+        _valid_plan(kind, model_id, plan_sha256)
+        if type(principal) is not str or PRINCIPAL.fullmatch(principal) is None:
+            raise AgentQueueError("Invalid caller identity")
+        if type(request_key) is not str or KEY.fullmatch(request_key) is None:
+            raise AgentQueueError("Invalid idempotency key")
+        if type(grant_proof) is not str or GRANT_TOKEN.fullmatch(grant_proof) is None:
+            raise AgentQueueError("Owner-issued execution grant required")
+        if not callable(self.installed_models) or model_id not in self.installed_models(kind):
+            raise AgentQueueError("Model not installed or registered for capability")
+        token_hash = hashlib.sha256(grant_proof.encode("ascii")).hexdigest()
+        key_hash = hashlib.sha256(request_key.encode("utf-8")).hexdigest()
+        with self._transaction():
+            now = self.clock()
+            grant = self.db.execute(
+                "SELECT * FROM execution_grants WHERE grant_hash=?",
+                (token_hash,)).fetchone()
+            if (grant is None or grant["revoked"] != 0
+                    or grant["expires_at"] <= now
+                    or grant["principal"] != principal or grant["kind"] != kind
+                    or grant["model_id"] != model_id
+                    or grant["plan_sha256"] != plan_sha256):
+                raise AgentQueueError("Grant expired, revoked, unknown or out of scope")
             previous = self.db.execute(
                 "SELECT * FROM jobs WHERE principal=? AND request_key_sha256=?",
-                (principal, key_sha)).fetchone()
+                (principal, key_hash)).fetchone()
             if previous:
                 if (previous["plan_sha256"] != plan_sha256
-                        or previous["kind"] != kind or previous["model_id"] != model_id):
+                        or previous["kind"] != kind
+                        or previous["model_id"] != model_id
+                        or previous["grant_hash"] != token_hash):
                     raise AgentQueueError("Idempotency key reused for another request")
                 return self._public(previous)
-            count = self.db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
-            if count >= MAX_HISTORY:
+            if grant["consumed_job_id"] is not None:
+                raise AgentQueueError("Execution grant already consumed")
+            total = self.db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+            if total >= MAX_HISTORY:
                 raise AgentQueueError("Job receipt history capacity reached")
             pending = self.db.execute(
                 "SELECT COUNT(*) FROM jobs WHERE state='queued'").fetchone()[0]
@@ -169,10 +269,16 @@ class AgentQueue:
             job_id = secrets.token_hex(16)
             self.db.execute("""INSERT INTO jobs (
                 job_id, principal, request_key_sha256, kind, model_id,
-                plan_sha256, state, created_at, updated_at)
-                VALUES (?,?,?,?,?,?,?,?,?)""",
-                (job_id, principal, key_sha, kind, model_id,
-                 plan_sha256, "queued", now, now))
+                plan_sha256, state, created_at, updated_at, grant_hash)
+                VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (job_id, principal, key_hash, kind, model_id,
+                 plan_sha256, "queued", now, now, token_hash))
+            changed = self.db.execute("""UPDATE execution_grants SET
+                consumed_job_id=?, consumed_at=?
+                WHERE grant_hash=? AND consumed_job_id IS NULL AND revoked=0
+                AND expires_at>?""", (job_id, now, token_hash, now)).rowcount
+            if changed != 1:
+                raise AgentQueueError("Grant consumption race; job rolled back")
             return self._public(self.db.execute(
                 "SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone())
 
