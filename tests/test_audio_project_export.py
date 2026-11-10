@@ -80,6 +80,19 @@ class ProjectExportTests(unittest.TestCase):
         self.assertTrue(disclosure["contains_unknown"])  # imported narration has no origin event
         self.assertEqual(disclosure["classification"], "mixed_ai_and_other")
         self.assertIn(ACE_STEP_15.repo_id, disclosure["model_ids"])
+        stem_reports = exported["stem_provenance_disclosures"]
+        self.assertEqual(set(stem_reports), set(exported["stems"].values()))
+        speech_report = stem_reports[exported["stems"]["narrator"]]
+        sound_report = stem_reports[exported["stems"]["ocean"]]
+        self.assertEqual(speech_report["classification"], "unknown")
+        self.assertFalse(speech_report["contains_ai"])
+        self.assertTrue(speech_report["contains_unknown"])
+        self.assertEqual(sound_report["classification"], "mixed_ai_and_other")
+        self.assertTrue(sound_report["contains_ai"])
+        self.assertTrue(sound_report["contains_unknown"])
+        self.assertIn(ACE_STEP_15.repo_id, sound_report["model_ids"])
+        self.assertNotIn("secret prompt", str(stem_reports))
+        self.assertNotIn("asset_id", str(stem_reports))
         # Every delivered audio file has its own real post-encode digest.
         import hashlib
         expected_files = set(exported["master_files"].values()) | set(exported["stems"].values())
@@ -92,6 +105,14 @@ class ProjectExportTests(unittest.TestCase):
         self.assertNotIn("secret prompt", manifest_path.read_text(encoding="utf-8"))
         self.assertNotIn("media_sha256", str(disclosure))
         np.testing.assert_array_equal(self.media.resolve("sound_" + asset.id)[0], before)
+
+    def test_no_stems_requested_leaves_no_stem_disclosure(self):
+        output = self.root / "without-stems"
+        manifest = json.loads(export_project(
+            self.project, self.media, output, include_stems=False).read_text())
+        self.assertEqual(manifest["stem_provenance_disclosures"], {})
+        self.assertEqual(manifest["stems"], {})
+        self.assertEqual(set(manifest["output_sha256"]), {"master.wav"})
 
     def test_provenance_failure_stops_export_before_publishing(self):
         with patch("this_voice_thing.core.audio_project_export.project_origin_inventory",
