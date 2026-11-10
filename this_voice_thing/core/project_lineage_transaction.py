@@ -159,6 +159,10 @@ def save_pair(project_path, old_project, new_project, new_ledger, *, fail_after=
     path = Path(project_path)
     sidecar = sidecar_path(path)
     pending = journal_path(path)
+    if path.is_symlink() or sidecar.is_symlink():
+        raise ValueError("Refusing linked project or lineage transaction target")
+    if fail_after not in (None, "journal", "project", "lineage"):
+        raise ValueError("Unknown transaction test interruption point")
     if pending.exists() or pending.is_symlink():
         raise ValueError("Pending lineage transaction requires explicit recovery")
     if (new_project.id != old_project.id
@@ -185,8 +189,8 @@ def save_pair(project_path, old_project, new_project, new_ledger, *, fail_after=
         "new_project_hash": _digest(new_project_bytes),
         "new_lineage_hash": _digest(new_lineage_bytes),
     }
-    _write_exclusive(project_stage, new_project_bytes)
     try:
+        _write_exclusive(project_stage, new_project_bytes)
         _write_exclusive(lineage_stage, new_lineage_bytes)
         _write_exclusive(pending, json.dumps(prepared, sort_keys=True).encode("utf-8"))
     except BaseException:
