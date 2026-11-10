@@ -54,7 +54,7 @@ class ApiServer:
         api_row.addWidget(QLabel("Token"))
         self.api_token_input = QLineEdit(str(self.api_settings.get("token") or ""))
         self.api_token_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_token_input.setPlaceholderText("Optional: required as a Bearer token")
+        self.api_token_input.setPlaceholderText("Required for agent API/MCP; recommended for all API use")
         self.api_token_input.editingFinished.connect(self.on_api_settings_changed)
         api_row.addWidget(self.api_token_input, 1)
         copy_example = self._link(QPushButton("Copy example"))
@@ -122,7 +122,9 @@ class ApiServer:
             "device": self.device_used if self.model is not None else None,
             "voice": self.voice_chip.text(),
             "endpoints": ["GET /v1/health", "GET /v1/models", "GET /v1/voices",
-                          "POST /v1/audio/speech (OpenAI-compatible)", "POST /v1/speech"],
+                          "POST /v1/audio/speech (OpenAI-compatible)", "POST /v1/speech",
+                          "GET /v1/agent/capabilities (token required)",
+                          "POST /v1/agent/plans (token required; planning only)"],
         }
 
     def api_models(self):

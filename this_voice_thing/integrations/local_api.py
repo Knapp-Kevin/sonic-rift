@@ -13,6 +13,8 @@ Endpoints
   GET  /v1/health        what's loaded, and whether a request is running
   GET  /v1/models        the model list (what "model" can name)
   GET  /v1/voices        the voice library and the loaded model's built-in voices
+  GET  /v1/agent/capabilities    side-effect-free agent catalog; token required
+  POST /v1/agent/plans           deterministic plan-only result; token required
   POST /v1/audio/speech  OpenAI-compatible buffered speech, or native PCM streaming
                          with stream=true, stream_format="audio", response_format="pcm"
   POST /v1/speech        native: {"text", "model", "voice", "format", "subtitles",
@@ -25,6 +27,7 @@ Endpoints
 
 import email.parser
 import email.policy
+import hmac
 import json
 import os
 import threading
@@ -173,12 +176,38 @@ class _Handler(BaseHTTPRequestHandler):
         if not token:
             return True
         header = self.headers.get("Authorization", "")
-        return header == f"Bearer {token}" or self.headers.get("X-API-Key", "") == token
+        bearer = f"Bearer {token}"
+        key = self.headers.get("X-API-Key", "")
+        return (hmac.compare_digest(header, bearer)
+                or hmac.compare_digest(key, token))
+
+    def _require_agent_auth(self):
+        """Agent endpoints are unavailable in the legacy no-token API mode.
+
+        An MCP-side environment token does not secure an app that accepts
+        anonymous API requests. Never expose agent execution in this mode.
+        """
+        if not self.api.token:
+            raise ApiError(403, "Agent operations require a configured local API token.",
+                           "authorization_error")
+
+    def _content_length(self, max_bytes):
+        """Reject ambiguous or malformed request framing before any body read."""
+        if self.headers.get("Transfer-Encoding") is not None:
+            raise ApiError(400, "Transfer-Encoding request bodies are unsupported.")
+        if len(self.headers.get_all("Content-Length", [])) > 1:
+            raise ApiError(400, "Duplicate Content-Length headers are unsupported.")
+        raw = self.headers.get("Content-Length", "0")
+        if (type(raw) is not str or not raw.isascii()
+                or not raw.isdecimal() or len(raw) > 12):
+            raise ApiError(400, "Invalid Content-Length header.")
+        length = int(raw)
+        if length > max_bytes:
+            raise ApiError(413, "Request body exceeds the permitted size.")
+        return length
 
     def _read_json(self):
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_BODY:
-            raise ApiError(413, "Request body is too large (4 MB max).")
+        length = self._content_length(MAX_BODY)
         raw = self.rfile.read(length) if length else b""
         try:
             data = json.loads(raw.decode("utf-8") or "{}")
@@ -190,9 +219,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _read_form(self):
         """A multipart/form-data body as ({field: text}, {field: (filename, bytes)})."""
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_AUDIO_BODY:
-            raise ApiError(413, "The upload is too large (100 MB max).")
+        length = self._content_length(MAX_AUDIO_BODY)
         content_type = self.headers.get("Content-Type", "")
         if not content_type.lower().startswith("multipart/form-data"):
             raise ApiError(400, "Send the audio as multipart/form-data with a \"file\" field.")
@@ -218,6 +245,17 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json(200, {"object": "list", "data": backend.models()})
             elif method == "GET" and path == "/v1/voices":
                 self._send_json(200, {"object": "list", "data": backend.voices()})
+            elif method == "GET" and path == "/v1/agent/capabilities":
+                self._require_agent_auth()
+                from this_voice_thing.core.agent_jobs import capabilities
+                self._send_json(200, capabilities())
+            elif method == "POST" and path == "/v1/agent/plans":
+                self._require_agent_auth()
+                from this_voice_thing.core.agent_jobs import InvalidJob, plan_request
+                try:
+                    self._send_json(200, plan_request(self._read_json()))
+                except InvalidJob as exc:
+                    raise ApiError(400, str(exc)) from None
             elif method == "POST" and path == "/v1/audio/speech":
                 self._openai_speech(self._read_json())
             elif method == "POST" and path == "/v1/speech":
@@ -229,9 +267,9 @@ class _Handler(BaseHTTPRequestHandler):
         except ApiError as error:
             status_note = f"{error.status} {error.message}"
             self._send_error(error)
-        except Exception as exc:  # never take the app down
-            status_note = f"500 {exc}"
-            self._send_error(ApiError(500, f"Internal error: {exc}", "server_error"))
+        except Exception as exc:  # never take the app down or leak private paths
+            status_note = f"500 {type(exc).__name__}"
+            self._send_error(ApiError(500, "Internal server error.", "server_error"))
         if path not in ("/v1/health",):
             self.api.log(f"API {method} {path}: {status_note}")
 
