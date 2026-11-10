@@ -4,7 +4,11 @@ No PySide6, model execution, network or media mutation.
 """
 from copy import deepcopy
 from types import SimpleNamespace
+from pathlib import Path
+import tempfile
 import unittest
+
+import numpy as np
 
 from this_voice_thing.core.audio_project import AudioProject, Clip, Track
 from this_voice_thing.core.media_provenance import project_origin_inventory
@@ -130,6 +134,73 @@ class OriginInventoryTests(unittest.TestCase):
         self.assertEqual(len(inventory["ingredients"]), 2)
         self.assertEqual([row["clip_id"] for row in inventory["ingredients"]], ["a", "b"])
         self.assertEqual([row["source_offset_frames"] for row in inventory["ingredients"]], [0, 2])
+
+    def test_sound_generation_event_is_bound_to_audio_and_exposes_no_prompt(self):
+        from this_voice_thing.core.soundscape.assets import AssetLibrary
+        from this_voice_thing.core.music.catalog import ACE_STEP_15
+        with tempfile.TemporaryDirectory() as dirname:
+            library = AssetLibrary(dirname)
+            audio = np.zeros((480, 2), dtype=np.float32)
+            generated = library.add(
+                audio, 48000, "Private piece", "ace_step_15", False,
+                kind="music", model=ACE_STEP_15.repo_id,
+                prompt="secret private writing prompt",
+                metrics={"test": True}, source_event={
+                    "origin": "ai_generated", "engine": "ace_step_15",
+                    "model_id": ACE_STEP_15.repo_id,
+                    "model_revision": ACE_STEP_15.model_revision,
+                })
+            self.assertEqual(generated.source_event["media_sha256"], generated.sha256)
+            self.assertNotIn("secret", str(generated.source_event))
+            project = _project(Clip(
+                "piece", "sound", 0, 480, asset_id="sound_" + generated.id))
+            original = project_origin_inventory(project, library)
+            self.assertEqual(original["classification"], "ai_generated")
+            self.assertEqual(original["ingredients"][0]["evidence"],
+                             "unsigned_local_generation_event")
+            self.assertNotIn("secret", str(original))
+            # Index edits alone must not permit fabricated identity to pass
+            # an internally consistent event/engine crosscheck.
+            generated.source_event["model_id"] = "forged/model"
+            self.assertEqual(project_origin_inventory(project, library)["classification"], "unknown")
+            generated.source_event["model_id"] = ACE_STEP_15.repo_id
+            generated.source_event["media_sha256"] = "0" * 64
+            self.assertEqual(project_origin_inventory(project, library)["classification"], "unknown")
+
+    def test_studio_generated_voice_is_ai_but_file_import_remains_unknown(self):
+        from this_voice_thing.core.audio_project_media import ProjectMedia
+        from this_voice_thing.core.soundscape.assets import AssetLibrary
+        with tempfile.TemporaryDirectory() as dirname:
+            library = AssetLibrary(dirname)
+            media = ProjectMedia(Path(dirname), library)
+            source = np.linspace(-0.2, 0.2, 480, dtype=np.float32)
+            generated = media.import_generated_voice_take(source, 48000)
+            imported = media.import_voice_take(source * 0.5, 48000)
+            project = _project(
+                Clip("spoken", "voice", 0, 480, asset_id=generated),
+                Clip("unknown", "voice", 480, 480, asset_id=imported))
+            without_media = project_origin_inventory(project, library)
+            self.assertTrue(without_media["contains_unknown"])
+            self.assertFalse(without_media["contains_ai"])
+            inventory = project_origin_inventory(project, library, voice_media=media)
+            self.assertTrue(inventory["contains_ai"])
+            self.assertTrue(inventory["contains_unknown"])
+            self.assertEqual(inventory["classification"], "mixed_ai_and_other")
+            self.assertEqual(inventory["ingredients"][0]["origin"], "ai_generated")
+            self.assertEqual(inventory["ingredients"][1]["origin"], "unknown")
+            self.assertEqual(inventory["ingredients"][0]["engine"], "studio_tts_worker")
+            self.assertEqual(inventory["ingredients"][0]["evidence"],
+                             "unsigned_local_generation_event")
+
+    def test_invalid_event_rejected_at_library_creation(self):
+        from this_voice_thing.core.soundscape.assets import AssetLibrary
+        with tempfile.TemporaryDirectory() as dirname:
+            library = AssetLibrary(dirname)
+            with self.assertRaisesRegex(ValueError, "Invalid local generation"):
+                library.add(np.zeros(100, dtype=np.float32), 48000, "Bad", "procedural",
+                            False, metrics={"test": True},
+                            source_event={"origin": "ai_generated"})
+            self.assertEqual(library.assets, [])
 
     def test_empty_project_is_not_declared_human(self):
         inventory = project_origin_inventory(AudioProject("e", "Empty"), Library())
