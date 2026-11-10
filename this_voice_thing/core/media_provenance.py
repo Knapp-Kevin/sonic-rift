@@ -59,27 +59,11 @@ def _sound_origin(asset, *, content_verified):
             return UNKNOWN, "conflicting_local_generation_event", None, None, None
         return AI, "unsigned_local_generation_event", engine_id, known.repo_id, (
             source_event["model_revision"] or None)
-    if engine_id == "procedural" and not claimed_model:
-        return NON_AI_SYNTHESIS, "unverified_local_engine_claim", "procedural", None, None
-    if engine_id in MUSIC_ENGINES:
-        catalog = MUSIC_ENGINES[engine_id]
-        model_id = catalog.repo_id
-        settings = getattr(asset, "settings", {}) or {}
-        if not isinstance(settings, dict):
-            return UNKNOWN, "invalid_local_engine_claim", None, None, None
-        revision = settings.get("model_revision")
-        # Old records lacking the pin can identify the engine family, but
-        # never claim an exact weight revision they didn't record.
-        if (claimed_model and claimed_model != model_id) or (
-                revision is not None and revision != catalog.model_revision):
-            return UNKNOWN, "conflicting_local_engine_claim", None, None, None
-        return AI, "unverified_local_engine_claim", engine_id, model_id, (
-            revision if isinstance(revision, str) else None)
-    if engine_id in SOUND_ENGINES and SOUND_ENGINES[engine_id].kind == "model":
-        catalog = SOUND_ENGINES[engine_id]
-        if claimed_model and claimed_model != catalog.repo_id:
-            return UNKNOWN, "conflicting_local_engine_claim", None, None, None
-        return AI, "unverified_local_engine_claim", engine_id, catalog.repo_id, None
+    # Legacy labels may originate from prior Sonic Rift builds, imports or
+    # manual edits. No generation-time event was captured, so the current
+    # categorical disclosure must remain unknown rather than infer AI/human.
+    if engine_id in MUSIC_ENGINES or engine_id in SOUND_ENGINES:
+        return UNKNOWN, "legacy_engine_label_without_event", None, None, None
     return UNKNOWN, "unrecognized_local_engine", None, None, None
 
 
@@ -88,8 +72,9 @@ def project_origin_inventory(project, sound_library, *, voice_media=None):
 
     Every rendered clip is represented, including duplicates and reused stems.
     Unknown or imported voice audio is never assumed to be a human recording.
-    Only known on-disk Sound Library records with matching bytes are classified
-    as locally asserted AI generation or procedural (non-AI) synthesis.
+    Only generation-time origin events bound to verified Sound Library media
+    are classified as locally asserted AI/procedural sources. Legacy labels
+    remain unknown even when their catalog engine name looks convincing.
 
     All evidence is local and presently unsigned; consumers MUST NOT label this
     inventory as a verified C2PA credential. Internal source hashes and clip IDs
