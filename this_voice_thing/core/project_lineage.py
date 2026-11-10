@@ -116,6 +116,8 @@ class ProjectLineage:
         clip = _clip_by_id(project, clip_id)
         if clip is None or not clip.asset_id or not clip.frame_count:
             raise ValueError("Creation event needs a rendered clip")
+        if clip_id in self.bindings:
+            raise ValueError("Clip already has a source event; refusing to rewrite origin")
         if len(self.events) >= MAX_EVENTS or len(self.bindings) >= MAX_BINDINGS:
             raise ValueError("Too many provenance records")
         event_id = uuid.uuid4().hex
@@ -142,6 +144,9 @@ class ProjectLineage:
         clip = _clip_by_id(project, clip_id)
         if clip is None or clip.asset_id != self.events[event_id]["asset_id"]:
             raise ValueError("Source event does not match target clip")
+        previous = self.bindings.get(clip_id)
+        if previous is not None and previous != event_id:
+            raise ValueError("Clip already has a different event; refusing silent reattribution")
         if len(self.bindings) >= MAX_BINDINGS and clip_id not in self.bindings:
             raise ValueError("Too many clip-event bindings")
         self.bindings[clip_id] = event_id
