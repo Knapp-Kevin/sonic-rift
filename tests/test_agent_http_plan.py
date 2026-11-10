@@ -3,6 +3,7 @@
 No engines, Qt, downloads, GPU, user files or external network access.
 """
 import json
+import http.client
 from urllib import error, request
 import unittest
 
@@ -88,6 +89,47 @@ class AgentPlanHttpTests(unittest.TestCase):
                     self.assertNotIn(invalid["prompt"], str(response))
         status, _ = self.fetch("/v1/agent/execute", body=self.sample)
         self.assertEqual(status, 404)
+
+    def test_invalid_http_request_framing_fails_without_reading_body(self):
+        for extra in (
+                {"Content-Length": "-1"},
+                {"Content-Length": "not-a-number"},
+                {"Content-Length": "9999999999999"},
+                {"Transfer-Encoding": "chunked", "Content-Length": "0"}):
+            with self.subTest(extra=extra):
+                conn = http.client.HTTPConnection(
+                    "127.0.0.1", self.server.port, timeout=5)
+                try:
+                    conn.putrequest("POST", "/v1/agent/plans")
+                    conn.putheader("Authorization", "Bearer private-local-test-token")
+                    for header, value in extra.items():
+                        conn.putheader(header, value)
+                    conn.endheaders()
+                    response = conn.getresponse()
+                    self.assertIn(response.status, (400, 413))
+                    body = response.read().decode("utf-8")
+                    self.assertNotIn(self.sample["prompt"], body)
+                    self.assertNotIn("Traceback", body)
+                finally:
+                    conn.close()
+
+    def test_unexpected_backend_error_does_not_expose_internal_details(self):
+        class FaultingBackend:
+            def health(self):
+                raise RuntimeError("C:\\Users\\Private\\sensitive-audio.wav")
+        guarded = LocalApiServer(
+            FaultingBackend(), port=0, token="test-token", log=lambda _: None)
+        guarded.start()
+        self.addCleanup(guarded.stop)
+        req = request.Request(guarded.url + "/v1/health",
+                              headers={"Authorization": "Bearer test-token"})
+        with self.assertRaises(error.HTTPError) as failure:
+            request.urlopen(req, timeout=5)
+        self.assertEqual(failure.exception.code, 500)
+        message = failure.exception.read().decode("utf-8")
+        self.assertIn("Internal server error", message)
+        self.assertNotIn("sensitive-audio", message)
+        self.assertNotIn("C:\\Users", message)
 
     def test_no_token_mode_is_disabled_for_agent_endpoints(self):
         anonymous = LocalApiServer(
