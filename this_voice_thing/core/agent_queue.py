@@ -61,6 +61,7 @@ class AgentQueue:
     """
 
     def __init__(self, db_path, *, authorize=None, installed_models=None,
+                 supervisor_verify_stopped=None,
                  max_pending=MAX_QUEUE, clock=None):
         if type(max_pending) is not int or not 1 <= max_pending <= MAX_QUEUE:
             raise ValueError("Invalid pending-job quota")
@@ -72,6 +73,7 @@ class AgentQueue:
         self.path = path
         self.authorize = authorize
         self.installed_models = installed_models
+        self.supervisor_verify_stopped = supervisor_verify_stopped
         self.max_pending = max_pending
         self.clock = clock or time.time
         self.lock = threading.RLock()
@@ -110,11 +112,10 @@ class AgentQueue:
             self.db.execute("""UPDATE jobs SET state='interrupted',
                 lease_owner=NULL, lease_deadline=NULL, updated_at=?,
                 error_code='process_restart' WHERE state='queued'""", (now,))
-            self.db.execute("""UPDATE jobs SET state='interrupted',
-                lease_owner=NULL, lease_deadline=NULL, updated_at=?,
-                error_code='expired_on_open'
+            self.db.execute("""UPDATE jobs SET state='orphaned',
+                updated_at=?, error_code='expired_on_open'
                 WHERE state IN ('running','cancel_requested')
-                AND lease_deadline<?""", (now, now))
+                AND lease_deadline<=?""", (now, now))
 
     @contextmanager
     def _transaction(self):
@@ -181,13 +182,15 @@ class AgentQueue:
             raise AgentQueueError("Invalid internal worker identity")
         with self._transaction():
             now = self.clock()
-            self.db.execute("""UPDATE jobs SET state='interrupted',
-                lease_owner=NULL, lease_deadline=NULL, updated_at=?,
-                error_code='lease_expired'
-                WHERE state IN ('running','cancel_requested') AND lease_deadline<?""",
+            # An expired lease is NOT proof its native GPU worker died.
+            # Quarantine the entire worker pool until the app supervisor
+            # independently verifies termination. Never auto-admit another.
+            self.db.execute("""UPDATE jobs SET state='orphaned',
+                updated_at=?, error_code='lease_expired_unreconciled'
+                WHERE state IN ('running','cancel_requested') AND lease_deadline<=?""",
                             (now, now))
             active = self.db.execute("""SELECT COUNT(*) FROM jobs
-                    WHERE state IN ('running','cancel_requested')""").fetchone()[0]
+                    WHERE state IN ('running','cancel_requested','orphaned')""").fetchone()[0]
             if active:
                 return None
             job = self.db.execute("""SELECT job_id FROM jobs WHERE state='queued'
@@ -199,6 +202,33 @@ class AgentQueue:
                 WHERE job_id=?""", (worker_id, now + LEASE_SECONDS, now, job["job_id"]))
             return self._public(self.db.execute(
                 "SELECT * FROM jobs WHERE job_id=?", (job["job_id"],)).fetchone())
+
+    def reconcile_orphan(self, job_id, *, supervisor_ticket):
+        """Clear quarantine only after an app-owned worker supervisor proof.
+
+        A mere agent assertion, callback-free queue, job timeout or owner
+        boolean must not resume GPU work. The injected supervisor must check
+        and terminate the actual process / GPU lease using a trusted app
+        identity; Stage C/Windows integration must qualify that behavior.
+        """
+        if type(job_id) is not str or not WORKER.fullmatch(job_id):
+            raise AgentQueueError("Invalid orphan ID")
+        if not callable(self.supervisor_verify_stopped):
+            raise AgentQueueError("Trusted worker supervisor unavailable")
+        with self._transaction():
+            row = self.db.execute("SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone()
+            if row is None or row["state"] != "orphaned":
+                raise AgentQueueError("Job is not quarantined")
+            if self.supervisor_verify_stopped(
+                    job_id, row["lease_owner"], supervisor_ticket) is not True:
+                raise AgentQueueError("Native worker termination not verified")
+            now = self.clock()
+            self.db.execute("""UPDATE jobs SET state='interrupted',
+                lease_owner=NULL, lease_deadline=NULL,
+                updated_at=?, error_code='worker_terminated_verified'
+                WHERE job_id=? AND state='orphaned'""", (now, job_id))
+            return self._public(self.db.execute(
+                "SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone())
 
     def heartbeat(self, job_id, worker_id):
         """Return False when cancellation has been requested; worker must stop."""
