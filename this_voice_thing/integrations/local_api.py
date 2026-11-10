@@ -195,6 +195,8 @@ class _Handler(BaseHTTPRequestHandler):
         """Reject ambiguous or malformed request framing before any body read."""
         if self.headers.get("Transfer-Encoding") is not None:
             raise ApiError(400, "Transfer-Encoding request bodies are unsupported.")
+        if len(self.headers.get_all("Content-Length", [])) > 1:
+            raise ApiError(400, "Duplicate Content-Length headers are unsupported.")
         raw = self.headers.get("Content-Length", "0")
         if (type(raw) is not str or not raw.isascii()
                 or not raw.isdecimal() or len(raw) > 12):
