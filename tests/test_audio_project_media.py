@@ -31,6 +31,40 @@ class ProjectMediaTests(unittest.TestCase):
         self.assertEqual(pcm.shape, (4800, 2))
         self.assertTrue(np.max(np.abs(pcm)) > 0.05)
 
+    def test_generated_voice_has_bound_local_claim_but_import_stays_unknown(self):
+        imported = self.media.import_voice_take(self.audio, 48000)
+        self.assertIsNone(self.media.read_voice_origin(imported))
+        # A different actual render is independently captured by the Studio TTS
+        # code path. No model identity or private text is inferred.
+        generated_audio = self.audio * 0.8
+        generated = self.media.import_generated_voice_take(generated_audio, 48000)
+        record = self.media.read_voice_origin(generated)
+        self.assertEqual(record["origin"], "ai_generated")
+        self.assertEqual(record["engine"], "studio_tts_worker")
+        self.assertEqual(record["media_sha256"], generated[len("voice_"):])
+        self.assertEqual(record["evidence_status"], "unsigned_local_generation_event")
+        self.assertNotIn("prompt", str(record))
+        self.assertNotIn("voice_id", str(record))
+        reopened = ProjectMedia(self.root, AssetLibrary(str(self.root)))
+        self.assertEqual(reopened.read_voice_origin(generated), record)
+        self.assertEqual(reopened.import_generated_voice_take(generated_audio, 48000), generated)
+
+    def test_tampered_voice_origin_and_media_fail_closed(self):
+        asset_id = self.media.import_generated_voice_take(self.audio, 48000)
+        origin_path = self.media.voice_root / (asset_id[len("voice_"):] + ".origin.json")
+        self.assertIsNotNone(self.media.read_voice_origin(asset_id))
+        origin_path.write_text('{"origin": "human_capture"}', encoding="utf-8")
+        self.assertIsNone(self.media.read_voice_origin(asset_id))
+        with self.assertRaisesRegex(ValueError, "invalid or conflicts"):
+            self.media.import_generated_voice_take(self.audio, 48000)
+        # Restored valid origin then tampered media: origin cannot be trusted.
+        origin_path.unlink()
+        self.media.import_generated_voice_take(self.audio, 48000)
+        media_path = self.media.voice_root / (asset_id[len("voice_"):] + ".wav")
+        with media_path.open("ab") as output:
+            output.write(b"altered")
+        self.assertIsNone(self.media.read_voice_origin(asset_id))
+
     def test_sound_asset_resolves_only_verified_master(self):
         asset = self.sounds.add(self.audio, 48000, "Ocean", "procedural", loop=False)
         resolved, rate = self.media.resolve("sound_" + asset.id)
