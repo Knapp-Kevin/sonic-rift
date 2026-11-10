@@ -149,6 +149,20 @@ class StudioClipboardActions(TestCase):
         self.assertFalse(e._stop_requested)
         e.timeline.set_playhead.assert_not_called()
 
+    def test_single_clip_commands_refuse_ambiguous_multi_selection(self):
+        e = self.editor
+        before = e.session.project.revision
+        ProjectEditorDialog.split_selected_at_playhead(e)
+        ProjectEditorDialog.duplicate_selected_clip(e)
+
+        self.assertEqual(e.session.project.revision, before)
+        self.assertEqual(len(e.session.project.tracks[0].clips), 2)
+        self.assertEqual(e.note.setText.call_count, 2)
+        self.assertIn("one clip", e.note.setText.call_args_list[0].args[0])
+        self.assertIn("one clip", e.note.setText.call_args_list[1].args[0])
+        e._error.assert_not_called()
+        e.refresh.assert_not_called()
+
     def test_clipboard_not_reusable_in_another_project(self):
         e = self.editor
         ProjectEditorDialog.copy_selected_clips(e)
