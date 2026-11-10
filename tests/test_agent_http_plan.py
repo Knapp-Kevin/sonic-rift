@@ -84,7 +84,8 @@ class AgentPlanHttpTests(unittest.TestCase):
             with self.subTest(bad=invalid):
                 code, response = self.fetch("/v1/agent/plans", body=invalid)
                 self.assertEqual(code, 400)
-                self.assertNotIn(invalid.get("prompt", ""), str(response))
+                if invalid.get("prompt"):
+                    self.assertNotIn(invalid["prompt"], str(response))
         status, _ = self.fetch("/v1/agent/execute", body=self.sample)
         self.assertEqual(status, 404)
 
