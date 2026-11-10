@@ -10,6 +10,8 @@ too (kind "music"), so Studio places them like any other sound.
 import hashlib
 import json
 import os
+from pathlib import Path
+import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -43,6 +45,7 @@ class Asset:
     metrics: dict = field(default_factory=dict)
     notes: str = ""
     kind: str = "sound"             # "sound" or "music"; older entries have no kind and are sounds
+    source_event: dict = field(default_factory=dict)  # unsigned app-observed generation record
 
 
 def _sha256(path):
@@ -84,7 +87,18 @@ class AssetLibrary:
         os.replace(tmp, self.index_path)   # never leave a half-written index
 
     def path(self, asset):
-        return os.path.join(self.audio_dir, asset.file)
+        """Resolve only an app-owned asset file, binding the filename to its ID."""
+        filename = getattr(asset, "file", None)
+        asset_id = getattr(asset, "id", None)
+        if (type(filename) is not str or type(asset_id) is not str
+                or re.fullmatch(r"[\w-]+_[a-f0-9]{12}\.wav", filename) is None
+                or not filename.endswith("_" + asset_id + ".wav")):
+            raise ValueError("Unsafe Sound Library filename or asset ID")
+        root = Path(self.audio_dir).resolve()
+        full_path = (root / filename).resolve()
+        if not full_path.is_relative_to(root):
+            raise ValueError("Sound Library file escapes its directory")
+        return str(full_path)
 
     def get(self, asset_id):
         return next((a for a in self.assets if a.id == asset_id), None)
@@ -98,10 +112,26 @@ class AssetLibrary:
         try:
             mastering.write_audio(path, audio, sample_rate, "wav")
             metrics = provenance.pop("metrics", None) or mastering.measure(audio, sample_rate, loop)
+            source_event = provenance.pop("source_event", None)
+            if source_event is not None:
+                if (type(source_event) is not dict or set(source_event) != {
+                        "origin", "engine", "model_id", "model_revision"}
+                        or source_event["origin"] not in ("ai_generated", "non_ai_synthesis")
+                        or source_event["engine"] != engine
+                        or any(type(source_event[k]) is not str or len(source_event[k]) > 200
+                               for k in ("engine", "model_id", "model_revision"))):
+                    raise ValueError("Invalid local generation source event")
+                if source_event["origin"] == "non_ai_synthesis" and source_event["model_id"]:
+                    raise ValueError("Procedural source event cannot claim a model")
+                source_event = {
+                    **source_event,
+                    "media_sha256": _sha256(path),
+                    "evidence_status": "unsigned_local_generation_event",
+                }
             asset = Asset(id=asset_id, name=name.strip() or "Sound", file=filename, engine=engine,
                           loop=bool(loop), seconds=round(len(audio) / sample_rate, 3),
                           sample_rate=int(sample_rate), sha256=_sha256(path), created=time.time(),
-                          metrics=metrics, **provenance)
+                          metrics=metrics, source_event=source_event or {}, **provenance)
             self.assets.insert(0, asset)
             self.save()
         except BaseException:
@@ -125,21 +155,36 @@ class AssetLibrary:
         asset = self.get(asset_id)
         if asset is None:
             return False
+        # A forged index must not turn source-asset deletion into removal of
+        # an arbitrary file outside this Sound Library.
+        try:
+            safe_path = self.path(asset)
+        except ValueError:
+            safe_path = None
         self.assets.remove(asset)
         self.save()
-        try:
-            os.remove(self.path(asset))
-        except FileNotFoundError:
-            pass
+        if safe_path is not None:
+            try:
+                os.remove(safe_path)
+            except FileNotFoundError:
+                pass
         return True
 
     def verify(self, asset):
-        """True when the master is present and unchanged since it was kept."""
-        path = self.path(asset)
-        return os.path.exists(path) and _sha256(path) == asset.sha256
+        """Only read WAV bytes at a validated asset-ID-bound library path."""
+        try:
+            path = Path(self.path(asset))
+        except (ValueError, OSError):
+            return False
+        expected = getattr(asset, "sha256", None)
+        return (path.is_file() and type(expected) is str
+                and re.fullmatch(r"[a-f0-9]{64}", expected) is not None
+                and _sha256(path) == expected)
 
     def export(self, asset_id, destination_without_extension, formats=("wav",)):
         asset = self.get(asset_id)
+        if asset is None or not self.verify(asset):
+            raise ValueError("Sound Library asset path or checksum is invalid")
         audio, sample_rate = sf.read(self.path(asset), dtype="float32", always_2d=True)
         return mastering.export(audio, sample_rate, destination_without_extension, formats)
 

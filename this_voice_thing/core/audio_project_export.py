@@ -15,6 +15,9 @@ import numpy as np
 
 from this_voice_thing.core.audio_project_duck import duck_ambience
 from this_voice_thing.core.audio_timeline_mix import render_timeline
+from this_voice_thing.core.media_provenance import (
+    project_origin_inventory, public_origin_disclosure, public_stem_disclosures,
+)
 from this_voice_thing.core.soundscape import mastering
 
 ALLOWED_FORMATS = frozenset({"wav", "ogg", "mp3"})
@@ -40,6 +43,15 @@ def _safe_metrics(row):
     if isinstance(row, np.integer):
         return int(row)
     return row
+
+
+def _file_sha256(path):
+    """Streaming digest of an already-rendered export artifact, not a signature."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def export_project(project, media, destination, *, target_lufs=-16.0,
@@ -92,8 +104,25 @@ def export_project(project, media, destination, *, target_lufs=-16.0,
                 mastering.write_audio(str(stage / filename), arranged.stems[track.id], project.sample_rate, "wav")
                 _check_cancel(should_cancel)
                 stems[track.id] = filename
+        # Provide immediate, honestly *unsigned* export disclosure. Cryptographic
+        # C2PA media embedding/signatures remain a separate acceptance-gated step.
+        _check_cancel(should_cancel)
+        origin_inventory = project_origin_inventory(
+            project, media.sound_library, voice_media=media)
+        disclosure = public_origin_disclosure(origin_inventory)
+        stem_disclosures = public_stem_disclosures(origin_inventory, stems)
+        # Hash the actual encoded files after mastering and before atomic
+        # publication; these are reference digests, not signed authenticity.
+        file_hashes = {}
+        for filename in (*files.values(), *stems.values()):
+            _check_cancel(should_cancel)
+            file_hashes[filename] = _file_sha256(stage / filename)
+        _check_cancel(should_cancel)
         manifest = {
+            "output_sha256": file_hashes,
             "schema_version": 1,
+            "provenance_disclosure": disclosure,
+            "stem_provenance_disclosures": stem_disclosures,
             "project_id": project.id,
             "project_revision": project.revision,
             "sample_rate": project.sample_rate,

@@ -261,6 +261,8 @@ class StudioPage(unittest.TestCase):
             editor._export_done(os.path.join("C:\\", "Users", "someone", "Exports", "Evening Tide", "master.wav"), "")
         self.assertIn("Evening Tide", editor.note.text())
         self.assertNotIn("someone", editor.note.text())
+        self.assertIn("unsigned", editor.note.text())
+        self.assertIn("not C2PA-signed", editor.note.text())
         self.assertIn("someone", editor.note.toolTip())
 
     def test_sounds_needs_a_selection(self):

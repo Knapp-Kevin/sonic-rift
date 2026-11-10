@@ -52,6 +52,77 @@ class ProjectExportTests(unittest.TestCase):
         self.assertLessEqual(manifest["metrics"]["true_peak_db"], -1.0)
         self.assertAlmostEqual(manifest["metrics"]["integrated_lufs"], -16.0, delta=0.4)
 
+    def test_export_discloses_ai_and_unknown_without_private_source_metadata(self):
+        from this_voice_thing.core.music.catalog import ACE_STEP_15
+        sr = self.project.sample_rate
+        t = np.arange(sr, dtype=np.float32) / sr
+        music = (0.03 * np.sin(2 * np.pi * 110 * t)).astype(np.float32)
+        asset = self.sounds.add(
+            music, sr, "Private track", "ace_step_15", False,
+            kind="music", model=ACE_STEP_15.repo_id,
+            settings={"model_revision": ACE_STEP_15.model_revision},
+            prompt="a secret prompt that must not be disclosed",
+            metrics={"test": True}, source_event={
+                "origin": "ai_generated", "engine": "ace_step_15",
+                "model_id": ACE_STEP_15.repo_id,
+                "model_revision": ACE_STEP_15.model_revision,
+            })
+        self.project.tracks[1].clips.append(
+            Clip("music", "sound", 0, sr, asset_id="sound_" + asset.id))
+        before = self.media.resolve("sound_" + asset.id)[0].copy()
+        target = self.root / "provenance-render"
+        manifest_path = export_project(self.project, self.media, target)
+        exported = json.loads(manifest_path.read_text(encoding="utf-8"))
+        disclosure = exported["provenance_disclosure"]
+        self.assertEqual(disclosure["disclosure_status"], "unsigned_local_claims_not_c2pa")
+        self.assertFalse(disclosure["c2pa_signed"])
+        self.assertFalse(disclosure["c2pa_embedded"])
+        self.assertTrue(disclosure["contains_ai"])
+        self.assertTrue(disclosure["contains_unknown"])  # imported narration has no origin event
+        self.assertEqual(disclosure["classification"], "mixed_ai_and_other")
+        self.assertIn(ACE_STEP_15.repo_id, disclosure["model_ids"])
+        stem_reports = exported["stem_provenance_disclosures"]
+        self.assertEqual(set(stem_reports), set(exported["stems"].values()))
+        speech_report = stem_reports[exported["stems"]["narrator"]]
+        sound_report = stem_reports[exported["stems"]["ocean"]]
+        self.assertEqual(speech_report["classification"], "unknown")
+        self.assertFalse(speech_report["contains_ai"])
+        self.assertTrue(speech_report["contains_unknown"])
+        self.assertEqual(sound_report["classification"], "mixed_ai_and_other")
+        self.assertTrue(sound_report["contains_ai"])
+        self.assertTrue(sound_report["contains_unknown"])
+        self.assertIn(ACE_STEP_15.repo_id, sound_report["model_ids"])
+        self.assertNotIn("secret prompt", str(stem_reports))
+        self.assertNotIn("asset_id", str(stem_reports))
+        # Every delivered audio file has its own real post-encode digest.
+        import hashlib
+        expected_files = set(exported["master_files"].values()) | set(exported["stems"].values())
+        self.assertEqual(set(exported["output_sha256"]), expected_files)
+        for name, digest in exported["output_sha256"].items():
+            self.assertEqual(
+                hashlib.sha256((target / name).read_bytes()).hexdigest(), digest)
+        self.assertEqual(disclosure["clip_source_counts"]["ai_generated"], 1)
+        self.assertGreaterEqual(disclosure["clip_source_counts"]["unknown"], 1)
+        self.assertNotIn("secret prompt", manifest_path.read_text(encoding="utf-8"))
+        self.assertNotIn("media_sha256", str(disclosure))
+        np.testing.assert_array_equal(self.media.resolve("sound_" + asset.id)[0], before)
+
+    def test_no_stems_requested_leaves_no_stem_disclosure(self):
+        output = self.root / "without-stems"
+        manifest = json.loads(export_project(
+            self.project, self.media, output, include_stems=False).read_text())
+        self.assertEqual(manifest["stem_provenance_disclosures"], {})
+        self.assertEqual(manifest["stems"], {})
+        self.assertEqual(set(manifest["output_sha256"]), {"master.wav"})
+
+    def test_provenance_failure_stops_export_before_publishing(self):
+        with patch("this_voice_thing.core.audio_project_export.project_origin_inventory",
+                   side_effect=ValueError("Provenance cannot be assessed")):
+            with self.assertRaisesRegex(ValueError, "Provenance cannot"):
+                export_project(self.project, self.media, self.root / "blocked-provenance")
+        self.assertFalse((self.root / "blocked-provenance").exists())
+        self.assertEqual(list(self.root.glob(".sonicrift-export-*")), [])
+
     def test_optional_wav_ogg_mp3_encoders_produce_readable_audio(self):
         path = export_project(self.project, self.media, self.root / "formats", formats=("wav", "ogg", "mp3"))
         data = json.loads(path.read_text())
