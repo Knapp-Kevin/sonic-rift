@@ -1,5 +1,5 @@
 PySide6
-chatterbox-tts @ git+https://github.com/resemble-ai/chatterbox.git@master
+chatterbox-tts @ git+https://github.com/resemble-ai/chatterbox.git@65b18437192794391a0308a8f705b1e33e633948
 nltk
 setuptools<81.0.0 
 peft
