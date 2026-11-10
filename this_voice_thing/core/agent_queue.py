@@ -62,7 +62,7 @@ class AgentQueue:
     """
 
     def __init__(self, db_path, *, owner_approval=None, installed_models=None,
-                 supervisor_verify_stopped=None,
+                 queued_payload_available=None, supervisor_verify_stopped=None,
                  max_pending=MAX_QUEUE, clock=None):
         if type(max_pending) is not int or not 1 <= max_pending <= MAX_QUEUE:
             raise ValueError("Invalid pending-job quota")
@@ -75,6 +75,7 @@ class AgentQueue:
         self.owner_approval = owner_approval
         self.installed_models = installed_models
         self.supervisor_verify_stopped = supervisor_verify_stopped
+        self.queued_payload_available = queued_payload_available
         self.max_pending = max_pending
         self.clock = clock or time.time
         self.lock = threading.RLock()
@@ -121,19 +122,11 @@ class AgentQueue:
             consumed_at REAL,
             revoked INTEGER NOT NULL DEFAULT 0
         )""")
-        # Queued jobs lack serialized inputs, so never replay them on restart.
-        # Preserve an unexpired active lease: another Sonic Rift process may
-        # still own the GPU. Mark only *expired* leases interrupted and wait
-        # for live owners to release their slot.
-        with self._transaction():
-            now = self.clock()
-            self.db.execute("""UPDATE jobs SET state='interrupted',
-                lease_owner=NULL, lease_deadline=NULL, updated_at=?,
-                error_code='process_restart' WHERE state='queued'""", (now,))
-            self.db.execute("""UPDATE jobs SET state='orphaned',
-                updated_at=?, error_code='expired_on_open'
-                WHERE state IN ('running','cancel_requested')
-                AND lease_deadline<=?""", (now, now))
+        # Opening a second connection is NOT an app restart. Never change
+        # the status of queued jobs merely because another connector opened
+        # this SQLite database. A worker may claim only jobs for which its
+        # app-owned payload store confirms actual inputs. Explicit recovery
+        # of missing inputs is handled by reconcile_missing_payloads().
 
     @contextmanager
     def _transaction(self):
@@ -304,6 +297,31 @@ class AgentQueue:
             return self._public(self.db.execute(
                 "SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone())
 
+    def reconcile_missing_payloads(self):
+        """Explicit app-start recovery: mark only jobs with missing inputs.
+
+        Because prompts are deliberately not serialized to SQLite, a restarted
+        process must prove which jobs still have executable inputs. This is
+        never invoked automatically by a read-only status/API connection.
+        """
+        ready = self.queued_payload_available
+        if not callable(ready):
+            raise AgentQueueError("Trusted job payload store unavailable")
+        with self._transaction():
+            rows = self.db.execute(
+                "SELECT job_id FROM jobs WHERE state='queued' ORDER BY created_at"
+            ).fetchall()
+            interrupted = 0
+            for row in rows:
+                if ready(row["job_id"]) is True:
+                    continue
+                now = self.clock()
+                self.db.execute("""UPDATE jobs SET state='interrupted',
+                    error_code='inputs_unavailable', updated_at=?
+                    WHERE job_id=? AND state='queued'""", (now, row["job_id"]))
+                interrupted += 1
+            return interrupted
+
     def claim(self, *, worker_id):
         """Atomically admit at most one heavy generation across all instances."""
         if type(worker_id) is not str or not WORKER.fullmatch(worker_id):
@@ -321,8 +339,16 @@ class AgentQueue:
                     WHERE state IN ('running','cancel_requested','orphaned')""").fetchone()[0]
             if active:
                 return None
-            job = self.db.execute("""SELECT job_id FROM jobs WHERE state='queued'
-                ORDER BY created_at,job_id LIMIT 1""").fetchone()
+            # Selecting a queued receipt is not permission to run a model:
+            # only an app worker with the corresponding private payload may
+            # claim it. Another process must not claim abandoned instructions.
+            payload_ready = self.queued_payload_available
+            if not callable(payload_ready):
+                return None
+            waiting = self.db.execute("""SELECT job_id FROM jobs WHERE state='queued'
+                ORDER BY created_at,job_id LIMIT ?""", (self.max_pending,)).fetchall()
+            job = next((row for row in waiting
+                        if payload_ready(row["job_id"]) is True), None)
             if job is None:
                 return None
             self.db.execute("""UPDATE jobs SET state='running',
