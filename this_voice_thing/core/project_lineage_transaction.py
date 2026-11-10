@@ -168,6 +168,9 @@ def save_pair(project_path, old_project, new_project, new_ledger, *, fail_after=
     if (new_project.id != old_project.id
             or new_project.revision < old_project.revision):
         raise ValueError("Cannot switch projects or roll back project revision")
+    if (new_project.revision == old_project.revision
+            and to_dict(new_project) != to_dict(old_project)):
+        raise ValueError("Changed project requires a newer revision")
     if read_project(path) != old_project:
         raise ValueError("Existing project changed before transaction")
     if not isinstance(new_ledger, ProjectLineage):
@@ -249,6 +252,13 @@ def recover_pair(project_path, *, fail_after=None):
     if candidate.id != info["project_id"]:
         raise ValueError("Staged project identity differs from journal")
 
+    # An external writer may have changed a destination after the initial
+    # digest check, while candidate JSON was being parsed. Detect that
+    # race again immediately before writing; do not silently overwrite it.
+    if (_hash_file(path, MAX_PROJECT_BYTES) != current_project
+            or _hash_file(sidecar, MAX_SIDECAR_BYTES) != current_lineage):
+        raise ValueError("Transaction conflict; live files changed during validation")
+
     if current_project != info["new_project_hash"]:
         os.replace(project_stage, path)
     if fail_after == "project":
@@ -256,6 +266,11 @@ def recover_pair(project_path, *, fail_after=None):
     if _hash_file(path, MAX_PROJECT_BYTES) != info["new_project_hash"]:
         raise ValueError("Project installation failed integrity verification")
 
+    # An unrelated writer may edit the sidecar after the project rename.
+    # Refuse that edit instead of clobbering it; the journal stays for an
+    # explicit conflict resolution, and consumers still fail closed.
+    if _hash_file(sidecar, MAX_SIDECAR_BYTES) != current_lineage:
+        raise ValueError("Transaction conflict; lineage changed before installation")
     if current_lineage != info["new_lineage_hash"]:
         os.replace(lineage_stage, sidecar)
     if fail_after == "lineage":
