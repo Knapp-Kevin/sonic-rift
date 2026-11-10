@@ -141,6 +141,40 @@ class OriginInventoryTests(unittest.TestCase):
                 self.assertEqual(report["ingredients"][0]["evidence"],
                                  "legacy_engine_label_without_event")
 
+    def test_malformed_origin_index_is_unknown_not_crash_or_ai(self):
+        source_id = "a" * 12
+        project = _project(Clip("bad", "sound", 0, 100,
+                                asset_id="sound_" + source_id))
+        for event in (["invalid", {"untrusted": ["nested"]}, "free text"):
+            with self.subTest(event=event):
+                asset = _asset("ace_step_15", "ACE-Step/Ace-Step1.5")
+                asset.source_event = event
+                inventory = project_origin_inventory(
+                    project, Library({source_id: asset}))
+                self.assertEqual(inventory["classification"], "unknown")
+                self.assertFalse(inventory["contains_ai"])
+                self.assertEqual(inventory["ingredients"][0]["evidence"],
+                                 "invalid_local_generation_event")
+
+    def test_same_byte_voice_origin_collision_stays_unknown_in_final_inventory(self):
+        from this_voice_thing.core.audio_project_media import ProjectMedia
+        from this_voice_thing.core.soundscape.assets import AssetLibrary
+        with tempfile.TemporaryDirectory() as dirname:
+            library = AssetLibrary(dirname)
+            media = ProjectMedia(Path(dirname), library)
+            source = np.linspace(-0.1, 0.1, 480, dtype=np.float32)
+            generated = media.import_generated_voice_take(source, 48000)
+            project = _project(Clip(
+                "spoken", "voice", 0, 480, asset_id=generated))
+            self.assertTrue(project_origin_inventory(
+                project, library, voice_media=media)["contains_ai"])
+            self.assertEqual(media.import_voice_take(source, 48000), generated)
+            report = project_origin_inventory(project, library, voice_media=media)
+            self.assertEqual(report["classification"], "unknown")
+            self.assertFalse(report["contains_ai"])
+            self.assertTrue(report["contains_unknown"])
+            self.assertIsNone(report["ingredients"][0]["media_sha256"])
+
     def test_legacy_engine_and_unrendered_clips_remain_unknown(self):
         id_ = "a" * 12
         project = _project(
