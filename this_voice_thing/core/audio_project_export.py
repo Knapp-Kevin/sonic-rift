@@ -43,6 +43,15 @@ def _safe_metrics(row):
     return row
 
 
+def _file_sha256(path):
+    """Streaming digest of an already-rendered export artifact, not a signature."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def export_project(project, media, destination, *, target_lufs=-16.0,
                    formats=("wav",), use_ducking=True, include_stems=True,
                    should_cancel=None):
@@ -99,8 +108,15 @@ def export_project(project, media, destination, *, target_lufs=-16.0,
         origin_inventory = project_origin_inventory(
             project, media.sound_library, voice_media=media)
         disclosure = public_origin_disclosure(origin_inventory)
+        # Hash the actual encoded files after mastering and before atomic
+        # publication; these are reference digests, not signed authenticity.
+        file_hashes = {}
+        for filename in (*files.values(), *stems.values()):
+            _check_cancel(should_cancel)
+            file_hashes[filename] = _file_sha256(stage / filename)
         _check_cancel(should_cancel)
         manifest = {
+            "output_sha256": file_hashes,
             "schema_version": 1,
             "provenance_disclosure": disclosure,
             "project_id": project.id,
