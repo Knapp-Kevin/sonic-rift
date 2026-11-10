@@ -147,6 +147,18 @@ class AgentQueue:
             else:
                 self.db.execute("COMMIT")
 
+    def _require_registered_model(self, kind, model_id):
+        """Fail closed on malformed model registries, never substring-match IDs."""
+        registry = self.installed_models
+        if not callable(registry):
+            raise AgentQueueError("App-owned model registry unavailable")
+        available = registry(kind)
+        if (type(available) not in (list, tuple, set, frozenset)
+                or len(available) > 1000
+                or any(type(item) is not str for item in available)
+                or model_id not in available):
+            raise AgentQueueError("Model not installed or registered for capability")
+
     def _owner_confirms(self, operation, principal, kind, model_id, plan_sha256):
         """Only trusted application UI may provide this approval callback.
 
@@ -171,8 +183,7 @@ class AgentQueue:
             raise AgentQueueError("Invalid caller identity")
         if type(ttl_seconds) is not int or not 1 <= ttl_seconds <= MAX_GRANT_TTL:
             raise AgentQueueError("Grant lifetime must be between 1 and 900 seconds")
-        if not callable(self.installed_models) or model_id not in self.installed_models(kind):
-            raise AgentQueueError("Model not installed or registered for capability")
+        self._require_registered_model(kind, model_id)
         if not self._owner_confirms(
                 "issue", principal, kind, model_id, plan_sha256):
             raise AgentQueueError("Explicit owner approval unavailable or refused")
@@ -244,8 +255,7 @@ class AgentQueue:
             raise AgentQueueError("Invalid idempotency key")
         if type(grant_proof) is not str or GRANT_TOKEN.fullmatch(grant_proof) is None:
             raise AgentQueueError("Owner-issued execution grant required")
-        if not callable(self.installed_models) or model_id not in self.installed_models(kind):
-            raise AgentQueueError("Model not installed or registered for capability")
+        self._require_registered_model(kind, model_id)
         token_hash = hashlib.sha256(grant_proof.encode("ascii")).hexdigest()
         key_hash = hashlib.sha256(request_key.encode("utf-8")).hexdigest()
         with self._transaction():
