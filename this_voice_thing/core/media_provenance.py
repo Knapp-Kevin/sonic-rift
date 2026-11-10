@@ -50,13 +50,26 @@ def _sound_origin(asset, *, content_verified):
                 and not claimed_model):
             return NON_AI_SYNTHESIS, "unsigned_local_generation_event", engine_id, None, None
         known = MUSIC_ENGINES.get(engine_id) or SOUND_ENGINES.get(engine_id)
+        revision = source_event["model_revision"]
         if (known is None or engine_id == "procedural"
                 or source_event["origin"] != AI
                 or source_event["model_id"] != known.repo_id
                 or (claimed_model and claimed_model != known.repo_id)
-                or type(source_event["model_revision"]) is not str
-                or len(source_event["model_revision"]) > 200):
+                or type(revision) is not str or len(revision) > 200):
             return UNKNOWN, "conflicting_local_generation_event", None, None, None
+        if engine_id in MUSIC_ENGINES:
+            # Historical pins may differ from today's catalogue after model
+            # updates. Verify the two generation-time records agree, rather
+            # than falsely attributing an old asset to a new weights revision.
+            settings = getattr(asset, "settings", None)
+            if (type(settings) is not dict
+                    or settings.get("model_revision") != revision
+                    or not re.fullmatch(r"[a-f0-9]{40}", revision)):
+                return UNKNOWN, "conflicting_local_generation_event", None, None, None
+        elif revision:
+            # Sound engines currently have no recorded weights pin. Never
+            # promote arbitrary user-supplied revisions as forensic evidence.
+            return UNKNOWN, "unverified_model_revision_claim", None, None, None
         return AI, "unsigned_local_generation_event", engine_id, known.repo_id, (
             source_event["model_revision"] or None)
     # Legacy labels may originate from prior Sonic Rift builds, imports or
