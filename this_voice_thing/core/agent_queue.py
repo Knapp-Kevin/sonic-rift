@@ -101,14 +101,20 @@ class AgentQueue:
             UNIQUE(principal, request_key_sha256)
         )""")
         self.db.execute("CREATE INDEX IF NOT EXISTS jobs_state ON jobs(state,created_at)")
-        # No serialized prompts exist to resume safely after process restart.
-        # Mark all previously unfinished work interrupted, never auto-replay.
+        # Queued jobs lack serialized inputs, so never replay them on restart.
+        # Preserve an unexpired active lease: another Sonic Rift process may
+        # still own the GPU. Mark only *expired* leases interrupted and wait
+        # for live owners to release their slot.
         with self._transaction():
             now = self.clock()
             self.db.execute("""UPDATE jobs SET state='interrupted',
                 lease_owner=NULL, lease_deadline=NULL, updated_at=?,
-                error_code='process_restart'
-                WHERE state IN ('queued','running','cancel_requested')""", (now,))
+                error_code='process_restart' WHERE state='queued'""", (now,))
+            self.db.execute("""UPDATE jobs SET state='interrupted',
+                lease_owner=NULL, lease_deadline=NULL, updated_at=?,
+                error_code='expired_on_open'
+                WHERE state IN ('running','cancel_requested')
+                AND lease_deadline<?""", (now, now))
 
     @contextmanager
     def _transaction(self):
@@ -251,8 +257,10 @@ class AgentQueue:
         with self._transaction():
             job = self.db.execute("SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone()
             if (not job or job["lease_owner"] != worker_id
-                    or job["state"] not in ("running", "cancel_requested")):
-                raise AgentQueueError("Job has no active owner lease")
+                    or job["state"] not in ("running", "cancel_requested")
+                    or job["lease_deadline"] is None
+                    or job["lease_deadline"] < self.clock()):
+                raise AgentQueueError("Job has no valid active owner lease")
             if job["state"] == "cancel_requested" and state == "completed":
                 raise AgentQueueError("Cancelled job cannot publish an artifact")
             now = self.clock()
