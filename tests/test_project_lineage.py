@@ -205,6 +205,38 @@ class ProjectLineageTests(unittest.TestCase):
                              "ai_generated")
             self.assertEqual(loaded.project_revision, session.project.revision)
 
+    def test_event_history_cannot_be_erased_on_sidecar_update(self):
+        project = make_project()
+        ledger, first, second = capture_two(project)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "mix.sonicrift.json"
+            save_project(path, project)
+            saved = save_lineage(path, ledger)
+            original = saved.read_bytes()
+            removed = deepcopy(ledger)
+            del removed.events[first]
+            del removed.bindings["generated"]
+            with self.assertRaisesRegex(ValueError, "discard or rewrite"):
+                save_lineage(path, removed)
+            self.assertEqual(saved.read_bytes(), original)
+            self.assertEqual(load_lineage(path).event_for_clip(
+                project, "imported")["event_id"], second)
+
+    def test_untrusted_event_payloads_cannot_be_imported_as_human_or_validated(self):
+        project = make_project()
+        ledger, _, _ = capture_two(project)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "mix.sonicrift.json"
+            save_project(path, project)
+            saved = save_lineage(path, ledger)
+            payload = json.loads(saved.read_text(encoding="utf-8"))
+            payload["events"][0]["origin"] = ["human_capture"]
+            saved.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises((ValueError, TypeError)):
+                load_lineage(path)
+            self.assertFalse(hasattr(ledger, "signature"))
+            self.assertNotIn("prompt", saved.read_text(encoding="utf-8"))
+
     def test_corrupt_replacement_and_cross_project_overwrite_refused(self):
         project = make_project()
         ledger, _, _ = capture_two(project)
