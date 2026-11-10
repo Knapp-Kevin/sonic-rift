@@ -43,6 +43,7 @@ class Asset:
     metrics: dict = field(default_factory=dict)
     notes: str = ""
     kind: str = "sound"             # "sound" or "music"; older entries have no kind and are sounds
+    source_event: dict = field(default_factory=dict)  # unsigned app-observed generation record
 
 
 def _sha256(path):
@@ -98,10 +99,26 @@ class AssetLibrary:
         try:
             mastering.write_audio(path, audio, sample_rate, "wav")
             metrics = provenance.pop("metrics", None) or mastering.measure(audio, sample_rate, loop)
+            source_event = provenance.pop("source_event", None)
+            if source_event is not None:
+                if (type(source_event) is not dict or set(source_event) != {
+                        "origin", "engine", "model_id", "model_revision"}
+                        or source_event["origin"] not in ("ai_generated", "non_ai_synthesis")
+                        or source_event["engine"] != engine
+                        or any(type(source_event[k]) is not str or len(source_event[k]) > 200
+                               for k in ("engine", "model_id", "model_revision"))):
+                    raise ValueError("Invalid local generation source event")
+                if source_event["origin"] == "non_ai_synthesis" and source_event["model_id"]:
+                    raise ValueError("Procedural source event cannot claim a model")
+                source_event = {
+                    **source_event,
+                    "media_sha256": _sha256(path),
+                    "evidence_status": "unsigned_local_generation_event",
+                }
             asset = Asset(id=asset_id, name=name.strip() or "Sound", file=filename, engine=engine,
                           loop=bool(loop), seconds=round(len(audio) / sample_rate, 3),
                           sample_rate=int(sample_rate), sha256=_sha256(path), created=time.time(),
-                          metrics=metrics, **provenance)
+                          metrics=metrics, source_event=source_event or {}, **provenance)
             self.assets.insert(0, asset)
             self.save()
         except BaseException:
