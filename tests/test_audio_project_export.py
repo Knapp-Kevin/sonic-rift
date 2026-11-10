@@ -80,6 +80,13 @@ class ProjectExportTests(unittest.TestCase):
         self.assertTrue(disclosure["contains_unknown"])  # imported narration has no origin event
         self.assertEqual(disclosure["classification"], "mixed_ai_and_other")
         self.assertIn(ACE_STEP_15.repo_id, disclosure["model_ids"])
+        # Every delivered audio file has its own real post-encode digest.
+        import hashlib
+        expected_files = set(exported["master_files"].values()) | set(exported["stems"].values())
+        self.assertEqual(set(exported["output_sha256"]), expected_files)
+        for name, digest in exported["output_sha256"].items():
+            self.assertEqual(
+                hashlib.sha256((target / name).read_bytes()).hexdigest(), digest)
         self.assertEqual(disclosure["clip_source_counts"]["ai_generated"], 1)
         self.assertGreaterEqual(disclosure["clip_source_counts"]["unknown"], 1)
         self.assertNotIn("secret prompt", manifest_path.read_text(encoding="utf-8"))
