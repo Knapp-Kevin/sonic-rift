@@ -82,16 +82,24 @@ def compare_decoded_audio(original, signed, suffix):
 def qualify(*, source, output_dir, test_cert, test_key):
     import c2pa  # optional native library, imported only in explicit test mode
 
-    source = Path(source).resolve(strict=True)
-    destination_dir = Path(output_dir).resolve(strict=True)
-    if not destination_dir.is_dir() or destination_dir.is_symlink():
+    source = Path(source)
+    destination_dir = Path(output_dir)
+    if source.is_symlink() or destination_dir.is_symlink():
+        raise RoundtripBlocked("Linked source or output directory is not permitted")
+    source = source.resolve(strict=True)
+    destination_dir = destination_dir.resolve(strict=True)
+    if not destination_dir.is_dir():
         raise RoundtripBlocked("Output directory must be an existing directory")
     suffix = source.suffix.lower().lstrip(".")
     if suffix not in MIME:
         raise RoundtripBlocked("Only wav/mp3/ogg test fixtures are supported")
     _safe_file(source, "Source")
-    cert = Path(test_cert).resolve(strict=True)
-    key = Path(test_key).resolve(strict=True)
+    cert = Path(test_cert)
+    key = Path(test_key)
+    if cert.is_symlink() or key.is_symlink():
+        raise RoundtripBlocked("Linked test credentials are not accepted")
+    cert = cert.resolve(strict=True)
+    key = key.resolve(strict=True)
     _safe_file(cert, "Test certificate")
     _safe_file(key, "Test private key")
     if source.parent == destination_dir:
@@ -134,20 +142,22 @@ def qualify(*, source, output_dir, test_cert, test_key):
             if not manifest.get("active_manifest"):
                 raise RoundtripBlocked("Signed file has no active Content Credential")
             validation_state = reader.get_validation_state()
+        if temp.stat().st_size > MAX_BYTES + (1024 * 1024):
+            raise RoundtripBlocked("Signed output exceeds bounded file size")
         parity = compare_decoded_audio(source, temp, suffix)
         if _digest_file(source) != initial_sha:
             raise RoundtripBlocked("Input audio changed during signing")
-        # Same-directory hardlink is an exclusive, no-overwrite promotion.
-        # Unsupported or unusual Windows filesystems must fail closed.
-        os.link(temp, final)
+        output_sha256 = _digest_file(temp)
+        native_version = c2pa.sdk_version()
+        package_version = importlib.metadata.version("c2pa-python")
         result = {
             "status": "LAB_EMBEDDED_UNTRUSTED_PROOF_ONLY",
-            "sdk_package_version": importlib.metadata.version("c2pa-python"),
-            "native_sdk_version": c2pa.sdk_version(),
+            "sdk_package_version": package_version,
+            "native_sdk_version": native_version,
             "format": suffix,
             "mime": suitable,
             "test_file": final.name,
-            "output_sha256": _digest_file(final),
+            "output_sha256": output_sha256,
             "source_unchanged": True,
             "c2pa_embedded": True,
             "reported_validation_state": validation_state,
@@ -157,6 +167,10 @@ def qualify(*, source, output_dir, test_cert, test_key):
             "production_release_qualified": False,
             **parity,
         }
+        # Same-directory hardlink is an exclusive, no-overwrite promotion.
+        # All checks and receipt generation finish *before* publication.
+        # Unsupported or unusual Windows filesystems must fail closed.
+        os.link(temp, final)
     finally:
         if temp is not None and temp.exists():
             temp.unlink()
