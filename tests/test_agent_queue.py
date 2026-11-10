@@ -30,12 +30,14 @@ class AgentQueueTests(unittest.TestCase):
         self.clock = Clock()
         self.approve = lambda operation, principal, kind, model, plan: True
         self.models = lambda kind: [MODEL] if kind == "music.generate" else []
+        self.payload = lambda job_id: True  # synthetic owned inputs in these tests
         self.grants = {}
         self.queue = self.new_queue()
         self.addCleanup(self.queue.close)
 
     def new_queue(self, **changes):
-        options = dict(owner_approval=self.approve, installed_models=self.models, clock=self.clock)
+        options = dict(owner_approval=self.approve, installed_models=self.models,
+                       queued_payload_available=self.payload, clock=self.clock)
         options.update(changes)
         return AgentQueue(self.file, **options)
 
@@ -220,11 +222,36 @@ class AgentQueueTests(unittest.TestCase):
         self.clock.value += 301
         # A second application instance must not replay secret prompts it
         # never persisted, and must not resume an orphaned GPU job.
-        other = self.new_queue()
+        other = self.new_queue(queued_payload_available=lambda job_id: False)
         self.addCleanup(other.close)
+        self.assertEqual(other.reconcile_missing_payloads(), 1)
+        self.assertIsNone(other.claim(worker_id=WORKER2))
         self.assertEqual(other.get(first["job_id"], principal="owner")["state"],
                          "orphaned")
-        self.assertIsNone(other.claim(worker_id=WORKER2))
+
+    def test_new_observer_connection_never_interferes_with_running_app_jobs(self):
+        first = self.submit()
+        readonly = self.new_queue(queued_payload_available=None)
+        self.addCleanup(readonly.close)
+        self.assertEqual(readonly.get(first["job_id"], principal="owner")["state"],
+                         "queued")
+        self.assertIsNone(readonly.claim(worker_id=WORKER2))
+        self.assertEqual(self.queue.claim(worker_id=WORKER)["job_id"],
+                         first["job_id"])
+
+    def test_worker_claims_only_owned_payload_and_reconciles_missing_inputs(self):
+        first = self.submit()
+        second = self.submit(request_key="task-0002", plan_sha256=PLAN2)
+        worker = self.new_queue(
+            queued_payload_available=lambda job: job == second["job_id"])
+        self.addCleanup(worker.close)
+        self.assertEqual(worker.claim(worker_id=WORKER)["job_id"],
+                         second["job_id"])
+        self.assertEqual(self.queue.get(first["job_id"], principal="owner")["state"],
+                         "queued")
+        self.assertEqual(worker.reconcile_missing_payloads(), 1)
+        self.assertEqual(self.queue.get(first["job_id"], principal="owner")["state"],
+                         "interrupted")
 
     def test_other_instance_cannot_clobber_unexpired_gpu_lease(self):
         job = self.submit()
