@@ -13,6 +13,8 @@ Endpoints
   GET  /v1/health        what's loaded, and whether a request is running
   GET  /v1/models        the model list (what "model" can name)
   GET  /v1/voices        the voice library and the loaded model's built-in voices
+  GET  /v1/agent/capabilities    side-effect-free agent catalog; token required
+  POST /v1/agent/plans           deterministic plan-only result; token required
   POST /v1/audio/speech  OpenAI-compatible buffered speech, or native PCM streaming
                          with stream=true, stream_format="audio", response_format="pcm"
   POST /v1/speech        native: {"text", "model", "voice", "format", "subtitles",
@@ -175,6 +177,16 @@ class _Handler(BaseHTTPRequestHandler):
         header = self.headers.get("Authorization", "")
         return header == f"Bearer {token}" or self.headers.get("X-API-Key", "") == token
 
+    def _require_agent_auth(self):
+        """Agent endpoints are unavailable in the legacy no-token API mode.
+
+        An MCP-side environment token does not secure an app that accepts
+        anonymous API requests. Never expose agent execution in this mode.
+        """
+        if not self.api.token:
+            raise ApiError(403, "Agent operations require a configured local API token.",
+                           "authorization_error")
+
     def _read_json(self):
         length = int(self.headers.get("Content-Length") or 0)
         if length > MAX_BODY:
@@ -218,6 +230,17 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json(200, {"object": "list", "data": backend.models()})
             elif method == "GET" and path == "/v1/voices":
                 self._send_json(200, {"object": "list", "data": backend.voices()})
+            elif method == "GET" and path == "/v1/agent/capabilities":
+                self._require_agent_auth()
+                from this_voice_thing.core.agent_jobs import capabilities
+                self._send_json(200, capabilities())
+            elif method == "POST" and path == "/v1/agent/plans":
+                self._require_agent_auth()
+                from this_voice_thing.core.agent_jobs import InvalidJob, plan_request
+                try:
+                    self._send_json(200, plan_request(self._read_json()))
+                except InvalidJob as exc:
+                    raise ApiError(400, str(exc)) from None
             elif method == "POST" and path == "/v1/audio/speech":
                 self._openai_speech(self._read_json())
             elif method == "POST" and path == "/v1/speech":
