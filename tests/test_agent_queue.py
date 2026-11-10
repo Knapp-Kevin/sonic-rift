@@ -28,31 +28,42 @@ class AgentQueueTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.file = Path(self.temp.name) / "agent-jobs.sqlite"
         self.clock = Clock()
-        self.auth = lambda owner, kind, model, plan, proof: proof == "locally-approved"
+        self.approve = lambda operation, principal, kind, model, plan: True
         self.models = lambda kind: [MODEL] if kind == "music.generate" else []
+        self.grants = {}
         self.queue = self.new_queue()
         self.addCleanup(self.queue.close)
 
     def new_queue(self, **changes):
-        options = dict(authorize=self.auth, installed_models=self.models, clock=self.clock)
+        options = dict(owner_approval=self.approve, installed_models=self.models, clock=self.clock)
         options.update(changes)
         return AgentQueue(self.file, **options)
 
     def submit(self, **changes):
         options = dict(
             principal="owner", request_key=KEY, kind="music.generate",
-            model_id=MODEL, plan_sha256=PLAN, grant_proof="locally-approved")
+            model_id=MODEL, plan_sha256=PLAN)
         options.update(changes)
+        if "grant_proof" not in changes:
+            key = options["request_key"]
+            if key not in self.grants:
+                self.grants[key] = self.queue.issue_grant(
+                    principal=options["principal"], kind=options["kind"],
+                    model_id=options["model_id"], plan_sha256=options["plan_sha256"])
+            options["grant_proof"] = self.grants[key]
         return self.queue.submit(**options)
 
     def test_default_deny_requires_real_registry_and_authority(self):
         with tempfile.TemporaryDirectory() as folder:
             q = AgentQueue(Path(folder) / "blocked.sqlite", installed_models=self.models)
             self.addCleanup(q.close)
-            with self.assertRaisesRegex(AgentQueueError, "permission unavailable"):
+            with self.assertRaisesRegex(AgentQueueError, "approval unavailable"):
+                q.issue_grant(principal="owner", kind="music.generate",
+                              model_id=MODEL, plan_sha256=PLAN)
+            with self.assertRaisesRegex(AgentQueueError, "grant required"):
                 q.submit(principal="owner", request_key=KEY,
                          kind="music.generate", model_id=MODEL, plan_sha256=PLAN)
-        with self.assertRaisesRegex(AgentQueueError, "permission refused"):
+        with self.assertRaisesRegex(AgentQueueError, "grant required"):
             self.submit(grant_proof="agent-says-yes")
         with self.assertRaisesRegex(AgentQueueError, "not installed"):
             self.submit(kind="sound.generate")
@@ -66,13 +77,98 @@ class AgentQueueTests(unittest.TestCase):
         self.assertNotIn("principal", first)
         self.assertNotIn("request_key", first)
         self.assertNotIn("grant_proof", first)
+        self.assertNotIn("grant_hash", first)
         self.assertNotIn("lease_owner", first)
+        mismatched_grant = self.queue.issue_grant(
+            principal="owner", kind="music.generate",
+            model_id=MODEL, plan_sha256=PLAN2)
         with self.assertRaisesRegex(AgentQueueError, "another request"):
-            self.submit(plan_sha256=PLAN2)
+            self.submit(plan_sha256=PLAN2, grant_proof=mismatched_grant)
         rows = self.queue.db.execute("SELECT * FROM jobs").fetchall()
         self.assertEqual(len(rows), 1)
         self.assertNotIn(KEY, str(tuple(rows[0])))
-        self.assertNotIn("locally-approved", str(tuple(rows[0])))
+        self.assertNotIn(self.grants[KEY], str(tuple(rows[0])))
+
+    def test_grant_expires_without_starting_work(self):
+        token = self.queue.issue_grant(
+            principal="owner", kind="music.generate",
+            model_id=MODEL, plan_sha256=PLAN, ttl_seconds=1)
+        self.clock.value += 1
+        with self.assertRaisesRegex(AgentQueueError, "expired"):
+            self.submit(grant_proof=token)
+        self.assertEqual(self.queue.db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0], 0)
+
+    def test_grant_binding_cannot_cross_principal_kind_model_or_plan(self):
+        token = self.queue.issue_grant(
+            principal="owner", kind="music.generate",
+            model_id=MODEL, plan_sha256=PLAN)
+        for changed in (
+                {"principal": "other"},
+                {"kind": "sound.generate"},
+                {"plan_sha256": PLAN2}):
+            with self.subTest(changed=changed), self.assertRaises(AgentQueueError):
+                self.submit(grant_proof=token, **changed)
+        self.assertEqual(self.queue.db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0], 0)
+        self.assertEqual(self.submit(grant_proof=token)["state"], "queued")
+
+    def test_one_grant_cannot_submit_two_distinct_jobs_or_leak_plaintext(self):
+        token = self.queue.issue_grant(
+            principal="owner", kind="music.generate",
+            model_id=MODEL, plan_sha256=PLAN)
+        first = self.submit(grant_proof=token)
+        self.assertEqual(first["job_id"], self.submit(grant_proof=token)["job_id"])
+        with self.assertRaisesRegex(AgentQueueError, "already consumed"):
+            self.submit(request_key="task-0002", grant_proof=token)
+        rows = self.queue.db.execute("SELECT * FROM execution_grants").fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertNotIn(token, str(tuple(rows[0])))
+        self.assertEqual(rows[0]["consumed_job_id"], first["job_id"])
+
+    def test_parallel_queue_instances_cannot_double_consume_grant(self):
+        other = self.new_queue()
+        self.addCleanup(other.close)
+        token = self.queue.issue_grant(
+            principal="owner", kind="music.generate",
+            model_id=MODEL, plan_sha256=PLAN)
+        first = other.submit(principal="owner", request_key=KEY,
+                             kind="music.generate", model_id=MODEL,
+                             plan_sha256=PLAN, grant_proof=token)
+        with self.assertRaisesRegex(AgentQueueError, "already consumed"):
+            self.queue.submit(principal="owner", request_key="task-0002",
+                              kind="music.generate", model_id=MODEL,
+                              plan_sha256=PLAN, grant_proof=token)
+        self.assertEqual(other.get(first["job_id"], principal="owner")["state"], "queued")
+
+    def test_revocation_cancels_queued_and_requests_running_worker_stop(self):
+        token = self.queue.issue_grant(
+            principal="owner", kind="music.generate",
+            model_id=MODEL, plan_sha256=PLAN)
+        first = self.submit(grant_proof=token)
+        self.assertTrue(self.queue.revoke_grant(token, principal="owner"))
+        self.assertEqual(self.queue.get(first["job_id"], principal="owner")["state"],
+                         "cancelled")
+        self.assertIsNone(self.queue.claim(worker_id=WORKER))
+        with self.assertRaisesRegex(AgentQueueError, "revoked"):
+            self.queue.submit(principal="owner", request_key=KEY,
+                              kind="music.generate", model_id=MODEL,
+                              plan_sha256=PLAN, grant_proof=token)
+
+        other_token = self.queue.issue_grant(
+            principal="owner", kind="music.generate",
+            model_id=MODEL, plan_sha256=PLAN2)
+        second = self.submit(request_key="task-0002", plan_sha256=PLAN2,
+                             grant_proof=other_token)
+        self.queue.claim(worker_id=WORKER)
+        with self.assertRaisesRegex(AgentQueueError, "unavailable"):
+            self.queue.revoke_grant(other_token, principal="stranger")
+        self.assertTrue(self.queue.revoke_grant(other_token, principal="owner"))
+        self.assertEqual(self.queue.get(second["job_id"], principal="owner")["state"],
+                         "cancel_requested")
+        self.assertFalse(self.queue.heartbeat(second["job_id"], WORKER))
+        with self.assertRaisesRegex(AgentQueueError, "cannot publish"):
+            self.queue.finish(second["job_id"], worker_id=WORKER,
+                              state="completed", artifact_id="asset_valid",
+                              artifact_sha256="e" * 64)
 
     def test_one_running_job_even_across_two_worker_claims(self):
         first = self.submit()
