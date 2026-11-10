@@ -4,6 +4,7 @@ Project JSON contains opaque IDs only. A VoiceLibrary voice ID represents a
 speaker/reference, NOT a generated narration take: those are imported separately.
 """
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -17,6 +18,8 @@ from this_voice_thing.core.soundscape import mastering
 VOICE_ID = re.compile(r"voice_([a-f0-9]{64})\Z")
 SOUND_ID = re.compile(r"sound_([a-f0-9]{12})\Z")
 MAX_SOURCE_SECONDS = 900
+ORIGIN_SCHEMA_VERSION = 1
+ORIGIN_SUFFIX = ".origin.json"  # private local claim, NOT a C2PA credential
 
 
 def _digest(path):
@@ -62,6 +65,83 @@ class ProjectMedia:
         finally:
             if temporary and temporary.exists():
                 temporary.unlink()
+
+    def _voice_origin_path(self, digest):
+        """Digest-derived name only: no caller-provided paths or user filenames."""
+        if type(digest) is not str or not re.fullmatch(r"[a-f0-9]{64}", digest):
+            raise ValueError("Invalid voice digest")
+        return self.voice_root / (digest + ORIGIN_SUFFIX)
+
+    def read_voice_origin(self, asset_id):
+        """Read only a matching, integrity-checked, *unsigned* TTS origin claim.
+
+        A checksum binds this metadata to WAV bytes, but the JSON is mutable and
+        cannot establish identity or signature trust. Missing, malformed and
+        tampered claims never upgrade origin out of unknown.
+        """
+        match = VOICE_ID.fullmatch(asset_id) if type(asset_id) is str else None
+        if match is None:
+            return None
+        digest = match.group(1)
+        audio_path = self.voice_root / (digest + ".wav")
+        origin_path = self._voice_origin_path(digest)
+        if not audio_path.is_file() or not origin_path.is_file():
+            return None
+        if _digest(audio_path) != digest or origin_path.stat().st_size > 4096:
+            return None
+        try:
+            record = json.loads(origin_path.read_text(encoding="utf-8"))
+        except (ValueError, UnicodeError, OSError):
+            return None
+        if (type(record) is not dict or set(record) != {
+                "schema_version", "origin", "engine", "media_sha256", "evidence_status"}
+                or type(record["schema_version"]) is not int
+                or record["schema_version"] != ORIGIN_SCHEMA_VERSION
+                or record["origin"] != "ai_generated"
+                or record["engine"] != "studio_tts_worker"
+                or record["media_sha256"] != digest
+                or record["evidence_status"] != "unsigned_local_generation_event"):
+            return None
+        return record
+
+    def import_generated_voice_take(self, audio, sample_rate):
+        """Keep a WAV produced by Studio's own TTS worker and its origin claim.
+
+        Only call from the actual successful `generate_narration` worker result.
+        Regular file imports must use `import_voice_take` and remain unknown.
+        This record identifies the *AI generation method*, not a specific model
+        revision, signer, prompt, speaker, user, or external C2PA authority.
+        """
+        asset_id = self.import_voice_take(audio, sample_rate)
+        digest = asset_id[len("voice_"):]
+        origin_path = self._voice_origin_path(digest)
+        record = {
+            "schema_version": ORIGIN_SCHEMA_VERSION,
+            "origin": "ai_generated",
+            "engine": "studio_tts_worker",
+            "media_sha256": digest,
+            "evidence_status": "unsigned_local_generation_event",
+        }
+        if origin_path.exists() or origin_path.is_symlink():
+            if self.read_voice_origin(asset_id) != record:
+                raise ValueError("Existing voice origin record is invalid or conflicts")
+            return asset_id
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                    dir=self.voice_root, prefix=".origin-",
+                    suffix=".tmp", mode="w", encoding="utf-8", delete=False) as handle:
+                temporary = Path(handle.name)
+                json.dump(record, handle, sort_keys=True)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, origin_path)
+            temporary = None
+        finally:
+            if temporary and temporary.exists():
+                temporary.unlink()
+        return asset_id
 
     def resolve(self, asset_id):
         if not isinstance(asset_id, str):
