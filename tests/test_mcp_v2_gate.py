@@ -30,6 +30,8 @@ class McpGateTests(unittest.IsolatedAsyncioTestCase):
             "sonic_voice_models": result({"models": []}),
         }
         async def call(name, kwargs):
+            if name == "sonic_plan_music" and kwargs.get("duration_seconds") == -10:
+                return result({"status": "rejected", "execution_enabled": False})
             return calls[name]
         client = SimpleNamespace(
             list_tools=AsyncMock(return_value=SimpleNamespace(
