@@ -113,6 +113,21 @@ class AgentPlanHttpTests(unittest.TestCase):
                 finally:
                     conn.close()
 
+    def test_duplicate_content_length_is_refused_before_body_read(self):
+        conn = http.client.HTTPConnection(
+            "127.0.0.1", self.server.port, timeout=5)
+        try:
+            conn.putrequest("POST", "/v1/agent/plans")
+            conn.putheader("Authorization", "Bearer private-local-test-token")
+            conn.putheader("Content-Length", "0")
+            conn.putheader("Content-Length", "1")
+            conn.endheaders()
+            response = conn.getresponse()
+            self.assertEqual(response.status, 400)
+            self.assertIn("Content-Length", response.read().decode("utf-8"))
+        finally:
+            conn.close()
+
     def test_unexpected_backend_error_does_not_expose_internal_details(self):
         class FaultingBackend:
             def health(self):
