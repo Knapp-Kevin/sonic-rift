@@ -160,7 +160,7 @@ class AssetLibrary:
         """
         filename = getattr(asset, "file", None)
         if (type(filename) is not str or filename != Path(filename).name
-                or re.fullmatch(r"[A-Za-z0-9_.-]+\\.wav", filename) is None):
+                or re.fullmatch(r"[A-Za-z0-9_.-]+\.wav", filename) is None):
             return False
         root = Path(self.audio_dir).resolve()
         path = (root / filename).resolve()
