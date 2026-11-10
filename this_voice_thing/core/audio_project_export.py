@@ -15,7 +15,9 @@ import numpy as np
 
 from this_voice_thing.core.audio_project_duck import duck_ambience
 from this_voice_thing.core.audio_timeline_mix import render_timeline
-from this_voice_thing.core.media_provenance import project_origin_inventory, public_origin_disclosure
+from this_voice_thing.core.media_provenance import (
+    project_origin_inventory, public_origin_disclosure, public_stem_disclosures,
+)
 from this_voice_thing.core.soundscape import mastering
 
 ALLOWED_FORMATS = frozenset({"wav", "ogg", "mp3"})
@@ -108,6 +110,7 @@ def export_project(project, media, destination, *, target_lufs=-16.0,
         origin_inventory = project_origin_inventory(
             project, media.sound_library, voice_media=media)
         disclosure = public_origin_disclosure(origin_inventory)
+        stem_disclosures = public_stem_disclosures(origin_inventory, stems)
         # Hash the actual encoded files after mastering and before atomic
         # publication; these are reference digests, not signed authenticity.
         file_hashes = {}
@@ -119,6 +122,7 @@ def export_project(project, media, destination, *, target_lufs=-16.0,
             "output_sha256": file_hashes,
             "schema_version": 1,
             "provenance_disclosure": disclosure,
+            "stem_provenance_disclosures": stem_disclosures,
             "project_id": project.id,
             "project_revision": project.revision,
             "sample_rate": project.sample_rate,
