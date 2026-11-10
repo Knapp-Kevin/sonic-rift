@@ -124,6 +124,39 @@ class ProjectMediaTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unsafe Sound Library filename"):
             self.media.resolve("sound_" + asset.id)
 
+    def test_sound_library_forged_path_cannot_read_export_or_delete_other_files(self):
+        import unittest.mock
+
+        first = self.sounds.add(self.audio, 48000, "First", "procedural", False)
+        second = self.sounds.add(self.audio * 0.9, 48000, "Second", "procedural", False)
+        second_path = Path(self.sounds.path(second))
+        original_second_bytes = second_path.read_bytes()
+        first.file = "../outside.wav"
+        with unittest.mock.patch(
+                "this_voice_thing.core.soundscape.assets._sha256",
+                side_effect=AssertionError("unsafe hash read")):
+            self.assertFalse(self.sounds.verify(first))
+        with self.assertRaisesRegex(ValueError, "Unsafe Sound Library filename"):
+            self.sounds.path(first)
+        with self.assertRaisesRegex(ValueError, "path or checksum"):
+            self.sounds.export(first.id, self.root / "bad")
+        with self.assertRaisesRegex(ValueError, "Unsafe Sound Library filename"):
+            self.media.resolve("sound_" + first.id)
+        self.assertTrue(self.sounds.remove(first.id))
+        self.assertEqual(second_path.read_bytes(), original_second_bytes)
+
+    def test_forged_sound_index_cannot_repoint_to_another_valid_asset(self):
+        first = self.sounds.add(self.audio, 48000, "First", "procedural", False)
+        second = self.sounds.add(self.audio * 0.5, 48000, "Second", "procedural", False)
+        first.file = second.file
+        first.sha256 = second.sha256
+        self.assertFalse(self.sounds.verify(first))
+        with self.assertRaisesRegex(ValueError, "Unsafe Sound Library filename"):
+            self.media.resolve("sound_" + first.id)
+        with self.assertRaisesRegex(ValueError, "path or checksum"):
+            self.sounds.export(first.id, self.root / "repointed")
+        self.assertFalse((self.root / "repointed.wav").exists())
+
     def test_voice_tamper_is_detected_and_never_overwritten(self):
         identifier = self.media.import_voice_take(self.audio, 48000)
         target = self.media.voice_root / (identifier[6:] + ".wav")
