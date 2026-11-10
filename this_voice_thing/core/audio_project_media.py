@@ -87,6 +87,11 @@ class ProjectMedia:
         origin_path = self._voice_origin_path(digest)
         if not audio_path.is_file() or not origin_path.is_file():
             return None
+        # Refuse symlinks that escape the app-owned voice media directory.
+        root = self.voice_root.resolve()
+        if (not audio_path.resolve().is_relative_to(root)
+                or not origin_path.resolve().is_relative_to(root)):
+            return None
         if _digest(audio_path) != digest or origin_path.stat().st_size > 4096:
             return None
         try:
@@ -136,8 +141,13 @@ class ProjectMedia:
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(temporary, origin_path)
-            temporary = None
+            # Atomic create-without-overwrite. Two workers producing identical
+            # bytes may race, but neither may replace the other's origin claim.
+            try:
+                os.link(temporary, origin_path)
+            except FileExistsError:
+                if self.read_voice_origin(asset_id) != record:
+                    raise ValueError("Existing voice origin record is invalid or conflicts")
         finally:
             if temporary and temporary.exists():
                 temporary.unlink()
