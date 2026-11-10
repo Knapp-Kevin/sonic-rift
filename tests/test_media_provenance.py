@@ -77,6 +77,7 @@ class OriginInventoryTests(unittest.TestCase):
         self.assertEqual(inventory["ingredients"][-1]["origin"], "unknown")
         self.assertEqual(inventory["ingredients"][-1]["evidence"],
                          "voice_origin_unrecorded")
+        self.assertIsNone(inventory["ingredients"][-1]["media_sha256"])
         self.assertNotIn("prompt", str(inventory))
         self.assertNotIn("seed", str(inventory))
 
