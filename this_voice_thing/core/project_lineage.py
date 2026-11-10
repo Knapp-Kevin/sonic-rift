@@ -55,8 +55,8 @@ def _valid_event(event):
             or not 1 <= len(event["asset_id"]) <= 128
             or type(event["media_sha256"]) is not str
             or HEX64.fullmatch(event["media_sha256"]) is None
-            or event["origin"] not in ALLOWED_ORIGINS
-            or event["observer"] not in ALLOWED_OBSERVERS):
+            or type(event["origin"]) is not str or event["origin"] not in ALLOWED_ORIGINS
+            or type(event["observer"]) is not str or event["observer"] not in ALLOWED_OBSERVERS):
         raise ValueError("Invalid creation-event identifier or origin")
     for key in ("engine", "model_id", "model_revision"):
         if type(event[key]) is not str or len(event[key]) > 200:
@@ -214,10 +214,39 @@ def save_lineage(project_path, ledger):
             existing = json.loads(filename.read_text(encoding="utf-8"))
         except (ValueError, OSError, UnicodeError) as exc:
             raise ValueError("Refusing overwrite of corrupted lineage sidecar") from exc
-        if (type(existing) is not dict or existing.get("project_id") != project.id
-                or type(existing.get("project_revision")) is not int
-                or existing["project_revision"] > project.revision):
-            raise ValueError("Existing lineage sidecar belongs to another/newer project")
+        if (type(existing) is not dict
+                or set(existing) != {"schema_version", "evidence_status", "project_id",
+                                     "project_revision", "project_sha256",
+                                     "events", "bindings"}
+                or existing["schema_version"] != SCHEMA_VERSION
+                or existing["evidence_status"] != "unsigned_local_event_ledger_not_c2pa"
+                or existing["project_id"] != project.id
+                or type(existing["project_revision"]) is not int
+                or existing["project_revision"] > project.revision
+                or type(existing["project_sha256"]) is not str
+                or HEX64.fullmatch(existing["project_sha256"]) is None
+                or type(existing["events"]) is not list
+                or len(existing["events"]) > MAX_EVENTS
+                or type(existing["bindings"]) is not dict
+                or len(existing["bindings"]) > MAX_BINDINGS):
+            raise ValueError("Existing lineage sidecar is corrupted or belongs to another/newer project")
+        past_events = {}
+        try:
+            for event in existing["events"]:
+                _valid_event(event)
+                if event["event_id"] in past_events:
+                    raise ValueError("Duplicate event")
+                past_events[event["event_id"]] = event
+            for clip_id, event_id in existing["bindings"].items():
+                if (type(clip_id) is not str or type(event_id) is not str
+                        or event_id not in past_events):
+                    raise ValueError("Dangling event reference")
+        except (ValueError, TypeError, KeyError) as exc:
+            raise ValueError("Existing lineage sidecar is corrupted") from exc
+        # Creation events are append-only even if clips are later deleted or
+        # reattached. Never erase earlier evidence by overwriting the sidecar.
+        if any(ledger.events.get(key) != event for key, event in past_events.items()):
+            raise ValueError("Refusing to discard or rewrite recorded source events")
     encoded = (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2)
                + "\n").encode("utf-8")
     if len(encoded) > MAX_SIDECAR_BYTES:
