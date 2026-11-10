@@ -15,6 +15,7 @@ import numpy as np
 
 from this_voice_thing.core.audio_project_duck import duck_ambience
 from this_voice_thing.core.audio_timeline_mix import render_timeline
+from this_voice_thing.core.media_provenance import project_origin_inventory, public_origin_disclosure
 from this_voice_thing.core.soundscape import mastering
 
 ALLOWED_FORMATS = frozenset({"wav", "ogg", "mp3"})
@@ -92,8 +93,16 @@ def export_project(project, media, destination, *, target_lufs=-16.0,
                 mastering.write_audio(str(stage / filename), arranged.stems[track.id], project.sample_rate, "wav")
                 _check_cancel(should_cancel)
                 stems[track.id] = filename
+        # Provide immediate, honestly *unsigned* export disclosure. Cryptographic
+        # C2PA media embedding/signatures remain a separate acceptance-gated step.
+        _check_cancel(should_cancel)
+        origin_inventory = project_origin_inventory(
+            project, media.sound_library, voice_media=media)
+        disclosure = public_origin_disclosure(origin_inventory)
+        _check_cancel(should_cancel)
         manifest = {
             "schema_version": 1,
+            "provenance_disclosure": disclosure,
             "project_id": project.id,
             "project_revision": project.revision,
             "sample_rate": project.sample_rate,
