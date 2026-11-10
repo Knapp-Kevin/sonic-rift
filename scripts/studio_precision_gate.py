@@ -61,6 +61,46 @@ def execute(label, command, folder, env):
     }
 
 
+def isolated_test_env(run_dir):
+    """Redirect test profile/cache writes away from a real Windows identity.
+
+    Python packages and executable paths remain unchanged. This is an
+    environment-level safeguard, NOT a filesystem/network sandbox. Inspect
+    individual tests before running if they invoke untrusted native software.
+    """
+    home = run_dir / "isolated-profile"
+    directories = {
+        "USERPROFILE": home,
+        "HOME": home,
+        "APPDATA": home / "AppData" / "Roaming",
+        "LOCALAPPDATA": home / "AppData" / "Local",
+        "XDG_CONFIG_HOME": home / ".config",
+        "XDG_DATA_HOME": home / ".local" / "share",
+        "XDG_CACHE_HOME": home / ".cache",
+        "HF_HOME": home / ".cache" / "huggingface",
+        "TORCH_HOME": home / ".cache" / "torch",
+        "MPLCONFIGDIR": home / ".cache" / "matplotlib",
+        "TEMP": run_dir / "temp",
+        "TMP": run_dir / "temp",
+        "TMPDIR": run_dir / "temp",
+    }
+    env = os.environ.copy()
+    for name, destination in directories.items():
+        destination.mkdir(parents=True, exist_ok=True)
+        env[name] = str(destination)
+    # Avoid *expected* model fetches; these flags do not block arbitrary network
+    # access. No test may be treated as sandboxed merely because they are set.
+    env.update({
+        "QT_QPA_PLATFORM": "offscreen",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "PIP_NO_INDEX": "1",
+        "WANDB_MODE": "offline",
+    })
+    return env
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Run offline Sonic Rift Studio qualification on an exact Windows commit")
@@ -76,7 +116,7 @@ def main():
     if folder == ROOT or ROOT in folder.parents:
         parser.error("--receipt-dir must be outside the source checkout")
     folder.mkdir(parents=True, exist_ok=True)
-    # Every invocation owns a unique immutable evidence directory. Reusing a
+    # Every invocation owns a unique evidence directory. Reusing a
     # common receipt root must never overwrite logs cited by an older receipt.
     run_dir = folder / ("studio-precision-" + uuid.uuid4().hex)
     run_dir.mkdir(mode=0o700)
@@ -103,9 +143,7 @@ def main():
             git("status", "--porcelain", "--untracked-files=normal"))
         if (os.name == "nt" and receipt["worktree_clean_before"]
                 and receipt["actual_head"] == receipt["expected_head"]):
-            env = os.environ.copy()
-            env["QT_QPA_PLATFORM"] = "offscreen"
-            env["PYTHONDONTWRITEBYTECODE"] = "1"
+            env = isolated_test_env(run_dir)
             command = [sys.executable, "-m", "unittest", "-v", *FOCUSED]
             focused = execute("focused", command, run_dir, env)
             receipt["stages"].append(focused)
