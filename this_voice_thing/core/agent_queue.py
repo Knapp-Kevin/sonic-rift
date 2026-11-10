@@ -10,6 +10,7 @@ generation. SQLite BEGIN IMMEDIATE serializes leases across all API/UI/MCP
 surfaces, but this component does not yet provide a shared GPU worker.
 """
 from contextlib import contextmanager
+from copy import deepcopy
 import hashlib
 import json
 import os
@@ -39,6 +40,9 @@ PUBLIC_FIELDS = ("job_id", "kind", "model_id", "state", "created_at",
 
 class AgentQueueError(ValueError):
     """An agent request was refused before execution or filesystem work."""
+
+
+from this_voice_thing.core.agent_jobs import InvalidJob, plan_request
 
 
 def _valid_plan(kind, model_id, plan_sha256):
@@ -152,7 +156,8 @@ class AgentQueue:
                 or model_id not in available):
             raise AgentQueueError("Model not installed or registered for capability")
 
-    def _owner_confirms(self, operation, principal, kind, model_id, plan_sha256):
+    def _owner_confirms(self, operation, principal, kind, model_id, plan_sha256,
+                        review_request=None):
         """Only trusted application UI may provide this approval callback.
 
         No HTTP or MCP route may provide or override this callback. A
@@ -160,10 +165,11 @@ class AgentQueue:
         """
         callback = self.owner_approval
         return (callable(callback)
-                and callback(operation, principal, kind, model_id, plan_sha256) is True)
+                and callback(operation, principal, kind, model_id, plan_sha256,
+                             deepcopy(review_request)) is True)
 
     def issue_grant(self, *, principal, kind, model_id, plan_sha256,
-                    ttl_seconds=120):
+                    review_request=None, ttl_seconds=120):
         """Mint a single-use, scoped capability after genuine app UI approval.
 
         Only the SHA-256 of this one-time secret is persisted in SQLite;
@@ -177,8 +183,22 @@ class AgentQueue:
         if type(ttl_seconds) is not int or not 1 <= ttl_seconds <= MAX_GRANT_TTL:
             raise AgentQueueError("Grant lifetime must be between 1 and 900 seconds")
         self._require_registered_model(kind, model_id)
+        # A hash is not a user-facing review. The owner must see the actual
+        # bounded prompt/parameters, and the validated request must match
+        # the exact grant scope before the app may mint its one-use secret.
+        if type(review_request) is not dict:
+            raise AgentQueueError("Exact reviewable job request is required")
+        try:
+            reviewed_plan = plan_request(review_request)
+        except InvalidJob:
+            raise AgentQueueError("Invalid reviewable job request") from None
+        if (reviewed_plan["plan_id"] != plan_sha256
+                or reviewed_plan["kind"] != kind
+                or reviewed_plan["model_id"] != model_id):
+            raise AgentQueueError("Review request does not match grant scope")
         if not self._owner_confirms(
-                "issue", principal, kind, model_id, plan_sha256):
+                "issue", principal, kind, model_id, plan_sha256,
+                review_request=review_request):
             raise AgentQueueError("Explicit owner approval unavailable or refused")
         secret = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(secret.encode("ascii")).hexdigest()
