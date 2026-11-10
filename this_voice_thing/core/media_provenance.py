@@ -33,6 +33,32 @@ def _sound_origin(asset, *, content_verified):
         return UNKNOWN, "media_missing_or_modified", None, None, None
     engine_id = getattr(asset, "engine", None)
     claimed_model = getattr(asset, "model", "") or ""
+    source_event = getattr(asset, "source_event", {})
+    if source_event:
+        expected_fields = {"origin", "engine", "model_id", "model_revision",
+                           "media_sha256", "evidence_status"}
+        checksum = getattr(asset, "sha256", None)
+        if (type(source_event) is not dict or set(source_event) != expected_fields
+                or source_event["engine"] != engine_id
+                or source_event["media_sha256"] != checksum
+                or source_event["evidence_status"] != "unsigned_local_generation_event"):
+            return UNKNOWN, "invalid_local_generation_event", None, None, None
+        if (engine_id == "procedural"
+                and source_event["origin"] == NON_AI_SYNTHESIS
+                and source_event["model_id"] == ""
+                and source_event["model_revision"] == ""
+                and not claimed_model):
+            return NON_AI_SYNTHESIS, "unsigned_local_generation_event", engine_id, None, None
+        known = MUSIC_ENGINES.get(engine_id) or SOUND_ENGINES.get(engine_id)
+        if (known is None or engine_id == "procedural"
+                or source_event["origin"] != AI
+                or source_event["model_id"] != known.repo_id
+                or (claimed_model and claimed_model != known.repo_id)
+                or type(source_event["model_revision"]) is not str
+                or len(source_event["model_revision"]) > 200):
+            return UNKNOWN, "conflicting_local_generation_event", None, None, None
+        return AI, "unsigned_local_generation_event", engine_id, known.repo_id, (
+            source_event["model_revision"] or None)
     if engine_id == "procedural" and not claimed_model:
         return NON_AI_SYNTHESIS, "unverified_local_engine_claim", "procedural", None, None
     if engine_id in MUSIC_ENGINES:
