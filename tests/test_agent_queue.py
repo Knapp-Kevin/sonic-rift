@@ -91,6 +91,37 @@ class AgentQueueTests(unittest.TestCase):
         self.assertNotIn(KEY, str(tuple(rows[0])))
         self.assertNotIn(self.grants[KEY], str(tuple(rows[0])))
 
+    def test_owner_refusal_and_malformed_registry_never_issue_grants(self):
+        self.queue.owner_approval = lambda *args: False
+        with self.assertRaisesRegex(AgentQueueError, "approval unavailable"):
+            self.queue.issue_grant(
+                principal="owner", kind="music.generate",
+                model_id=MODEL, plan_sha256=PLAN)
+        self.queue.owner_approval = self.approve
+        for bad_registry in (
+                lambda kind: MODEL,  # string membership is not a registry
+                lambda kind: {MODEL: "installed"},
+                lambda kind: [None, MODEL],
+                lambda kind: [],
+        ):
+            with self.subTest(registry=bad_registry):
+                self.queue.installed_models = bad_registry
+                with self.assertRaisesRegex(AgentQueueError, "not installed or registered"):
+                    self.queue.issue_grant(
+                        principal="owner", kind="music.generate",
+                        model_id=MODEL, plan_sha256=PLAN)
+        self.assertEqual(self.queue.db.execute(
+            "SELECT COUNT(*) FROM execution_grants").fetchone()[0], 0)
+
+    def test_missing_owner_payload_recovery_authority_is_denied(self):
+        job = self.submit()
+        observer = self.new_queue(queued_payload_available=None)
+        self.addCleanup(observer.close)
+        with self.assertRaisesRegex(AgentQueueError, "payload store unavailable"):
+            observer.reconcile_missing_payloads()
+        self.assertEqual(self.queue.get(job["job_id"], principal="owner")["state"],
+                         "queued")
+
     def test_grant_expires_without_starting_work(self):
         token = self.queue.issue_grant(
             principal="owner", kind="music.generate",
