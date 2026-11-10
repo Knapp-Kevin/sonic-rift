@@ -10,6 +10,8 @@ too (kind "music"), so Studio places them like any other sound.
 import hashlib
 import json
 import os
+from pathlib import Path
+import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -151,9 +153,22 @@ class AssetLibrary:
         return True
 
     def verify(self, asset):
-        """True when the master is present and unchanged since it was kept."""
-        path = self.path(asset)
-        return os.path.exists(path) and _sha256(path) == asset.sha256
+        """Verify only an audio file inside this library, never arbitrary paths.
+
+        The index is locally mutable and may contain forged/legacy filenames.
+        Checking a hash is not authorization to read a file outside audio_dir.
+        """
+        filename = getattr(asset, "file", None)
+        if (type(filename) is not str or filename != Path(filename).name
+                or re.fullmatch(r"[A-Za-z0-9_.-]+\\.wav", filename) is None):
+            return False
+        root = Path(self.audio_dir).resolve()
+        path = (root / filename).resolve()
+        if not path.is_relative_to(root) or not path.is_file():
+            return False
+        expected = getattr(asset, "sha256", None)
+        return (type(expected) is str and re.fullmatch(r"[a-f0-9]{64}", expected) is not None
+                and _sha256(path) == expected)
 
     def export(self, asset_id, destination_without_extension, formats=("wav",)):
         asset = self.get(asset_id)
