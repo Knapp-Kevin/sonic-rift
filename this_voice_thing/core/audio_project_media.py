@@ -39,7 +39,25 @@ class ProjectMedia:
         self.sound_library = sound_library
 
     def import_voice_take(self, audio, sample_rate):
-        """Persist generated narration PCM without changing the Voice Library."""
+        """Persist imported voice PCM without asserting who or what made it."""
+        asset_id, _created = self._store_voice_take(audio, sample_rate, generated=False)
+        return asset_id
+
+    def _ambiguous_voice_origin_path(self, digest):
+        """The content digest was reused in incompatible provenance contexts."""
+        return self.voice_root / (digest + ".origin-ambiguous")
+
+    def _mark_voice_origin_ambiguous(self, digest):
+        """Fail safe for same-bytes import/TTS collisions, without overwrites."""
+        path = self._ambiguous_voice_origin_path(digest)
+        try:
+            with path.open("xb") as handle:
+                handle.write(b"origin_context_collision_v1\\n")
+        except FileExistsError:
+            pass
+
+    def _store_voice_take(self, audio, sample_rate, *, generated):
+        """Write once, reporting whether this exact content address was new."""
         if type(sample_rate) is not int or not 8000 <= sample_rate <= 192000:
             raise ValueError("Invalid voice sample rate")
         pcm = _source_pcm((audio, sample_rate), sample_rate)
@@ -55,13 +73,23 @@ class ProjectMedia:
             mastering.write_audio(str(temporary), pcm, sample_rate, "wav")
             digest = _digest(temporary)
             destination = self.voice_root / (digest + ".wav")
-            if destination.exists():
+            created = False
+            if destination.exists() or destination.is_symlink():
                 if not destination.is_file() or _digest(destination) != digest:
                     raise ValueError("Existing voice media does not match expected checksum")
+                if not generated:
+                    # A direct import of the same bytes can have a different
+                    # creation history. One hash must not assert two histories.
+                    self._mark_voice_origin_ambiguous(digest)
+                elif self.read_voice_origin("voice_" + digest) is None:
+                    # A generated take collides with a previously unrecorded
+                    # asset: don't assign AI origin to earlier imported clips.
+                    self._mark_voice_origin_ambiguous(digest)
             else:
                 os.replace(temporary, destination)
                 temporary = None
-            return "voice_" + digest
+                created = True
+            return "voice_" + digest, created
         finally:
             if temporary and temporary.exists():
                 temporary.unlink()
@@ -85,7 +113,8 @@ class ProjectMedia:
         digest = match.group(1)
         audio_path = self.voice_root / (digest + ".wav")
         origin_path = self._voice_origin_path(digest)
-        if not audio_path.is_file() or not origin_path.is_file():
+        if (not audio_path.is_file() or not origin_path.is_file()
+                or self._ambiguous_voice_origin_path(digest).exists()):
             return None
         # Refuse symlinks that escape the app-owned voice media directory.
         root = self.voice_root.resolve()
@@ -117,8 +146,12 @@ class ProjectMedia:
         This record identifies the *AI generation method*, not a specific model
         revision, signer, prompt, speaker, user, or external C2PA authority.
         """
-        asset_id = self.import_voice_take(audio, sample_rate)
+        asset_id, created = self._store_voice_take(audio, sample_rate, generated=True)
         digest = asset_id[len("voice_"):]
+        if not created and self.read_voice_origin(asset_id) is None:
+            # The same WAV was already present from an unknown/import context.
+            # Keep playback functional but refuse to upgrade its origin.
+            return asset_id
         origin_path = self._voice_origin_path(digest)
         record = {
             "schema_version": ORIGIN_SCHEMA_VERSION,
