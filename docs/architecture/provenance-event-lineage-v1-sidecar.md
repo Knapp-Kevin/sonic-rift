@@ -29,6 +29,19 @@ The [cross-product strategy note](https://github.com/Knapp-Kevin/sonic-rift/issu
 
 The event model deliberately separates **observed source creation** from **signer integrity**, **identity**, **rights/licensing**, and **artistic merit**. It has no creator score, human-made badge, AI detector, opt-in identity publication or implied transfer of copyrighted materials. Public C2PA must remain independently readable; detailed private evidence may be separately encrypted under a future owner-approved key policy. Production signer/fallback authority stays undecided in [Sonic #174](https://github.com/Knapp-Kevin/sonic-rift/issues/174).
 
+## Explicit recoverable save prototype (same draft branch)
+
+`core/project_lineage_transaction.py` adds a **write-ahead two-file installation protocol**, separate from the existing `save_project`/`save_lineage` functions and **not enabled by default**. This addresses the known project+sidecar crash window without pretending that NTFS offers an atomic rename of two files.
+
+- `save_pair(project_path, old_project, new_project, new_ledger)` verifies the old project and optional existing sidecar before writing, including append-only source events. It stages canonical new v1 project JSON and lineage JSON in the same directory, flushes them, then exclusively writes a bounded transaction journal carrying old/new SHA-256 values and a generated transaction ID.
+- `recover_pair(project_path)` is **explicit**: it checks the journal schema, project identity, old/new live file hashes, staged file hashes, and the new project-lineage binding *before* installing either file. It then installs the project, validates its checksum, installs lineage, validates its checksum, and removes the journal only after both agree.
+- A crash after journal preparation, after project installation, or after lineage installation leaves a replayable journal. Recovery refuses an external edit, missing/altered stage, linked target, invalid journal, or a mismatched source history. It never tries to infer that a crash-affected file is C2PA-authenticated.
+- A later call to `recover_pair` after success is idempotent and reports no pending transaction. A new transaction refuses to start while a previous journal exists. Repeated/contended worker access and directory durability need real Windows fault-injection review before use in Studio.
+
+**Important limits:** This is a recoverable *prototype*, **not** a fully atomic two-file commit, a concurrent multi-process locking system, or a durable cryptographic audit ledger. SHA-256 values and JSON can be forged by a local attacker; all origin evidence remains unsigned. There is no live Studio hookup, automatic startup recovery, export enforcement, public credential, trusted signer or encryption. The filesystem may leave temporary staging files after an interrupted preparation; tests must inspect and clean only known owned test artifacts, not unrelated user data.
+
+Added `tests/test_project_lineage_transaction.py` with scratch-only crash injection, roll-forward, conflict, missing-stage, concurrent-journal, previous-event append-only, and invalid-marker checks. **No actual Windows run yet.**
+
 ## Qualification checklist
 
 1. Unit tests on exact branch head, from Windows with a disposable profile; confirm save and reopen of existing `schema_version=1` project bytes is unchanged by ledger save.
