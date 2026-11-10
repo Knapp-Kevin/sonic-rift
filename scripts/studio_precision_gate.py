@@ -76,9 +76,14 @@ def main():
     if folder == ROOT or ROOT in folder.parents:
         parser.error("--receipt-dir must be outside the source checkout")
     folder.mkdir(parents=True, exist_ok=True)
+    # Every invocation owns a unique immutable evidence directory. Reusing a
+    # common receipt root must never overwrite logs cited by an older receipt.
+    run_dir = folder / ("studio-precision-" + uuid.uuid4().hex)
+    run_dir.mkdir(mode=0o700)
 
     receipt = {
         "contract": "sonic-rift-studio-precision-acceptance-v1",
+        "run_id": run_dir.name,
         "utc_timestamp": datetime.now(timezone.utc).isoformat(),
         "os": platform.platform(),
         "python": sys.version.split()[0],
@@ -102,12 +107,12 @@ def main():
             env["QT_QPA_PLATFORM"] = "offscreen"
             env["PYTHONDONTWRITEBYTECODE"] = "1"
             command = [sys.executable, "-m", "unittest", "-v", *FOCUSED]
-            focused = execute("focused", command, folder, env)
+            focused = execute("focused", command, run_dir, env)
             receipt["stages"].append(focused)
             if focused["pass"] and args.full:
                 full = execute("full", [
                     sys.executable, "-m", "unittest", "discover", "-s", "tests",
-                ], folder, env)
+                ], run_dir, env)
                 receipt["stages"].append(full)
             receipt["worktree_clean_after"] = not bool(
                 git("status", "--porcelain", "--untracked-files=normal"))
@@ -122,14 +127,14 @@ def main():
     except (subprocess.SubprocessError, OSError) as exc:
         receipt["preflight_blocker"] = type(exc).__name__
 
-    path = folder / ("studio-precision-" + uuid.uuid4().hex[:12] + ".json")
+    path = run_dir / "receipt.json"
     path.write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n",
                     encoding="utf-8")
     print(receipt["status"])
     print("Receipt:", path)
     for stage in receipt["stages"]:
         print(stage["name"], "pass" if stage["pass"] else "FAIL",
-              "log:", folder / stage["log_filename"])
+              "log:", run_dir / stage["log_filename"])
     return 0 if receipt["status"] != "NO_GO" else 2
 
 
