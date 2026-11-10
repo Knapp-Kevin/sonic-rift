@@ -147,4 +147,8 @@ def keep(library, result, take, name):
         settings["lyrics"] = request.lyrics
     return library.add(audio, sample_rate, name, result.engine, False, kind="music", model=result.model,
                        license=result.license, prompt=request.prompt, seed=take.seed, settings=settings,
-                       metrics=take.metrics)
+                       metrics=take.metrics, source_event={
+                           "origin": "ai_generated", "engine": result.engine,
+                           "model_id": result.model,
+                           "model_revision": result.model_revision,
+                       })
