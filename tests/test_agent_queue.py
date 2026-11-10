@@ -135,6 +135,34 @@ class AgentQueueTests(unittest.TestCase):
         self.assertEqual(self.queue.get(job["job_id"], principal="owner")["state"],
                          "queued")
 
+    def test_owner_reviews_the_exact_request_and_plaintext_is_not_persisted(self):
+        observed = []
+
+        def approve(operation, principal, kind, model, plan, review_request):
+            if operation == "issue":
+                observed.append(review_request)
+            return True
+
+        self.queue.owner_approval = approve
+        with self.assertRaisesRegex(AgentQueueError, "does not match"):
+            self.mint(principal="owner", kind="music.generate",
+                      model_id=MODEL, plan_sha256=PLAN, review_request=REQUEST2)
+        with self.assertRaisesRegex(AgentQueueError, "Invalid reviewable"):
+            self.mint(principal="owner", kind="music.generate",
+                      model_id=MODEL, plan_sha256=PLAN,
+                      review_request=dict(REQUEST, shell_command="rm -rf /"))
+        self.assertEqual(observed, [])
+        token = self.mint(principal="owner", kind="music.generate",
+                          model_id=MODEL, plan_sha256=PLAN)
+        self.assertEqual(observed[0]["prompt"], REQUEST["prompt"])
+        self.assertEqual(observed[0]["model_id"], MODEL)
+        observed[0]["prompt"] = "tampered during display"
+        self.assertEqual(REQUEST["prompt"], "private music generation for a soundtrack")
+        self.assertNotIn(REQUEST["prompt"], str(
+            tuple(self.queue.db.execute(
+                "SELECT * FROM execution_grants").fetchone())))
+        self.assertEqual(self.submit(grant_proof=token)["state"], "queued")
+
     def test_grant_expires_without_starting_work(self):
         token = self.mint(
             principal="owner", kind="music.generate",
