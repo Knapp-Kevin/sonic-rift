@@ -54,6 +54,23 @@ class ProjectLineageTests(unittest.TestCase):
         self.assertEqual(len(ledger.events), 2)
         self.assertEqual(len(ledger.bindings), 2)
 
+    def test_existing_clip_cannot_be_silently_reclassified_as_a_different_event(self):
+        project = make_project()
+        ledger, generated_event, imported_event = capture_two(project)
+        original = deepcopy(ledger.to_dict(project))
+        with self.assertRaisesRegex(ValueError, "already has a source event"):
+            ledger.capture(project, "generated", origin="unknown",
+                           observer="import_unknown", media_sha256=DIGEST)
+        with self.assertRaisesRegex(ValueError, "refusing silent reattribution"):
+            ledger.bind_existing(project, "generated", imported_event)
+        self.assertEqual(ledger.event_for_clip(project, "generated")["event_id"],
+                         generated_event)
+        self.assertEqual(ledger.to_dict(project), original)
+        # Repeating the *same* assignment is harmless, but a different
+        # creation-event identity is never silently substituted.
+        ledger.bind_existing(project, "generated", generated_event)
+        self.assertEqual(ledger.to_dict(project), original)
+
     def test_version_one_project_save_reopen_and_separate_sidecar(self):
         project = make_project()
         ledger, gen, imported = capture_two(project)
