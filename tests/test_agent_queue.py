@@ -5,10 +5,17 @@ import tempfile
 import unittest
 
 from this_voice_thing.core.agent_queue import AgentQueue, AgentQueueError
+from this_voice_thing.core.agent_jobs import plan_request
 
-PLAN = "a" * 64
-PLAN2 = "b" * 64
 MODEL = "ACE-Step/Ace-Step1.5"
+REQUEST = {
+    "kind": "music.generate", "model_id": MODEL,
+    "prompt": "private music generation for a soundtrack",
+    "duration_seconds": 12, "seed": 123, "instrumental": True,
+}
+REQUEST2 = dict(REQUEST, prompt="a second private audio prompt")
+PLAN = plan_request(REQUEST)["plan_id"]
+PLAN2 = plan_request(REQUEST2)["plan_id"]
 WORKER = "c" * 32
 WORKER2 = "d" * 32
 KEY = "task-0001"
@@ -28,7 +35,7 @@ class AgentQueueTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.file = Path(self.temp.name) / "agent-jobs.sqlite"
         self.clock = Clock()
-        self.approve = lambda operation, principal, kind, model, plan: True
+        self.approve = lambda operation, principal, kind, model, plan, request: True
         self.models = lambda kind: [MODEL] if kind == "music.generate" else []
         self.payload = lambda job_id: True  # synthetic owned inputs in these tests
         self.grants = {}
@@ -41,6 +48,11 @@ class AgentQueueTests(unittest.TestCase):
         options.update(changes)
         return AgentQueue(self.file, **options)
 
+    def mint(self, **kwargs):
+        kwargs.setdefault("review_request",
+                          REQUEST2 if kwargs.get("plan_sha256") == PLAN2 else REQUEST)
+        return self.queue.issue_grant(**kwargs)
+
     def submit(self, **changes):
         options = dict(
             principal="owner", request_key=KEY, kind="music.generate",
@@ -49,7 +61,7 @@ class AgentQueueTests(unittest.TestCase):
         if "grant_proof" not in changes:
             key = options["request_key"]
             if key not in self.grants:
-                self.grants[key] = self.queue.issue_grant(
+                self.grants[key] = self.mint(
                     principal=options["principal"], kind=options["kind"],
                     model_id=options["model_id"], plan_sha256=options["plan_sha256"])
             options["grant_proof"] = self.grants[key]
@@ -61,7 +73,8 @@ class AgentQueueTests(unittest.TestCase):
             self.addCleanup(q.close)
             with self.assertRaisesRegex(AgentQueueError, "approval unavailable"):
                 q.issue_grant(principal="owner", kind="music.generate",
-                              model_id=MODEL, plan_sha256=PLAN)
+                              model_id=MODEL, plan_sha256=PLAN,
+                              review_request=REQUEST)
             with self.assertRaisesRegex(AgentQueueError, "grant required"):
                 q.submit(principal="owner", request_key=KEY,
                          kind="music.generate", model_id=MODEL, plan_sha256=PLAN)
@@ -81,7 +94,7 @@ class AgentQueueTests(unittest.TestCase):
         self.assertNotIn("grant_proof", first)
         self.assertNotIn("grant_hash", first)
         self.assertNotIn("lease_owner", first)
-        mismatched_grant = self.queue.issue_grant(
+        mismatched_grant = self.mint(
             principal="owner", kind="music.generate",
             model_id=MODEL, plan_sha256=PLAN2)
         with self.assertRaisesRegex(AgentQueueError, "another request"):
@@ -94,7 +107,7 @@ class AgentQueueTests(unittest.TestCase):
     def test_owner_refusal_and_malformed_registry_never_issue_grants(self):
         self.queue.owner_approval = lambda *args: False
         with self.assertRaisesRegex(AgentQueueError, "approval unavailable"):
-            self.queue.issue_grant(
+            self.mint(
                 principal="owner", kind="music.generate",
                 model_id=MODEL, plan_sha256=PLAN)
         self.queue.owner_approval = self.approve
@@ -107,7 +120,7 @@ class AgentQueueTests(unittest.TestCase):
             with self.subTest(registry=bad_registry):
                 self.queue.installed_models = bad_registry
                 with self.assertRaisesRegex(AgentQueueError, "not installed or registered"):
-                    self.queue.issue_grant(
+                    self.mint(
                         principal="owner", kind="music.generate",
                         model_id=MODEL, plan_sha256=PLAN)
         self.assertEqual(self.queue.db.execute(
@@ -123,7 +136,7 @@ class AgentQueueTests(unittest.TestCase):
                          "queued")
 
     def test_grant_expires_without_starting_work(self):
-        token = self.queue.issue_grant(
+        token = self.mint(
             principal="owner", kind="music.generate",
             model_id=MODEL, plan_sha256=PLAN, ttl_seconds=1)
         self.clock.value += 1
@@ -132,7 +145,7 @@ class AgentQueueTests(unittest.TestCase):
         self.assertEqual(self.queue.db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0], 0)
 
     def test_grant_binding_cannot_cross_principal_kind_model_or_plan(self):
-        token = self.queue.issue_grant(
+        token = self.mint(
             principal="owner", kind="music.generate",
             model_id=MODEL, plan_sha256=PLAN)
         for changed in (
@@ -145,7 +158,7 @@ class AgentQueueTests(unittest.TestCase):
         self.assertEqual(self.submit(grant_proof=token)["state"], "queued")
 
     def test_one_grant_cannot_submit_two_distinct_jobs_or_leak_plaintext(self):
-        token = self.queue.issue_grant(
+        token = self.mint(
             principal="owner", kind="music.generate",
             model_id=MODEL, plan_sha256=PLAN)
         first = self.submit(grant_proof=token)
@@ -160,7 +173,7 @@ class AgentQueueTests(unittest.TestCase):
     def test_parallel_queue_instances_cannot_double_consume_grant(self):
         other = self.new_queue()
         self.addCleanup(other.close)
-        token = self.queue.issue_grant(
+        token = self.mint(
             principal="owner", kind="music.generate",
             model_id=MODEL, plan_sha256=PLAN)
         first = other.submit(principal="owner", request_key=KEY,
@@ -173,7 +186,7 @@ class AgentQueueTests(unittest.TestCase):
         self.assertEqual(other.get(first["job_id"], principal="owner")["state"], "queued")
 
     def test_revocation_cancels_queued_and_requests_running_worker_stop(self):
-        token = self.queue.issue_grant(
+        token = self.mint(
             principal="owner", kind="music.generate",
             model_id=MODEL, plan_sha256=PLAN)
         first = self.submit(grant_proof=token)
@@ -186,7 +199,7 @@ class AgentQueueTests(unittest.TestCase):
                               kind="music.generate", model_id=MODEL,
                               plan_sha256=PLAN, grant_proof=token)
 
-        other_token = self.queue.issue_grant(
+        other_token = self.mint(
             principal="owner", kind="music.generate",
             model_id=MODEL, plan_sha256=PLAN2)
         second = self.submit(request_key="task-0002", plan_sha256=PLAN2,
