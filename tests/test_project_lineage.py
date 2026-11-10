@@ -116,25 +116,22 @@ class ProjectLineageTests(unittest.TestCase):
 
     def test_undo_redo_only_retain_matching_event_bindings(self):
         project = make_project()
-        ledger, _, _ = capture_two(project)
+        ledger, gen, _ = capture_two(project)
         session = ProjectSession(project)
-        previous = deepcopy(session.project)
+        original = deepcopy(session.project)
         session.update_clip("generated", gain_db=-6.0)
-        current = ledger.advance(previous, session.project)
+        edited = deepcopy(session.project)
+        current = ledger.advance(original, edited)
         self.assertTrue(session.undo())
-        undone = current.advance(current_project := previous_project_with_revision(
-            session.project, current.project_revision), session.project) if False else None
-        # ProjectSession undo creates a newer revision; lineage follows the
-        # current committed snapshot only, never assumes revision rollback.
-        self.assertEqual(current.event_for_clip(
-            previous_project_with_revision(session.project, current.project_revision),
-            "generated")["origin"], "ai_generated") if False else None
-        current = current.advance(
-            previous_project_with_revision(previous, current.project_revision),
-            session.project) if False else current
-        # The real current project at each step must be supplied to advance.
-        with self.assertRaises(ValueError):
-            current.advance(previous, session.project)
+        undone = deepcopy(session.project)
+        current = current.advance(edited, undone)
+        self.assertEqual(current.event_for_clip(undone, "generated")["event_id"], gen)
+        self.assertEqual(undone.tracks[0].clips[0].gain_db, 0.0)
+        self.assertTrue(session.redo())
+        redone = deepcopy(session.project)
+        current = current.advance(undone, redone)
+        self.assertEqual(current.event_for_clip(redone, "generated")["event_id"], gen)
+        self.assertEqual(redone.tracks[0].clips[0].gain_db, -6.0)
 
     def test_unsigned_ledger_cannot_assert_human_capture(self):
         project = make_project()
@@ -178,7 +175,7 @@ class ProjectLineageTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_lineage(path)
             with self.assertRaisesRegex(ValueError, "corrupted"):
-                save_lineage(path, ledger) if False else load_lineage(path)
+                save_lineage(path, ledger)
             # Restore a valid sidecar on a new scratch project.
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "mix.sonicrift.json"
