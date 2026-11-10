@@ -1170,11 +1170,14 @@ class ProjectEditorDialog(QDialog):
             folder = Path(result).parent
             # The folder's name, not its whole path (which carries the user's home folder); the
             # full path is in the tooltip and the dialog.
-            self.note.setText(f"Export complete: “{folder.name}” — the master, one stem per track "
-                              "and a manifest.")
+            self.note.setText(f"Export complete: “{folder.name}”. The manifest includes an "
+                              "unsigned AI-origin disclosure. Audio is not C2PA-signed.")
             self.note.setToolTip(str(folder))
-            QMessageBox.information(self, "Project exported",
-                                    f"Master WAV, premaster stems and manifest saved to:\n{Path(result).parent}")
+            QMessageBox.information(
+                self, "Project exported",
+                f"Master WAV, premaster stems and manifest saved to:\n{Path(result).parent}\n\n"
+                "Source provenance is disclosed in the manifest, but it is unsigned. "
+                "The audio files do not yet contain signed C2PA Content Credentials.")
 
     @Slot()
     def _export_finished(self):
