@@ -57,7 +57,7 @@ def _sound_origin(asset, *, content_verified):
     return UNKNOWN, "unrecognized_local_engine", None, None, None
 
 
-def project_origin_inventory(project, sound_library):
+def project_origin_inventory(project, sound_library, *, voice_media=None):
     """Return a bounded *internal* candidate inventory for future signing.
 
     Every rendered clip is represented, including duplicates and reused stems.
@@ -96,12 +96,17 @@ def project_origin_inventory(project, sound_library):
                                     r"[a-f0-9]{64}", checksum):
                                 media_sha256 = checksum
                 elif voice:
-                    # A content-addressed WAV is not proof of human authorship
-                    # or AI provenance; generation-time attestation is missing.
+                    # A content-addressed WAV alone proves neither human
+                    # recording nor AI generation; only the app's own successful
+                    # TTS path writes a bound, unsigned local origin event.
                     evidence = "voice_origin_unrecorded"
-                    # The asset ID carries a digest string, but this function
-                    # has not read or verified the underlying WAV bytes.
-                    media_sha256 = None
+                    if voice_media is not None:
+                        record = voice_media.read_voice_origin(clip.asset_id)
+                        if record is not None:
+                            origin = AI
+                            evidence = record["evidence_status"]
+                            engine = record["engine"]
+                            media_sha256 = record["media_sha256"]
                 else:
                     evidence = "unsupported_asset_id"
             else:
