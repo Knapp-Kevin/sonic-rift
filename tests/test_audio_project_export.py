@@ -60,6 +60,7 @@ class ProjectExportTests(unittest.TestCase):
         asset = self.sounds.add(
             music, sr, "Private track", "ace_step_15", False,
             kind="music", model=ACE_STEP_15.repo_id,
+            settings={"model_revision": ACE_STEP_15.model_revision},
             prompt="a secret prompt that must not be disclosed",
             metrics={"test": True}, source_event={
                 "origin": "ai_generated", "engine": "ace_step_15",
