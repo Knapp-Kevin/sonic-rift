@@ -170,3 +170,32 @@ def project_origin_inventory(project, sound_library, *, voice_media=None):
         "model_ids": sorted({item["model_id"] for item in ingredients if item["model_id"]}),
         "ingredients": ingredients,
     }
+
+
+def public_origin_disclosure(inventory):
+    """Privacy-minimized summary suitable for an *unsigned export sidecar*.
+
+    Never include project IDs, source hashes, paths, speech text, prompts, seeds,
+    voice references, personal identifiers or per-clip time locations. This is
+    explicit disclosure, not cryptographic origin verification.
+    """
+    if (type(inventory) is not dict
+            or inventory.get("evidence_status") != "unsigned_unverified_local_inventory"):
+        raise ValueError("Expected an unsigned local source inventory")
+    ingredients = inventory["ingredients"]
+    counts = {
+        "ai_generated": sum(item["origin"] == AI for item in ingredients),
+        "non_ai_synthesis": sum(item["origin"] == NON_AI_SYNTHESIS for item in ingredients),
+        "unknown": sum(item["origin"] == UNKNOWN for item in ingredients),
+    }
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "disclosure_status": "unsigned_local_claims_not_c2pa",
+        "c2pa_signed": False,
+        "c2pa_embedded": False,
+        "classification": inventory["classification"],
+        "contains_ai": inventory["contains_ai"],
+        "contains_unknown": inventory["contains_unknown"],
+        "model_ids": list(inventory["model_ids"]),
+        "clip_source_counts": counts,
+    }
