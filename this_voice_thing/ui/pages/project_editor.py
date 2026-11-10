@@ -447,11 +447,14 @@ class ProjectEditorDialog(QDialog):
                 self.note.setText(f"Script moved to {start / rate:.2f} s. Undo puts it back.")
 
     def split_selected_at_playhead(self):
-        """Split the selected rendered clip at the ruler/playback position.
+        """Split exactly one selected rendered clip at the ruler/playback position.
 
         The ProjectSession edit is the sole authority. The timeline supplies a
         position, not a second editing implementation.
         """
+        if len(getattr(self.timeline, "selected_clips", ())) > 1:
+            self.note.setText("Split edits one clip at a time. Select a single audio clip.")
+            return
         selection = self._selected()
         if not selection or selection[0] != "clip":
             self.note.setText("Select an audio clip before splitting.")
@@ -471,7 +474,10 @@ class ProjectEditorDialog(QDialog):
             "Split at the playhead. Both clips reference the original audio; Undo restores the clip.")
 
     def duplicate_selected_clip(self):
-        """Duplicate a rendered clip immediately after itself without copying PCM."""
+        """Duplicate exactly one rendered clip without copying source PCM."""
+        if len(getattr(self.timeline, "selected_clips", ())) > 1:
+            self.note.setText("Duplicate edits one clip at a time. Select a single audio clip.")
+            return
         selection = self._selected()
         if not selection or selection[0] != "clip":
             self.note.setText("Select an audio clip before duplicating.")
