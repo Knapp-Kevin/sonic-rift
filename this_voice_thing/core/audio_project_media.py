@@ -73,22 +73,24 @@ class ProjectMedia:
             mastering.write_audio(str(temporary), pcm, sample_rate, "wav")
             digest = _digest(temporary)
             destination = self.voice_root / (digest + ".wav")
-            created = False
-            if destination.exists() or destination.is_symlink():
-                if not destination.is_file() or _digest(destination) != digest:
+            # Creating the digest-named WAV must not replace another worker's
+            # existing file. Atomic hardlink creation is exclusive on NTFS too.
+            try:
+                os.link(temporary, destination)
+                created = True
+            except FileExistsError:
+                created = False
+                if (destination.is_symlink() or not destination.is_file()
+                        or not destination.resolve().is_relative_to(self.voice_root.resolve())
+                        or _digest(destination) != digest):
                     raise ValueError("Existing voice media does not match expected checksum")
                 if not generated:
-                    # A direct import of the same bytes can have a different
-                    # creation history. One hash must not assert two histories.
+                    # Direct imports may represent a completely different
+                    # creation event even when the WAV bytes are identical.
                     self._mark_voice_origin_ambiguous(digest)
                 elif self.read_voice_origin("voice_" + digest) is None:
-                    # A generated take collides with a previously unrecorded
-                    # asset: don't assign AI origin to earlier imported clips.
+                    # Generated audio collided with an unrecorded prior file.
                     self._mark_voice_origin_ambiguous(digest)
-            else:
-                os.replace(temporary, destination)
-                temporary = None
-                created = True
             return "voice_" + digest, created
         finally:
             if temporary and temporary.exists():
