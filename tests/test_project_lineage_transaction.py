@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from this_voice_thing.core.audio_project import AudioProject, Clip, Track, save_project, read_project
 from this_voice_thing.core.audio_project_session import ProjectSession
@@ -142,6 +143,36 @@ class TransactionJournalTests(unittest.TestCase):
         self.assertFalse(journal_path(self.path).exists())
         self.assertEqual(read_project(self.path), self.first)
         self.assertIsNotNone(load_lineage(self.path))
+
+    def test_project_mutation_at_same_revision_is_refused_without_stages(self):
+        modified = deepcopy(self.first)
+        modified.tracks[0].clips[0].gain_db = -9.0
+        original = self.path.read_bytes()
+        with self.assertRaisesRegex(ValueError, "newer revision"):
+            save_pair(self.path, self.first, modified, self.ledger)
+        self.assertEqual(self.path.read_bytes(), original)
+        self.assertFalse(journal_path(self.path).exists())
+        self.assertEqual(list(Path(self.tmp.name).glob("*.stage")), [])
+
+    def test_external_edit_during_candidate_validation_is_never_clobbered(self):
+        from this_voice_thing.core import project_lineage_transaction as txn
+        revised, new_ledger = self.next_revision()
+        with self.assertRaises(RuntimeError):
+            save_pair(self.path, self.first, revised, new_ledger,
+                      fail_after="journal")
+        original_parser = txn._lineage_from_bytes
+        inserted = b"third-party changed the document during verification"
+
+        def mutate_during_validation(encoded, candidate):
+            ledger = original_parser(encoded, candidate)
+            self.path.write_bytes(inserted)
+            return ledger
+
+        with patch.object(txn, "_lineage_from_bytes", side_effect=mutate_during_validation):
+            with self.assertRaisesRegex(ValueError, "conflict"):
+                recover_pair(self.path)
+        self.assertEqual(self.path.read_bytes(), inserted)
+        self.assertTrue(journal_path(self.path).is_file())
 
     def test_invalid_or_symlinked_journal_never_auto_recovers(self):
         marker = journal_path(self.path)
