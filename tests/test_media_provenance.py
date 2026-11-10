@@ -14,9 +14,19 @@ from this_voice_thing.core.audio_project import AudioProject, Clip, Track
 from this_voice_thing.core.media_provenance import project_origin_inventory
 
 
-def _asset(engine, model="", revision=None):
+def _asset(engine, model="", revision=None, recorded=False):
     settings = {"model_revision": revision} if revision is not None else {}
-    return SimpleNamespace(engine=engine, model=model, settings=settings, sha256="f" * 64)
+    source_event = ({
+        "origin": "non_ai_synthesis" if engine == "procedural" else "ai_generated",
+        "engine": engine,
+        "model_id": model,
+        "model_revision": revision or "",
+        "media_sha256": "f" * 64,
+        "evidence_status": "unsigned_local_generation_event",
+    } if recorded else {})
+    return SimpleNamespace(
+        engine=engine, model=model, settings=settings, sha256="f" * 64,
+        source_event=source_event)
 
 
 class Library:
@@ -47,7 +57,7 @@ class OriginInventoryTests(unittest.TestCase):
         from this_voice_thing.core.music.catalog import ACE_STEP_15
         id_ = "a" * 12
         library = Library({id_: _asset(
-            "ace_step_15", ACE_STEP_15.repo_id, ACE_STEP_15.model_revision)})
+            "ace_step_15", ACE_STEP_15.repo_id, ACE_STEP_15.model_revision, recorded=True)})
         project = _project(Clip("music", "sound", 0, 480, asset_id="sound_" + id_))
         original = deepcopy(project)
         inventory = project_origin_inventory(project, library)
@@ -67,8 +77,8 @@ class OriginInventoryTests(unittest.TestCase):
         from this_voice_thing.core.music.catalog import ACE_STEP_15
         model_ids = ["a" * 12, "b" * 12]
         library = Library({
-            model_ids[0]: _asset("ace_step_15", ACE_STEP_15.repo_id),
-            model_ids[1]: _asset("moss_sfx_v2", "OpenMOSS-Team/MOSS-SoundEffect-v2.0"),
+            model_ids[0]: _asset("ace_step_15", ACE_STEP_15.repo_id, recorded=True),
+            model_ids[1]: _asset("moss_sfx_v2", "OpenMOSS-Team/MOSS-SoundEffect-v2.0", recorded=True),
         })
         project = _project(
             Clip("music", "sound", 0, 250, asset_id="sound_" + model_ids[0]),
@@ -86,7 +96,7 @@ class OriginInventoryTests(unittest.TestCase):
         self.assertNotIn("seed", str(inventory))
 
     def test_procedural_synthesis_is_not_misreported_as_human_capture(self):
-        library = Library({"a" * 12: _asset("procedural")})
+        library = Library({"a" * 12: _asset("procedural", recorded=True)})
         project = _project(Clip("waves", "sound", 0, 10, asset_id="sound_" + "a" * 12))
         inventory = project_origin_inventory(project, library)
         self.assertEqual(inventory["classification"], "non_ai_synthesis")
@@ -107,11 +117,27 @@ class OriginInventoryTests(unittest.TestCase):
     def test_conflicting_model_claim_refuses_classification(self):
         id_ = "a" * 12
         project = _project(Clip("waves", "sound", 0, 10, asset_id="sound_" + id_))
-        library = Library({id_: _asset("ace_step_15", model="someone-else/fake")})
+        library = Library({id_: _asset("ace_step_15", model="someone-else/fake", recorded=True)})
         inventory = project_origin_inventory(project, library)
         self.assertEqual(inventory["classification"], "unknown")
         self.assertEqual(inventory["ingredients"][0]["evidence"],
-                         "conflicting_local_engine_claim")
+                         "conflicting_local_generation_event")
+
+    def test_recognized_legacy_engine_labels_are_still_unknown_without_events(self):
+        from this_voice_thing.core.music.catalog import ACE_STEP_15
+        for engine, model in (
+                ("ace_step_15", ACE_STEP_15.repo_id),
+                ("moss_sfx_v2", "OpenMOSS-Team/MOSS-SoundEffect-v2.0"),
+                ("procedural", "")):
+            with self.subTest(engine=engine):
+                project = _project(Clip(
+                    "old", "sound", 0, 100, asset_id="sound_" + "a" * 12))
+                library = Library({"a" * 12: _asset(engine, model)})
+                report = project_origin_inventory(project, library)
+                self.assertEqual(report["classification"], "unknown")
+                self.assertFalse(report["contains_ai"])
+                self.assertEqual(report["ingredients"][0]["evidence"],
+                                 "legacy_engine_label_without_event")
 
     def test_legacy_engine_and_unrendered_clips_remain_unknown(self):
         id_ = "a" * 12
