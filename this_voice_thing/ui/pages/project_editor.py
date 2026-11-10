@@ -905,7 +905,9 @@ class ProjectEditorDialog(QDialog):
             if info.duration > 900 or info.channels not in (1, 2):
                 raise ValueError("Narration must be mono/stereo and no longer than 15 minutes")
             pcm, sr = sf.read(output_path, dtype="float32", always_2d=True)
-            asset_id = media.import_voice_take(pcm, sr)
+            # This path is reached only after the app's own TTS render succeeds.
+            # User-imported audio takes the other import_voice_take path and is unknown.
+            asset_id = media.import_generated_voice_take(pcm, sr)
             _remove_render(output_path)          # the take now lives in project media
             return asset_id, math.ceil(len(pcm) * project_rate / sr), project_rate
         worker = TaskThread(import_take, self)
