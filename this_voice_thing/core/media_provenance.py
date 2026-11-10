@@ -58,7 +58,7 @@ def _sound_origin(asset, *, content_verified):
 
 
 def project_origin_inventory(project, sound_library):
-    """Return a bounded public-safe *candidate* inventory for future signing.
+    """Return a bounded *internal* candidate inventory for future signing.
 
     Every rendered clip is represented, including duplicates and reused stems.
     Unknown or imported voice audio is never assumed to be a human recording.
@@ -66,7 +66,9 @@ def project_origin_inventory(project, sound_library):
     as locally asserted AI generation or procedural (non-AI) synthesis.
 
     All evidence is local and presently unsigned; consumers MUST NOT label this
-    inventory as a verified C2PA credential. No source audio gets modified.
+    inventory as a verified C2PA credential. Internal source hashes and clip IDs
+    are linkable and require separate privacy review before any public export.
+    No source audio gets modified.
     """
     project.validate()
     ingredients = []
@@ -97,7 +99,9 @@ def project_origin_inventory(project, sound_library):
                     # A content-addressed WAV is not proof of human authorship
                     # or AI provenance; generation-time attestation is missing.
                     evidence = "voice_origin_unrecorded"
-                    media_sha256 = voice.group(1)
+                    # The asset ID carries a digest string, but this function
+                    # has not read or verified the underlying WAV bytes.
+                    media_sha256 = None
                 else:
                     evidence = "unsupported_asset_id"
             else:
