@@ -55,11 +55,10 @@ def _valid_plan(kind, model_id, plan_sha256):
 class AgentQueue:
     """App-owned durable job metadata; default deny and one active lease.
 
-    The internal `authorize` callable must enforce owner approval, scope,
-    expiry and one-time consumption. It must not be wired directly to a
-    caller-controlled boolean or read from MCP tool input. This class cannot
-    itself prove a grant was minted by the UI and must not be externally
-    exposed until the Stage C authorization gate is qualified.
+    The trusted app must supply `owner_approval` from an actual local
+    owner review control; only a one-time scoped grant may admit a job.
+    This class cannot prove the UI callback was truly user-initiated and
+    must not be exposed to MCP/HTTP mutation tools until Stage C approval.
     """
 
     def __init__(self, db_path, *, owner_approval=None, installed_models=None,
@@ -190,22 +189,35 @@ class AgentQueue:
         return secret
 
     def revoke_grant(self, grant_proof, *, principal):
-        """Owner-confirmed revocation stops queued or running granted work."""
+        """Owner-confirmed revocation stops queued or running granted work.
+
+        The potentially interactive owner-approval callback is outside the
+        database transaction. A second check within BEGIN IMMEDIATE prevents
+        changes to the grant scope or identity between review and revoke.
+        """
         if (type(grant_proof) is not str
                 or GRANT_TOKEN.fullmatch(grant_proof) is None
                 or type(principal) is not str or PRINCIPAL.fullmatch(principal) is None):
             raise AgentQueueError("Invalid grant or caller identity")
         token_hash = hashlib.sha256(grant_proof.encode("ascii")).hexdigest()
-        with self._transaction():
+        with self.lock:
             row = self.db.execute("""SELECT * FROM execution_grants
                 WHERE grant_hash=? AND principal=?""",
                 (token_hash, principal)).fetchone()
-            if row is None:
-                raise AgentQueueError("Grant unavailable")
-            if not self._owner_confirms(
-                    "revoke", row["principal"], row["kind"],
-                    row["model_id"], row["plan_sha256"]):
-                raise AgentQueueError("Owner did not authorize revocation")
+        if row is None:
+            raise AgentQueueError("Grant unavailable")
+        if not self._owner_confirms(
+                "revoke", row["principal"], row["kind"],
+                row["model_id"], row["plan_sha256"]):
+            raise AgentQueueError("Owner did not authorize revocation")
+        with self._transaction():
+            current = self.db.execute("""SELECT * FROM execution_grants
+                WHERE grant_hash=? AND principal=?""",
+                (token_hash, principal)).fetchone()
+            if (current is None
+                    or any(current[field] != row[field] for field in
+                           ("principal", "kind", "model_id", "plan_sha256"))):
+                raise AgentQueueError("Grant scope changed during owner review")
             self.db.execute("UPDATE execution_grants SET revoked=1 WHERE grant_hash=?",
                             (token_hash,))
             now = self.clock()
