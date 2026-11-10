@@ -1,6 +1,8 @@
 """The offline Studio qualification runner must fail closed before testing bad heads."""
 import json
+import os
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -46,6 +48,28 @@ class StudioPrecisionGateTests(unittest.TestCase):
                 self.assertEqual(payload["run_id"], path.parent.name)
                 self.assertEqual(payload["status"], "NO_GO")
                 self.assertEqual(payload["stages"], [])
+
+    def test_windows_test_environment_redirects_profile_and_caches(self):
+        isolated_test_env = runpy.run_path(str(RUNNER))["isolated_test_env"]
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            initial_home = os.environ.get("USERPROFILE")
+            env = isolated_test_env(root)
+            redirected = (
+                "USERPROFILE", "HOME", "APPDATA", "LOCALAPPDATA",
+                "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
+                "HF_HOME", "TORCH_HOME", "MPLCONFIGDIR", "TEMP", "TMP", "TMPDIR",
+            )
+            for name in redirected:
+                with self.subTest(name=name):
+                    destination = Path(env[name])
+                    self.assertTrue(destination.is_dir())
+                    self.assertTrue(destination.is_relative_to(root))
+            self.assertEqual(env["QT_QPA_PLATFORM"], "offscreen")
+            self.assertEqual(env["HF_HUB_OFFLINE"], "1")
+            self.assertEqual(env["TRANSFORMERS_OFFLINE"], "1")
+            self.assertEqual(env["PIP_NO_INDEX"], "1")
+            self.assertEqual(os.environ.get("USERPROFILE"), initial_home)
 
     def test_receipts_in_source_tree_are_refused(self):
         run = subprocess.run([
