@@ -638,6 +638,14 @@ class SoundscapePage:
         else:
             provenance.update(model=engine.repo_id, prompt=request.prompt)
             provenance["settings"].update(sound_models.SPECS[engine.key].defaults)
+        # Record an app-observed generation event when the take is kept.
+        # This remains an unsigned local claim; private prompt/seed stay separate.
+        provenance["source_event"] = {
+            "origin": "non_ai_synthesis" if engine.kind == "procedural" else "ai_generated",
+            "engine": engine.key,
+            "model_id": engine.repo_id if engine.kind == "model" else "",
+            "model_revision": "",  # do not infer an unavailable weights pin
+        }
         asset = self.sound_library.add(candidate.audio, candidate.sample_rate, name, engine.key,
                                        "seam" in candidate.metrics, **provenance)
         self.refresh_sound_assets(select=asset.id)
