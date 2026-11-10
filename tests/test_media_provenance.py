@@ -77,7 +77,9 @@ class OriginInventoryTests(unittest.TestCase):
         from this_voice_thing.core.music.catalog import ACE_STEP_15
         model_ids = ["a" * 12, "b" * 12]
         library = Library({
-            model_ids[0]: _asset("ace_step_15", ACE_STEP_15.repo_id, recorded=True),
+            model_ids[0]: _asset(
+                "ace_step_15", ACE_STEP_15.repo_id,
+                ACE_STEP_15.model_revision, recorded=True),
             model_ids[1]: _asset("moss_sfx_v2", "OpenMOSS-Team/MOSS-SoundEffect-v2.0", recorded=True),
         })
         project = _project(
@@ -170,6 +172,7 @@ class OriginInventoryTests(unittest.TestCase):
             generated = library.add(
                 audio, 48000, "Private piece", "ace_step_15", False,
                 kind="music", model=ACE_STEP_15.repo_id,
+                settings={"model_revision": ACE_STEP_15.model_revision},
                 prompt="secret private writing prompt",
                 metrics={"test": True}, source_event={
                     "origin": "ai_generated", "engine": "ace_step_15",
