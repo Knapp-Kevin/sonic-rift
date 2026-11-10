@@ -127,7 +127,7 @@ class AgentQueueTests(unittest.TestCase):
         other = self.new_queue()
         self.addCleanup(other.close)
         self.assertEqual(other.get(first["job_id"], principal="owner")["state"],
-                         "interrupted")
+                         "orphaned")
         self.assertIsNone(other.claim(worker_id=WORKER2))
 
     def test_other_instance_cannot_clobber_unexpired_gpu_lease(self):
@@ -151,7 +151,35 @@ class AgentQueueTests(unittest.TestCase):
                               artifact_id="asset_valid", artifact_sha256="e" * 64)
         self.assertIsNone(self.queue.claim(worker_id=WORKER2))
         self.assertEqual(self.queue.get(job["job_id"], principal="owner")["state"],
-                         "interrupted")
+                         "orphaned")
+
+    def test_orphaned_gpu_blocks_next_job_until_verified_worker_stop(self):
+        running = self.submit()
+        other_job = self.submit(request_key="task-0002", plan_sha256=PLAN2)
+        self.queue.claim(worker_id=WORKER)
+        self.clock.value += 301
+        self.assertIsNone(self.queue.claim(worker_id=WORKER2))
+        self.assertEqual(self.queue.get(running["job_id"], principal="owner")["state"],
+                         "orphaned")
+        with self.assertRaisesRegex(AgentQueueError, "supervisor unavailable"):
+            self.queue.reconcile_orphan(running["job_id"], supervisor_ticket="not-evidence")
+        self.queue.supervisor_verify_stopped = lambda job, worker, ticket: False
+        with self.assertRaisesRegex(AgentQueueError, "not verified"):
+            self.queue.reconcile_orphan(running["job_id"], supervisor_ticket="not-evidence")
+        self.assertIsNone(self.queue.claim(worker_id=WORKER2))
+
+        # Test supervisor simulates an independently witnessed native worker
+        # exit. This is NOT real Windows process termination acceptance.
+        self.queue.supervisor_verify_stopped = (
+            lambda job, worker, ticket:
+                job == running["job_id"] and worker == WORKER
+                and ticket == "actual-supervisor-proof")
+        resolved = self.queue.reconcile_orphan(
+            running["job_id"], supervisor_ticket="actual-supervisor-proof")
+        self.assertEqual(resolved["state"], "interrupted")
+        self.assertEqual(resolved["error_code"], "worker_terminated_verified")
+        self.assertEqual(self.queue.claim(worker_id=WORKER2)["job_id"],
+                         other_job["job_id"])
 
     def test_fail_closed_on_paths_unknown_engines_or_invalid_ids(self):
         for changes in (
